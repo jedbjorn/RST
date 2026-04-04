@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESTer — Profile Selector</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2536;
+    --surface3: #242d42;
+    --border: #2a3347;
+    --border2: #3a4560;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --heading: #f8fafc;
+    --header-h: 54px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .window-header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .window-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--heading);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .header-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .header-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .header-field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  .revit-dropdown { position: relative; }
+
+  .revit-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    min-width: 120px;
+    user-select: none;
+  }
+  .revit-dropdown-btn:hover { border-color: var(--border2); }
+  .revit-dropdown-btn.open { border-color: var(--accent); }
+  .revit-dropdown-btn .chevron { color: var(--text3); font-size: 9px; margin-left: auto; transition: transform 0.15s; }
+  .revit-dropdown-btn.open .chevron { transform: rotate(180deg); }
+
+  .revit-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .revit-menu.open { display: block; }
+
+  .revit-menu-item {
+    padding: 9px 14px;
+    font-size: 12.5px;
+    color: var(--text2);
+    font-weight: 300;
+    cursor: pointer;
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .revit-menu-item:hover { background: var(--surface2); color: var(--text); }
+  .revit-menu-item.current { color: var(--accent); font-weight: 500; }
+  .revit-menu-item.current::before { content: '✓'; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent3); }
+  .revit-menu-item:not(.current)::before { content: ''; width: 10px; display: inline-block; }
+
+  .revit-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 5px 11px;
+    border-radius: 4px;
+    border: 1px solid;
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .revit-status.closed {
+    background: rgba(16,185,129,0.06);
+    border-color: rgba(16,185,129,0.25);
+    color: var(--accent3);
+  }
+  .revit-status.running {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.25);
+    color: var(--danger);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .status-dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .add-profile-btn {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 4px;
+    background: rgba(79,142,247,0.08);
+    border: 1px solid rgba(79,142,247,0.35);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add-profile-btn:hover { background: var(--accent); color: #0f1117; border-color: var(--accent); }
+
+  /* ── BODY ── */
+  .body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── PROFILE LIST ── */
+  .profile-list-pane {
+    width: 300px;
+    min-width: 300px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pane-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .pane-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .profile-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1px 7px;
+  }
+
+  .profile-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+  .profile-scroll::-webkit-scrollbar { width: 3px; }
+  .profile-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .profile-card {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .profile-card:hover { border-color: var(--border2); background: var(--surface2); }
+  .profile-card.selected { border-color: var(--accent); background: rgba(79,142,247,0.04); }
+  .profile-card.active-profile { border-color: var(--accent3); background: rgba(16,185,129,0.04); }
+
+  .card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+  .card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--heading);
+    flex: 1;
+  }
+
+  .card-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .card-badge.loaded {
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.3);
+    color: var(--accent3);
+  }
+
+  .card-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); }
+  .meta-item .meta-val { color: var(--text2); }
+
+  /* ── DETAIL PANE ── */
+  .detail-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .detail-header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .detail-profile-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--heading);
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .detail-meta-row { display: flex; gap: 20px; flex-wrap: wrap; }
+
+  .detail-meta-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-meta-item .val { color: var(--text2); }
+
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .detail-body::-webkit-scrollbar { width: 3px; }
+  .detail-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .detail-section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  /* ── TAB PREVIEW (read-only) ── */
+  .tab-preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .tab-preview-topbar {
+    height: 32px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .tab-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    padding: 4px 13px;
+    position: relative;
+    top: 1px;
+  }
+
+  .tab-preview-ro-badge {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+
+  .tab-canvas-ro {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px 12px;
+    overflow-x: auto;
+    background: var(--bg);
+    min-height: 96px;
+    align-items: flex-start;
+  }
+  .tab-canvas-ro::-webkit-scrollbar { height: 3px; }
+  .tab-canvas-ro::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Preview panel cards */
+  .p-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .p-panel-stripe { height: 3px; flex-shrink: 0; }
+
+  .p-panel-inner {
+    flex: 1;
+    padding: 8px 8px 6px;
+    display: flex;
+    gap: 5px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    min-height: 58px;
+  }
+
+  .p-panel-name {
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.18);
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    text-align: center;
+  }
+
+  .p-rib-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 44px;
+    flex-shrink: 0;
+  }
+
+  .p-rib-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+
+  .p-rib-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px;
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.3;
+    font-weight: 300;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .p-rib-stack { display: flex; flex-direction: column; gap: 2px; width: 72px; flex-shrink: 0; }
+
+  .p-rib-stack-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 5px;
+    background: var(--surface2);
+    border: 1px solid rgba(124,58,237,0.22);
+    border-radius: 3px;
+  }
+
+  .p-rib-stack-icon {
+    width: 13px; height: 13px;
+    border-radius: 2px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; flex-shrink: 0;
+    color: #a78bfa;
+  }
+
+  .p-rib-stack-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 300;
+  }
+
+  .p-panel-empty {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text3);
+    letter-spacing: 0.06em;
+    align-self: center;
+    margin: auto;
+  }
+
+  /* ── ADD-IN ROWS ── */
+  .addin-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--text2);
+  }
+
+  .addin-row-name { flex: 1; }
+
+  .addin-file {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+  .addin-file.unknown { color: rgba(245,158,11,0.45); }
+
+  .addin-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .addin-status.present {
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.25);
+    color: var(--accent3);
+  }
+  .addin-status.missing {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.25);
+    color: var(--danger);
+  }
+  .addin-status.not-checked {
+    background: rgba(100,116,139,0.08);
+    border: 1px solid rgba(100,116,139,0.2);
+    color: var(--text3);
+  }
+  .addin-status.unknown-addin {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--warn);
+  }
+
+  /* ── HIDE RULES ── */
+  .hide-rules-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .hide-rule-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.2);
+    color: var(--warn);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── FOOTER ── */
+  .detail-footer {
+    padding: 14px 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+
+  .remove-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .remove-btn:hover { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.06); }
+
+  .load-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 22px;
+    border-radius: 4px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.4);
+    color: var(--accent3);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+  }
+  .load-btn:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
+  .load-btn.blocked { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  .blocked-notice {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .blocked-notice .b-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--danger);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  /* ── TOGGLE ── */
+  .toggle-label {
+    display: flex; align-items: center; gap: 9px;
+    cursor: pointer; user-select: none;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
+    color: var(--text3); white-space: nowrap; transition: color 0.15s;
+  }
+  .toggle-label:hover { color: var(--text2); }
+
+  .toggle-switch { position: relative; width: 30px; height: 17px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute; inset: 0; border-radius: 9px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    transition: background 0.2s, border-color 0.2s; cursor: pointer;
+  }
+  .toggle-thumb {
+    position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track {
+    background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.45);
+  }
+  .toggle-switch input:checked + .toggle-track .toggle-thumb {
+    transform: translateX(13px); background: var(--accent3);
+  }
+
+  .restore-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 7px 13px; border-radius: 4px; background: transparent; border: 1px solid var(--border);
+    color: var(--text3); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .restore-btn:hover { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.06); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="window-header">
+  <div class="window-title">Profile Selector</div>
+  <div class="header-sep"></div>
+  <div class="header-field">
+    <label>Revit Install</label>
+    <div class="revit-dropdown">
+      <div class="revit-dropdown-btn" id="revitBtn" onclick="toggleRevitMenu()">
+        <span id="revitSelected">Revit 2024</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="revit-menu" id="revitMenu">
+        <div class="revit-menu-item current" onclick="selectRevit(this,'Revit 2024')">Revit 2024</div>
+        <div class="revit-menu-item" onclick="selectRevit(this,'Revit 2025')">Revit 2025</div>
+      </div>
+    </div>
+  </div>
+  <div class="revit-status closed" id="revitStatus">
+    <div class="status-dot"></div>
+    Revit Closed
+  </div>
+  <button class="add-profile-btn" onclick="addProfile()">+ Add Profile</button>
+</div>
+
+<div class="body">
+
+  <!-- Profile List -->
+  <div class="profile-list-pane">
+    <div class="pane-header">
+      <span class="pane-label">Profiles</span>
+      <span class="profile-count" id="profileCount">0</span>
+    </div>
+    <div class="profile-scroll" id="profileScroll">
+      <!-- Cards rendered by renderCards() -->
+    </div>
+  </div>
+
+  <!-- Detail Pane -->
+  <div class="detail-pane" id="detailPane">
+    <div class="detail-header">
+      <div class="detail-profile-name" id="detailName">
+        —
+        <span class="card-badge loaded" id="detailLoadedBadge" style="display:none;font-size:9px">● Loaded</span>
+      </div>
+      <div class="detail-meta-row" id="detailMeta"></div>
+    </div>
+
+    <div class="detail-body" id="detailBody">
+
+      <!-- Tab Preview (read-only) -->
+      <div id="tabPreviewSection">
+        <div class="detail-section-label">Tab Preview</div>
+        <div class="tab-preview-wrap">
+          <div class="tab-preview-topbar">
+            <div class="tab-pill" id="previewTabPill">—</div>
+            <span class="tab-preview-ro-badge">Read Only</span>
+          </div>
+          <div class="tab-canvas-ro" id="tabCanvas">
+            <!-- rendered by renderTabPreview() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Required Add-ins -->
+      <div id="detailAddins" style="display:none"></div>
+
+      <!-- Suppressed Add-in Tabs -->
+      <div id="detailHideRules" style="display:none">
+        <div class="detail-section-label">Suppressed Add-in Tabs</div>
+        <div class="hide-rules-chips" id="hideRulesChips"></div>
+      </div>
+
+    </div>
+
+    <div class="detail-footer">
+      <button class="remove-btn" onclick="confirmRemove()">Remove Profile</button>
+      <button class="restore-btn" onclick="restoreAllAddins()">↺ Restore Add-ins</button>
+      <label class="toggle-label">
+        <div class="toggle-switch">
+          <input type="checkbox" id="disableAddinsCheck">
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        </div>
+        Disable non-required add-ins on load
+      </label>
+      <div class="blocked-notice" id="blockedNotice" style="display:none">
+        <div class="b-dot"></div>
+        Close Revit to switch profiles
+      </div>
+      <button class="load-btn" id="loadBtn" onclick="loadProfile()">Load Profile →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── ADDIN LOOKUP TABLE ───────────────────────────────────────────────────────
+  // Maps ribbon tab name (= sourceTab value from TabCreator) → known .addin filename.
+  // Used by:
+  //   • This UI  — display the resolved file name and flag unknowns
+  //   • PyRevit runtime — actual file-presence scan in the Revit addins directory
+  //   • Fuzzy fallback — for add-ins not in this table, runtime does a contains
+  //     search across all .addin files in the version folder, then community-sources
+  //     the mapping on first successful match.
+  const ADDIN_LOOKUP = {
+    'DiRoots':     { displayName: 'DiRoots Suite',            file: 'DiRoots.addin'                },
+    'Naviate':     { displayName: 'Naviate',                   file: 'Naviate.addin'                },
+    'pyRevit':     { displayName: 'pyRevit',                   file: 'pyRevit.addin'                },
+    'Dynamo':      { displayName: 'Dynamo for Revit',          file: 'DynamoRevitDS.addin'          },
+    'Ideate':      { displayName: 'Ideate BIMLink',            file: 'Ideate.BIMLink.addin'         },
+    'Guardian':    { displayName: 'Guardian',                  file: 'Guardian.addin'               },
+    'Kinship':     { displayName: 'Kinship',                   file: 'Kinship.addin'                },
+    'Pirros':      { displayName: 'Pirros',                    file: 'Pirros.addin'                 },
+    'Avail':       { displayName: 'Avail',                     file: 'Avail.addin'                  },
+    'Orkestra':    { displayName: 'Orkestra',                  file: 'Orkestra.addin'               },
+    'BIM One':     { displayName: 'BIM One Tools',             file: 'BIMone.addin'                 },
+    'COINS':       { displayName: 'COINS Auto-Section View',   file: 'COINSAutoSectionView.addin'   },
+    'Enscape':     { displayName: 'Enscape',                   file: 'Enscape.addin'                },
+    'Twinmotion':  { displayName: 'Twinmotion Direct Link',    file: 'Twinmotion.addin'             },
+  };
+
+  // ── PROFILE DATA ─────────────────────────────────────────────────────────────
+  // Full schema matching TabCreator's exportConfig() output.
+  // In production: populated by reading all .json files from the profiles subdir
+  // at %APPDATA%\RESTer\profiles\ (or install-relative equivalent).
+  //
+  // Fields:
+  //   profile        — unique name, used as filename stem when copied to profiles dir
+  //   tab            — Revit ribbon tab name pyRevit will create
+  //   min_version    — bare year string ("2024"), compared against selected install
+  //   exportDate     — ISO date string
+  //   requiredAddins — ribbon tab names (sourceTab values), matched via ADDIN_LOOKUP
+  //   hideRules      — ribbon tab names to suppress at load time (.addin → .addin.inactive)
+  //   stacks         — dict: stackName → { tools: [{name, commandId}] }
+  //   panels         — array: { name, color, slots: [{type, name, icon?, commandId?}] }
+  const profiles = [
+    {
+      profile:        'Design_2025',
+      tab:            'Design',
+      min_version:    '2024',
+      exportDate:     '2024-03-12',
+      requiredAddins: ['DiRoots', 'Naviate'],
+      hideRules:      ['Naviate'],
+      stacks: {
+        'Edit Stack': {
+          tools: [
+            { name: 'Move',   commandId: 'ID_MODIFY_MOVE'   },
+            { name: 'Rotate', commandId: 'ID_MODIFY_ROTATE' },
+            { name: 'Copy',   commandId: 'ID_MODIFY_COPY'   },
+          ],
+        },
+      },
+      panels: [
+        { name: 'Modify', color: '#4f8ef7', slots: [
+          { type: 'tool',  name: 'Align',         icon: '↔', commandId: 'ID_MODIFY_ALIGN'                                       },
+          { type: 'tool',  name: 'Mirror',         icon: '⊿', commandId: 'ID_MODIFY_MIRROR_PICK'                                 },
+          { type: 'stack', name: 'Edit Stack'                                                                                     },
+          { type: 'tool',  name: 'Sheet Manager',  icon: '⊞', commandId: 'CustomCtrl_%CustomCtrl_%DiRoots%SheetsManager%ShtMgr' },
+        ]},
+        { name: 'View', color: '#10b981', slots: [
+          { type: 'tool', name: 'Section',        icon: '□', commandId: 'ID_VIEW_SECTION'                                        },
+          { type: 'tool', name: 'Camera',         icon: '◎', commandId: 'ID_VIEW_CAMERA_PERSPECTIVE'                             },
+          { type: 'tool', name: 'Solar Analysis', icon: '☀', commandId: 'CustomCtrl_%CustomCtrl_%Naviate%Analysis%SolarAnalysis' },
+        ]},
+        { name: 'Annotate', color: '#a78bfa', slots: [
+          { type: 'tool', name: 'Detail View', icon: '📐', commandId: 'ID_VIEW_DETAIL'   },
+          { type: 'tool', name: 'Tag All',     icon: '⊹',  commandId: 'ID_ANNOTATE_ALL'  },
+        ]},
+      ],
+    },
+    {
+      profile:        'Documentation_2025',
+      tab:            'Documentation',
+      min_version:    '2024',
+      exportDate:     '2024-02-28',
+      requiredAddins: [],
+      hideRules:      [],
+      stacks:         {},
+      panels: [
+        { name: 'Sheets', color: '#4f8ef7', slots: [
+          { type: 'tool', name: 'New Sheet',     icon: '⬜', commandId: 'ID_DRAFTINGVIEW_SHEET'    },
+          { type: 'tool', name: 'Title Block',   icon: '⊟', commandId: 'ID_INSERT_TITLEBLOCK'      },
+          { type: 'tool', name: 'Revision',      icon: '↺', commandId: 'ID_ANNOTATE_REVISION'      },
+          { type: 'tool', name: 'Legend',        icon: '≡',  commandId: 'ID_VIEW_LEGEND'            },
+        ]},
+        { name: 'Detail', color: '#10b981', slots: [
+          { type: 'tool', name: 'Detail Line',   icon: '╱', commandId: 'ID_DETAILCURVE_LINE'       },
+          { type: 'tool', name: 'Filled Region', icon: '▪', commandId: 'ID_DETAIL_FILLEDREGION'    },
+          { type: 'tool', name: 'Masking Region',icon: '◻', commandId: 'ID_DETAIL_MASKINGREGION'   },
+        ]},
+        { name: 'Annotate', color: '#a78bfa', slots: [
+          { type: 'tool', name: 'Text',          icon: 'T', commandId: 'ID_ANNOTATE_TEXT'           },
+          { type: 'tool', name: 'Dimension',     icon: '⟷', commandId: 'ID_ANNOTATE_DIMENSION'     },
+          { type: 'tool', name: 'Tag',           icon: '⊹', commandId: 'ID_ANNOTATE_TAG'            },
+        ]},
+      ],
+    },
+    {
+      profile:        'Coordination_2025',
+      tab:            'Coordination',
+      min_version:    '2025',
+      exportDate:     '2025-01-10',
+      requiredAddins: ['DiRoots'],
+      hideRules:      [],
+      stacks: {
+        'Link Stack': {
+          tools: [
+            { name: 'Link Revit',   commandId: 'ID_LINK_REVIT'   },
+            { name: 'Manage Links', commandId: 'ID_MANAGE_LINKS' },
+          ],
+        },
+      },
+      panels: [
+        { name: 'Coordination', color: '#4f8ef7', slots: [
+          { type: 'stack', name: 'Link Stack'                                                                                    },
+          { type: 'tool',  name: 'Copy/Monitor', icon: '⊛', commandId: 'ID_COLLABORATE_COPY_MONITOR'                           },
+          { type: 'tool',  name: 'Model Checker',icon: '✔', commandId: 'CustomCtrl_%CustomCtrl_%DiRoots%ModelChecker%MdlChk'   },
+        ]},
+        { name: 'Worksets', color: '#10b981', slots: [
+          { type: 'tool', name: 'Worksets', icon: '⊚', commandId: 'ID_WORKSET'                                                 },
+          { type: 'tool', name: 'Sync',     icon: '⟳', commandId: 'ID_COLLABORATE_SYNCHRONIZE_AND_MODIFY'                     },
+        ]},
+        { name: 'Clash', color: '#ef4444', slots: [
+          { type: 'tool', name: 'Interference', icon: '⊗', commandId: 'ID_ANALYZE_INTERFERENCE_CHECK' },
+        ]},
+      ],
+    },
+  ];
+
+  // ── STATE ─────────────────────────────────────────────────────────────────────
+  let activeProfileName = 'Design_2025';
+  let revitRunning      = false;
+  let selectedProfile   = null;
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────────
+  function hexToRgb(hex) {
+    if (!hex || hex.length < 7) return '79,142,247';
+    return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+  }
+
+  // ── CARD RENDERING ────────────────────────────────────────────────────────────
+  function renderCards() {
+    const scroll = document.getElementById('profileScroll');
+    const count  = document.getElementById('profileCount');
+    count.textContent = profiles.length;
+
+    scroll.innerHTML = profiles.map((p, i) => `
+      <div class="profile-card ${p.profile === activeProfileName ? 'active-profile' : ''}"
+           data-idx="${i}" onclick="selectCard(this, ${i})">
+        <div class="card-top">
+          <div class="card-name">${p.profile}</div>
+          ${p.profile === activeProfileName ? '<div class="card-badge loaded">● Loaded</div>' : ''}
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><span>Tab</span><span class="meta-val">${p.tab}</span></div>
+          <div class="meta-item"><span>Min Revit</span><span class="meta-val">${p.min_version}+</span></div>
+          <div class="meta-item"><span>Panels</span><span class="meta-val">${p.panels.length}</span></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── TAB PREVIEW (read-only) ───────────────────────────────────────────────────
+  function renderTabPreview(profile) {
+    document.getElementById('previewTabPill').textContent = profile.tab || '—';
+    const canvas = document.getElementById('tabCanvas');
+
+    if (!profile.panels || profile.panels.length === 0) {
+      canvas.innerHTML = `<div style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px;padding:18px;letter-spacing:0.06em">No panels configured</div>`;
+      return;
+    }
+
+    canvas.innerHTML = profile.panels.map(panel => {
+      const innerHtml = (panel.slots || []).map(slot => {
+        if (!slot) return '';
+        if (slot.type === 'tool') {
+          return `<div class="p-rib-btn">
+            <div class="p-rib-icon">${slot.icon || '⬜'}</div>
+            <div class="p-rib-label">${slot.name}</div>
+          </div>`;
+        } else if (slot.type === 'stack') {
+          const stackDef = profile.stacks?.[slot.name];
+          const tools = stackDef?.tools || [];
+          if (tools.length === 0) return '';
+          return `<div class="p-rib-stack">
+            ${tools.map(t => `<div class="p-rib-stack-item">
+              <div class="p-rib-stack-icon">≡</div>
+              <div class="p-rib-stack-label">${t.name}</div>
+            </div>`).join('')}
+          </div>`;
+        }
+        return '';
+      }).join('');
+
+      return `<div class="p-panel">
+        <div class="p-panel-stripe" style="background:${panel.color}"></div>
+        <div class="p-panel-inner">${innerHtml || '<span class="p-panel-empty">Empty</span>'}</div>
+        <div class="p-panel-name">${panel.name}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── CARD SELECTION ────────────────────────────────────────────────────────────
+  function selectCard(el, idx) {
+    const profile = profiles[idx];
+    selectedProfile = profile;
+
+    document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    // Header
+    document.getElementById('detailName').childNodes[0].textContent = profile.profile + ' ';
+    const loadedBadge = document.getElementById('detailLoadedBadge');
+    loadedBadge.style.display = profile.profile === activeProfileName ? 'inline-flex' : 'none';
+
+    // Meta row — tab name now included
+    document.getElementById('detailMeta').innerHTML = `
+      <div class="detail-meta-item"><span>Tab</span><span class="val" style="margin-left:5px">${profile.tab}</span></div>
+      <div class="detail-meta-item"><span>Min Revit</span><span class="val" style="margin-left:5px">${profile.min_version}+</span></div>
+      <div class="detail-meta-item"><span>Updated</span><span class="val" style="margin-left:5px">${profile.exportDate}</span></div>
+    `;
+
+    // Tab preview
+    renderTabPreview(profile);
+
+    // Required add-ins — resolved via ADDIN_LOOKUP
+    // Statuses are placeholders: actual file-presence scan runs at load time via PyRevit.
+    // Unknown add-ins fall through to fuzzy / community-sourced matching.
+    const addinsContainer = document.getElementById('detailAddins');
+    if (profile.requiredAddins && profile.requiredAddins.length > 0) {
+      addinsContainer.style.display = 'block';
+      addinsContainer.innerHTML = `
+        <div class="detail-section-label">Required Add-ins</div>
+        ${profile.requiredAddins.map(tabName => {
+          const known = ADDIN_LOOKUP[tabName];
+          const statusCls   = known ? 'not-checked' : 'unknown-addin';
+          const statusLabel = known ? 'Not Checked' : 'Unknown';
+          const statusTitle = known
+            ? `File: ${known.file} — presence check runs at load time`
+            : 'Not in lookup — runtime will attempt fuzzy match on installed .addin files';
+          return `<div class="addin-row">
+            <span class="addin-row-name">${tabName}</span>
+            <span class="addin-file ${!known ? 'unknown' : ''}">${known ? known.file : '? unknown file'}</span>
+            <span class="addin-status ${statusCls}" title="${statusTitle}">${statusLabel}</span>
+          </div>`;
+        }).join('')}
+      `;
+    } else {
+      addinsContainer.style.display = 'none';
+    }
+
+    // Suppressed add-in tabs (hideRules)
+    const hideContainer = document.getElementById('detailHideRules');
+    if (profile.hideRules && profile.hideRules.length > 0) {
+      hideContainer.style.display = 'block';
+      document.getElementById('hideRulesChips').innerHTML = profile.hideRules.map(rule =>
+        `<span class="hide-rule-chip">✕ ${rule}</span>`
+      ).join('');
+    } else {
+      hideContainer.style.display = 'none';
+    }
+
+    updateFooter();
+  }
+
+  // ── FOOTER STATE ──────────────────────────────────────────────────────────────
+  function updateFooter() {
+    const blockedNotice = document.getElementById('blockedNotice');
+    const loadBtn       = document.getElementById('loadBtn');
+    if (revitRunning) {
+      blockedNotice.style.display = 'flex';
+      loadBtn.classList.add('blocked');
+    } else {
+      blockedNotice.style.display = 'none';
+      loadBtn.classList.remove('blocked');
+    }
+  }
+
+  // ── REVIT STATUS TOGGLE ───────────────────────────────────────────────────────
+  document.getElementById('revitStatus').addEventListener('click', function() {
+    revitRunning = !revitRunning;
+    if (revitRunning) {
+      this.className = 'revit-status running';
+      this.innerHTML = '<div class="status-dot pulse"></div> Revit Running';
+    } else {
+      this.className = 'revit-status closed';
+      this.innerHTML = '<div class="status-dot"></div> Revit Closed';
+    }
+    updateFooter();
+  });
+
+  // ── REVIT VERSION DROPDOWN ────────────────────────────────────────────────────
+  function toggleRevitMenu() {
+    document.getElementById('revitBtn').classList.toggle('open');
+    document.getElementById('revitMenu').classList.toggle('open');
+  }
+  function selectRevit(el, name) {
+    document.querySelectorAll('.revit-menu-item').forEach(i => i.classList.remove('current'));
+    el.classList.add('current');
+    document.getElementById('revitSelected').textContent = name;
+    document.getElementById('revitBtn').classList.remove('open');
+    document.getElementById('revitMenu').classList.remove('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.revit-dropdown')) {
+      document.getElementById('revitBtn').classList.remove('open');
+      document.getElementById('revitMenu').classList.remove('open');
+    }
+  });
+
+  // ── ADD PROFILE ───────────────────────────────────────────────────────────────
+  // Production flow:
+  //   1. OS file picker → user selects a .json file shared by admin (email, Slack, etc.)
+  //   2. RESTer validates schema (required fields, min_version format, panels not empty)
+  //   3. Validated file is copied to %APPDATA%\RESTer\profiles\ (or install-relative subdir)
+  //   4. Copied filename: {profile}_{exportDate}.json
+  //   5. Profile is immediately added to profiles[] and rendered in the list
+  //   6. On every subsequent launch, ProfileSelector reads all .json files from that dir
+  function addProfile() {
+    alert('File picker → user selects a .json profile file shared by admin.\n\nRESTer will:\n  1. Validate the schema\n  2. Copy it to the RESTer profiles directory\n  3. Add it to the profile list immediately\n\nThe profile persists across sessions and is available every launch.');
+  }
+
+  // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
+  function loadProfile() {
+    if (revitRunning || !selectedProfile) return;
+    const disableNonRequired = document.getElementById('disableAddinsCheck').checked;
+    activeProfileName = selectedProfile.profile;
+    renderCards();
+    const idx  = profiles.findIndex(p => p.profile === activeProfileName);
+    const cards = document.querySelectorAll('.profile-card');
+    if (cards[idx]) selectCard(cards[idx], idx);
+
+    const suppressedMsg = selectedProfile.hideRules?.length
+      ? `Suppressed tabs: ${selectedProfile.hideRules.join(', ')}\n`
+      : '';
+    const disableMsg = disableNonRequired
+      ? 'Non-required add-ins will be disabled (.addin → .addin.inactive).\n'
+      : '';
+
+    alert(`Profile loaded: ${activeProfileName}\n\n${disableMsg}${suppressedMsg}\nOpen Revit — tab "${selectedProfile.tab}" will build automatically.`);
+  }
+
+  // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
+  function restoreAllAddins() {
+    if (revitRunning) { alert('Close Revit before restoring add-ins.'); return; }
+    alert('All .addin.inactive files renamed back to .addin.\nOpen Revit normally — all add-ins restored.');
+  }
+
+  // ── REMOVE PROFILE ────────────────────────────────────────────────────────────
+  function confirmRemove() {
+    if (!selectedProfile) return;
+    const name = selectedProfile.profile;
+    if (confirm(`Remove "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
+      const idx = profiles.findIndex(p => p.profile === name);
+      if (idx !== -1) profiles.splice(idx, 1);
+      if (activeProfileName === name) activeProfileName = null;
+      selectedProfile = null;
+      renderCards();
+      const firstCard = document.querySelector('.profile-card');
+      if (firstCard) firstCard.click();
+    }
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────────
+  renderCards();
+  const initIdx  = profiles.findIndex(p => p.profile === 'Documentation_2025');
+  const initCard = document.querySelectorAll('.profile-card')[initIdx];
+  if (initCard) selectCard(initCard, initIdx);
+</script>
+</body>
+</html>
