@@ -1,4 +1,5 @@
-"""RESTer startup hook — runs on every Revit launch via PyRevit.
+# -*- coding: utf-8 -*-
+"""RESTer startup hook - runs on every Revit launch via PyRevit.
 Reads active_profile.json, builds a custom ribbon tab if a profile is loaded.
 """
 import os

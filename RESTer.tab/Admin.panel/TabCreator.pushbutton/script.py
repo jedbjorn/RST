@@ -1,4 +1,5 @@
-"""TabCreator — PyRevit pushbutton script.
+# -*- coding: utf-8 -*-
+"""TabCreator - PyRevit pushbutton script.
 Opens profile_manager.html in a pywebview window inside Revit.
 """
 import os
