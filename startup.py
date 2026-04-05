@@ -2,6 +2,7 @@
 """RESTer startup hook - runs on every Revit launch via PyRevit.
 Reads active_profile.json, builds a custom ribbon tab if a profile is loaded.
 """
+import io
 import os
 import sys
 import json
@@ -30,7 +31,7 @@ def _load_active_profile():
         return None, None
 
     try:
-        with open(_active_profile_path, 'r', encoding='utf-8') as f:
+        with io.open(_active_profile_path, 'r', encoding='utf-8') as f:
             active = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         log.error('Failed to read active_profile.json: %s', e)
@@ -47,7 +48,7 @@ def _load_active_profile():
         return None, None
 
     try:
-        with open(profile_path, 'r', encoding='utf-8') as f:
+        with io.open(profile_path, 'r', encoding='utf-8') as f:
             profile = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         log.error('Failed to read profile %s: %s', profile_file, e)
@@ -80,7 +81,7 @@ def _needs_rebuild(active, profile_path):
 def _update_last_built(active):
     """Write updated last_built timestamp to active_profile.json."""
     active['last_built'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    with open(_active_profile_path, 'w', encoding='utf-8') as f:
+    with io.open(_active_profile_path, 'w', encoding='utf-8') as f:
         json.dump(active, f, indent=2)
     log.info('Updated last_built: %s', active['last_built'])
 

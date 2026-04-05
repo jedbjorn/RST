@@ -2,6 +2,7 @@
 """TabCreator - PyRevit pushbutton script.
 Collects Revit data, then launches CPython with pywebview for the UI.
 """
+import io
 import os
 import sys
 import json
@@ -55,7 +56,6 @@ def get_installed_commands():
 
                 for item in items:
                     try:
-                        # Skip non-button items (list buttons, separators, etc.)
                         item_type = type(item).__name__
                         if 'ListButton' in item_type or 'Separator' in item_type:
                             continue
@@ -71,7 +71,6 @@ def get_installed_commands():
 
                         cmd_str = str(cmd_id)
 
-                        # Skip known non-postable command patterns
                         if 'RibbonListButton' in cmd_str:
                             continue
 
@@ -114,12 +113,11 @@ revit_data = {
     'commands': commands,
 }
 data_path = os.path.join(_root, 'app', '_revit_data.json')
-with open(data_path, 'w', encoding='utf-8') as f:
+with io.open(data_path, 'w', encoding='utf-8') as f:
     json.dump(revit_data, f)
 log.info('Revit data written to %s', data_path)
 
 # Launch CPython with tab_creator.py
-# Use cmd /k so the window stays open if there's an error
 launcher = os.path.join(_root, 'app', 'tab_creator.py')
 log.info('Launching CPython: %s', launcher)
 subprocess.Popen(

@@ -4,6 +4,7 @@ Launched by the PyRevit pushbutton script. Reads Revit data from a temp file.
 """
 import webview
 import os
+import re
 import sys
 import json
 import shutil
@@ -23,7 +24,7 @@ _revit_data_path = os.path.join(_root, 'app', '_revit_data.json')
 os.makedirs(_profiles_dir, exist_ok=True)
 os.makedirs(_icons_dir, exist_ok=True)
 
-# pywebview file dialog constant (handle old and new API)
+# pywebview file dialog constant
 _OPEN_DIALOG = getattr(webview, 'OPEN_DIALOG', None)
 if _OPEN_DIALOG is None:
     try:
@@ -40,11 +41,42 @@ if os.path.exists(_revit_data_path):
         log.info('Loaded Revit data: version=%s, %d commands',
                  _revit_data.get('revit_version'),
                  len(_revit_data.get('commands', [])))
+        # Clean up temp file
+        try:
+            os.remove(_revit_data_path)
+        except OSError:
+            pass
     except (json.JSONDecodeError, IOError) as e:
         log.error('Failed to read Revit data: %s', e)
 
 
+def _safe_filename(s):
+    """Sanitize a string for use in filenames."""
+    return re.sub(r'[\\/:*?"<>|]', '_', s).strip()
+
+
+def _find_profile(profile_name):
+    """Find a profile by name, return (filename, data) or (None, None)."""
+    for fname in os.listdir(_profiles_dir):
+        if fname.endswith('.json'):
+            fpath = os.path.join(_profiles_dir, fname)
+            try:
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if data.get('profile') == profile_name:
+                    return fname, data
+            except (json.JSONDecodeError, IOError, UnicodeDecodeError):
+                continue
+    return None, None
+
+
 class TabCreatorAPI:
+
+    def __init__(self):
+        self._window = None
+
+    def set_window(self, window):
+        self._window = window
 
     def get_revit_version(self):
         ver = _revit_data.get('revit_version')
@@ -65,22 +97,15 @@ class TabCreatorAPI:
             return {'ok': False, 'error': 'Invalid JSON: ' + str(e)}
 
         try:
-            profile_name = profile.get('profile', 'Untitled')
-            export_date = profile.get('exportDate', 'unknown')
-            filename = '{}_{}.json'.format(profile_name, export_date)
+            profile_name = _safe_filename(profile.get('profile', 'Untitled'))
+            export_date = _safe_filename(profile.get('exportDate', 'unknown'))
+            filename = '%s_%s.json' % (profile_name, export_date)
 
             # Overwrite existing profile with same name
-            for fname in os.listdir(_profiles_dir):
-                if fname.endswith('.json'):
-                    try:
-                        with open(os.path.join(_profiles_dir, fname), 'r', encoding='utf-8') as f:
-                            existing = json.load(f)
-                        if existing.get('profile') == profile_name:
-                            os.remove(os.path.join(_profiles_dir, fname))
-                            log.info('Overwriting existing: %s', fname)
-                            break
-                    except (json.JSONDecodeError, IOError):
-                        continue
+            existing_fname, _ = _find_profile(profile.get('profile', ''))
+            if existing_fname:
+                os.remove(os.path.join(_profiles_dir, existing_fname))
+                log.info('Overwriting existing: %s', existing_fname)
 
             dest_path = os.path.join(_profiles_dir, filename)
             with open(dest_path, 'w', encoding='utf-8') as f:
@@ -104,27 +129,33 @@ class TabCreatorAPI:
 
     def pick_icon(self, tool_name):
         log.info('Picking icon for tool: %s', tool_name)
-        result = webview.windows[0].create_file_dialog(
+        window = self._window or (webview.windows[0] if webview.windows else None)
+        if not window:
+            return {'ok': False, 'error': 'No window available'}
+
+        result = window.create_file_dialog(
             _OPEN_DIALOG,
             file_types=('PNG Images (*.png)',)
         )
         if not result:
             log.debug('Icon pick cancelled')
-            return None
+            return {'ok': False}
 
         src_path = result[0] if isinstance(result, (list, tuple)) else result
 
-        base_name = tool_name + '.png'
+        # Sanitize and handle collisions
+        safe_name = _safe_filename(os.path.basename(tool_name))
+        base_name = safe_name + '.png'
         dest_path = os.path.join(_icons_dir, base_name)
         counter = 1
         while os.path.exists(dest_path):
-            base_name = '{}({}).png'.format(tool_name, counter)
+            base_name = '%s(%d).png' % (safe_name, counter)
             dest_path = os.path.join(_icons_dir, base_name)
             counter += 1
 
         shutil.copy2(src_path, dest_path)
         log.info('Icon saved: %s', base_name)
-        return {'filename': base_name}
+        return {'ok': True, 'filename': base_name}
 
     def get_profiles(self):
         profiles = []
@@ -141,17 +172,10 @@ class TabCreatorAPI:
 
     def load_profile_into_editor(self, profile_name):
         log.info('Loading profile into editor: %s', profile_name)
-        for fname in os.listdir(_profiles_dir):
-            if fname.endswith('.json'):
-                fpath = os.path.join(_profiles_dir, fname)
-                try:
-                    with open(fpath, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    if data.get('profile') == profile_name:
-                        log.info('Found profile: %s', fname)
-                        return data
-                except (json.JSONDecodeError, IOError):
-                    continue
+        _, data = _find_profile(profile_name)
+        if data:
+            log.info('Found profile: %s', profile_name)
+            return data
         log.error('Profile not found: %s', profile_name)
         return None
 
@@ -173,5 +197,6 @@ if __name__ == '__main__':
         on_top=True,
         js_api=api
     )
+    api.set_window(window)
     webview.start()
     log.info('=== TabCreator closed ===')

@@ -5,7 +5,12 @@ import os
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _log_path = os.path.join(_root, 'rester.log')
 
-_handler = logging.FileHandler(_log_path, encoding='utf-8')
+try:
+    _handler = logging.FileHandler(_log_path, encoding='utf-8')
+except TypeError:
+    # IronPython may not support encoding param on FileHandler
+    _handler = logging.FileHandler(_log_path)
+
 _handler.setFormatter(logging.Formatter(
     '%(asctime)s  %(levelname)-7s  %(name)s  %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'

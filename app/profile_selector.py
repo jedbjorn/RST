@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import webview
 import os
+import re
 import json
 import shutil
 import subprocess
@@ -16,10 +17,8 @@ _html_path = os.path.join(_root, 'ui', 'profile_loader.html')
 
 REQUIRED_FIELDS = {'profile', 'tab', 'min_version', 'exportDate', 'requiredAddins', 'hideRules', 'stacks', 'panels'}
 
-# Ensure profiles dir exists
 os.makedirs(_profiles_dir, exist_ok=True)
 
-# Import from sibling module
 import sys
 sys.path.insert(0, os.path.join(_root, 'app'))
 from addin_scanner import (
@@ -30,7 +29,7 @@ from addin_scanner import (
     get_installed_revit_versions,
 )
 
-# pywebview file dialog constant (handle old and new API)
+# pywebview file dialog constant
 _OPEN_DIALOG = getattr(webview, 'OPEN_DIALOG', None)
 if _OPEN_DIALOG is None:
     try:
@@ -39,10 +38,35 @@ if _OPEN_DIALOG is None:
         _OPEN_DIALOG = 0
 
 
+def _safe_filename(s):
+    """Sanitize a string for use in filenames."""
+    return re.sub(r'[\\/:*?"<>|]', '_', s).strip()
+
+
+def _find_profile(profile_name):
+    """Find a profile by name, return (filename, data) or (None, None)."""
+    for fname in os.listdir(_profiles_dir):
+        if fname.endswith('.json'):
+            fpath = os.path.join(_profiles_dir, fname)
+            try:
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if data.get('profile') == profile_name:
+                    return fname, data
+            except (json.JSONDecodeError, IOError, UnicodeDecodeError):
+                continue
+    return None, None
+
+
 class ProfileSelectorAPI:
 
+    def __init__(self):
+        self._window = None
+
+    def set_window(self, window):
+        self._window = window
+
     def get_profiles(self):
-        """Read all .json files from app/profiles/, return list of parsed profile objects."""
         log.info('Loading profiles from %s', _profiles_dir)
         profiles = []
         for fname in os.listdir(_profiles_dir):
@@ -60,7 +84,6 @@ class ProfileSelectorAPI:
         return profiles
 
     def get_active_profile(self):
-        """Read active_profile.json, return profile name string or None."""
         if not os.path.exists(_active_profile_path):
             log.debug('No active_profile.json found')
             return None
@@ -75,18 +98,19 @@ class ProfileSelectorAPI:
             return None
 
     def get_revit_versions(self):
-        """Scan %APPDATA%\\Autodesk\\Revit\\Addins\\ for year subdirs."""
         return get_installed_revit_versions()
 
     def is_revit_running(self):
-        """Check if Revit.exe is in the process list."""
         try:
             output = subprocess.check_output(
                 ['tasklist', '/FI', 'IMAGENAME eq Revit.exe', '/NH'],
                 stderr=subprocess.DEVNULL,
                 text=True
             )
-            running = 'Revit.exe' in output
+            running = any(
+                line.strip().lower().startswith('revit.exe')
+                for line in output.splitlines()
+            )
             log.info('Revit running: %s', running)
             return running
         except subprocess.SubprocessError as e:
@@ -94,9 +118,12 @@ class ProfileSelectorAPI:
             return False
 
     def add_profile(self):
-        """Open file dialog, validate JSON, copy to app/profiles/."""
         log.info('Opening file dialog for profile import')
-        result = webview.windows[0].create_file_dialog(
+        window = self._window or (webview.windows[0] if webview.windows else None)
+        if not window:
+            return {'ok': False, 'error': 'No window available'}
+
+        result = window.create_file_dialog(
             _OPEN_DIALOG,
             file_types=('JSON Files (*.json)',)
         )
@@ -119,19 +146,15 @@ class ProfileSelectorAPI:
             log.error('Missing required fields: %s', missing)
             return {'ok': False, 'error': 'Missing fields: ' + ', '.join(sorted(missing))}
 
-        dest_name = '{}_{}.json'.format(profile['profile'], profile['exportDate'])
-        # Check if profile with same name already exists - overwrite it
-        for fname in os.listdir(_profiles_dir):
-            if fname.endswith('.json'):
-                try:
-                    with open(os.path.join(_profiles_dir, fname), 'r', encoding='utf-8') as f:
-                        existing = json.load(f)
-                    if existing.get('profile') == profile['profile']:
-                        os.remove(os.path.join(_profiles_dir, fname))
-                        log.info('Overwriting existing profile: %s', fname)
-                        break
-                except (json.JSONDecodeError, IOError):
-                    continue
+        safe_name = _safe_filename(profile['profile'])
+        safe_date = _safe_filename(profile['exportDate'])
+        dest_name = '%s_%s.json' % (safe_name, safe_date)
+
+        # Overwrite existing profile with same name
+        existing_fname, _ = _find_profile(profile['profile'])
+        if existing_fname:
+            os.remove(os.path.join(_profiles_dir, existing_fname))
+            log.info('Overwriting existing profile: %s', existing_fname)
 
         dest_path = os.path.join(_profiles_dir, dest_name)
         shutil.copy2(file_path, dest_path)
@@ -141,38 +164,23 @@ class ProfileSelectorAPI:
         return {'ok': True, 'profile': profile}
 
     def load_profile(self, profile_name, disable_non_required, revit_version=None):
-        """Write active_profile.json, apply hideRules, return {ok, warnings[]}."""
         log.info('Loading profile: %s (disable_non_required=%s, revit=%s)',
                  profile_name, disable_non_required, revit_version)
 
-        # Find the profile file
-        profile_data = None
-        profile_filename = None
-        for fname in os.listdir(_profiles_dir):
-            if fname.endswith('.json'):
-                fpath = os.path.join(_profiles_dir, fname)
-                try:
-                    with open(fpath, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    if data.get('profile') == profile_name:
-                        profile_data = data
-                        profile_filename = fname
-                        break
-                except (json.JSONDecodeError, IOError):
-                    continue
-
+        profile_filename, profile_data = _find_profile(profile_name)
         if not profile_data:
             log.error('Profile not found: %s', profile_name)
             return {'ok': False, 'warnings': ['Profile not found: ' + profile_name]}
 
-        # Fall back to first installed version if none passed
         if not revit_version:
             versions = get_installed_revit_versions()
             revit_version = versions[0] if versions else None
 
         warnings = []
 
-        if revit_version:
+        if not revit_version:
+            warnings.append('No Revit version selected - add-in toggling skipped')
+        else:
             # Check required addins
             addin_status = check_addins(profile_data.get('requiredAddins', []), revit_version)
             for name, status in addin_status.items():
@@ -181,68 +189,68 @@ class ProfileSelectorAPI:
                 elif status == 'unknown':
                     warnings.append('Unknown add-in (not in lookup): ' + name)
 
-            # Apply hide rules
-            apply_hide_rules(profile_data.get('hideRules', []), revit_version)
-
-            # Disable non-required if toggled
-            if disable_non_required:
-                disable_non_required_addins(
-                    profile_data.get('requiredAddins', []), revit_version
-                )
-        else:
-            warnings.append('No Revit version detected - add-in toggling skipped')
+            # Apply hide rules and disable non-required (wrapped for safety)
+            try:
+                apply_hide_rules(profile_data.get('hideRules', []), revit_version)
+                if disable_non_required:
+                    disable_non_required_addins(
+                        profile_data.get('requiredAddins', []), revit_version
+                    )
+            except Exception as e:
+                log.error('Addin operation failed: %s', e)
+                warnings.append('Add-in operation failed: ' + str(e))
 
         # Write active_profile.json
         active = {
             'profile': profile_name,
             'profile_file': profile_filename,
-            'loaded_at': datetime.datetime.now().isoformat(timespec='seconds'),
+            'loaded_at': datetime.datetime.now().isoformat(),
             'last_built': None,
             'disable_non_required': bool(disable_non_required),
         }
-        with open(_active_profile_path, 'w', encoding='utf-8') as f:
-            json.dump(active, f, indent=2)
+        try:
+            with open(_active_profile_path, 'w', encoding='utf-8') as f:
+                json.dump(active, f, indent=2)
+        except IOError as e:
+            log.error('Failed to write active_profile.json: %s', e)
+            return {'ok': False, 'warnings': ['Failed to save active profile: ' + str(e)]}
 
         log.info('Profile loaded: %s (warnings: %s)', profile_name, warnings)
         return {'ok': True, 'warnings': warnings}
 
     def remove_profile(self, profile_name):
-        """Delete profile from app/profiles/."""
         log.info('Removing profile: %s', profile_name)
-        for fname in os.listdir(_profiles_dir):
-            if fname.endswith('.json'):
-                fpath = os.path.join(_profiles_dir, fname)
-                try:
-                    with open(fpath, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    if data.get('profile') == profile_name:
-                        os.remove(fpath)
-                        log.info('Deleted: %s', fname)
-                        # Clear active if it was the active one
-                        if os.path.exists(_active_profile_path):
-                            with open(_active_profile_path, 'r', encoding='utf-8') as f:
-                                active = json.load(f)
-                            if active.get('profile') == profile_name:
-                                os.remove(_active_profile_path)
-                                log.info('Cleared active_profile.json')
-                        return {'ok': True}
-                except (json.JSONDecodeError, IOError):
-                    continue
-        log.error('Profile not found for removal: %s', profile_name)
-        return {'ok': False, 'error': 'Profile not found'}
+        profile_filename, _ = _find_profile(profile_name)
+        if not profile_filename:
+            log.error('Profile not found for removal: %s', profile_name)
+            return {'ok': False, 'error': 'Profile not found'}
+
+        os.remove(os.path.join(_profiles_dir, profile_filename))
+        log.info('Deleted: %s', profile_filename)
+
+        # Clear active if it was the active one
+        try:
+            if os.path.exists(_active_profile_path):
+                with open(_active_profile_path, 'r', encoding='utf-8') as f:
+                    active = json.load(f)
+                if active.get('profile') == profile_name:
+                    os.remove(_active_profile_path)
+                    log.info('Cleared active_profile.json')
+        except (json.JSONDecodeError, IOError) as e:
+            log.error('Error checking active profile: %s', e)
+
+        return {'ok': True}
 
     def unload_profile(self):
-        """Remove active profile from Revit without deleting the profile file."""
         log.info('Unloading active profile')
         if os.path.exists(_active_profile_path):
             os.remove(_active_profile_path)
             log.info('Deleted active_profile.json')
-            return {'ok': True}
-        log.debug('No active profile to unload')
+        else:
+            log.debug('No active profile to unload')
         return {'ok': True}
 
     def restore_addins(self, revit_version):
-        """Restore all .addin.inactive -> .addin for the given version."""
         log.info('Restoring addins for Revit %s', revit_version)
         restore_all_addins(revit_version)
         return {'ok': True}
@@ -261,5 +269,6 @@ if __name__ == '__main__':
         height=1000,
         js_api=api
     )
+    api.set_window(window)
     webview.start()
     log.info('=== RESTer Profile Selector closed ===')

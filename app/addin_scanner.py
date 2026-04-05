@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import json
 from logger import get_logger
 
@@ -12,21 +13,37 @@ _lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 _overrides_path = os.path.join(_root, 'app', 'user_addin_overrides.json')
 
 
+def _safe_filename(s):
+    """Sanitize a string for use in filenames."""
+    return re.sub(r'[\\/:*?"<>|]', '_', s).strip()
+
+
 def load_addin_lookup():
-    with open(_lookup_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """Load addin_lookup.json, return empty dict on failure."""
+    try:
+        with open(_lookup_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (IOError, ValueError) as e:
+        log.error('Failed to load addin_lookup.json: %s', e)
+        return {}
 
 
 def _load_overrides():
     if os.path.exists(_overrides_path):
-        with open(_overrides_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(_overrides_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (IOError, ValueError):
+            return {}
     return {}
 
 
 def _save_overrides(overrides):
-    with open(_overrides_path, 'w', encoding='utf-8') as f:
-        json.dump(overrides, f, indent=2)
+    try:
+        with open(_overrides_path, 'w', encoding='utf-8') as f:
+            json.dump(overrides, f, indent=2)
+    except IOError as e:
+        log.error('Failed to save overrides: %s', e)
 
 
 def _record_fuzzy_match(tab_name, addin_path):
@@ -37,8 +54,16 @@ def _record_fuzzy_match(tab_name, addin_path):
 
 
 def _get_appdata():
-    """Get APPDATA path, return None on non-Windows."""
     return os.environ.get('APPDATA')
+
+
+def _is_program_files_dir(path):
+    """Check if a path is under Program Files (read-only, never modify)."""
+    pf = os.environ.get('PROGRAMFILES', r'C:\Program Files')
+    pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
+    path_lower = os.path.normpath(path).lower()
+    return (path_lower.startswith(os.path.normpath(pf).lower()) or
+            path_lower.startswith(os.path.normpath(pf86).lower()))
 
 
 def get_addins_dirs(revit_version):
@@ -59,7 +84,7 @@ def get_addins_dirs(revit_version):
     if os.path.isdir(machine_dir):
         dirs.append(machine_dir)
 
-    # 3. Revit install folder: C:\Program Files\Autodesk\Revit 20xx\
+    # 3. Revit install folder (read-only scanning, never modify)
     program_files = os.environ.get('PROGRAMFILES', r'C:\Program Files')
     revit_dir = os.path.join(program_files, 'Autodesk', 'Revit ' + ver)
     if os.path.isdir(revit_dir):
@@ -70,7 +95,7 @@ def get_addins_dirs(revit_version):
 
 
 def get_addins_dir(revit_version):
-    """Return the primary (user) addins dir for backwards compat."""
+    """Return the primary (user) addins dir."""
     appdata = _get_appdata()
     if not appdata:
         return None
@@ -80,28 +105,27 @@ def get_addins_dir(revit_version):
 def get_installed_revit_versions():
     versions = set()
 
-    # Check user addins dir
     appdata = _get_appdata()
     if appdata:
         addins_root = os.path.join(appdata, 'Autodesk', 'Revit', 'Addins')
         if os.path.isdir(addins_root):
             for d in os.listdir(addins_root):
-                if d.isdigit() and os.path.isdir(os.path.join(addins_root, d)):
-                    versions.add(d)
+                if d.isdigit() and 2015 <= int(d) <= 2030:
+                    if os.path.isdir(os.path.join(addins_root, d)):
+                        versions.add(d)
 
-    # Check ProgramData addins dir
     programdata = os.environ.get('PROGRAMDATA', r'C:\ProgramData')
     pd_root = os.path.join(programdata, 'Autodesk', 'Revit', 'Addins')
     if os.path.isdir(pd_root):
         for d in os.listdir(pd_root):
-            if d.isdigit() and os.path.isdir(os.path.join(pd_root, d)):
-                versions.add(d)
+            if d.isdigit() and 2015 <= int(d) <= 2030:
+                if os.path.isdir(os.path.join(pd_root, d)):
+                    versions.add(d)
 
-    # Check Program Files for Revit installs
     program_files = os.environ.get('PROGRAMFILES', r'C:\Program Files')
     if os.path.isdir(program_files):
         for d in os.listdir(program_files):
-            if d.startswith('Revit ') and d[6:].isdigit():
+            if d.startswith('Revit ') and d[6:].isdigit() and 2015 <= int(d[6:]) <= 2030:
                 versions.add(d[6:])
 
     result = sorted(versions)
@@ -111,38 +135,41 @@ def get_installed_revit_versions():
 
 def _find_all_addin_files(search_dirs):
     """Recursively find all .addin and .addin.inactive files across all dirs."""
-    addin_files = {}  # filename -> full_path
+    addin_files = {}  # filename -> list of full paths
     for base_dir in search_dirs:
         for dirpath, dirnames, filenames in os.walk(base_dir):
             for f in filenames:
                 if f.endswith('.addin') or f.endswith('.addin.inactive'):
                     full_path = os.path.join(dirpath, f)
-                    # Keep first found (user dir takes priority since it's listed first)
                     if f not in addin_files:
-                        addin_files[f] = full_path
+                        addin_files[f] = []
+                    addin_files[f].append(full_path)
     return addin_files
 
 
 def _search_addin_contents(tab_name, addin_files):
     """Search inside .addin file contents for the tab name string."""
     tab_lower = tab_name.lower()
-    for fname, fpath in addin_files.items():
+    for fname, paths in addin_files.items():
         if not fname.endswith('.addin'):
             continue
-        try:
-            with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                contents = f.read().lower()
-            if tab_lower in contents:
-                log.info('Content match: "%s" found in %s', tab_name, fpath)
-                return fname, fpath
-        except (IOError, OSError):
-            continue
+        for fpath in paths:
+            try:
+                with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                    contents = f.read().lower()
+                if tab_lower in contents:
+                    log.info('Content match: "%s" found in %s', tab_name, fpath)
+                    return fname, fpath
+            except (IOError, OSError):
+                continue
     return None, None
 
 
-def _fuzzy_find(tab_name, search_dirs):
-    """Check overrides, then filename match, then content search across all dirs."""
-    overrides = _load_overrides()
+def _fuzzy_find(tab_name, search_dirs, overrides=None):
+    """Check overrides, then filename match, then content search."""
+    if overrides is None:
+        overrides = _load_overrides()
+
     if tab_name in overrides:
         cached_path = overrides[tab_name]
         if os.path.exists(cached_path):
@@ -150,14 +177,13 @@ def _fuzzy_find(tab_name, search_dirs):
 
     addin_files = _find_all_addin_files(search_dirs)
 
-    # Filename match first
     tab_lower = tab_name.lower()
-    for fname, fpath in addin_files.items():
+    for fname, paths in addin_files.items():
         if fname.endswith('.addin') and tab_lower in fname.lower():
+            fpath = paths[0]
             _record_fuzzy_match(tab_name, fpath)
             return fname, fpath
 
-    # Content search
     fname, fpath = _search_addin_contents(tab_name, addin_files)
     if fname:
         _record_fuzzy_match(tab_name, fpath)
@@ -171,13 +197,14 @@ def check_addins(required_addins, revit_version):
     log.info('Checking addins for Revit %s: %s', revit_version, required_addins)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
+    overrides = _load_overrides()
 
     if not search_dirs:
         log.warning('No addin directories found for Revit %s', revit_version)
-        return {name: 'unknown' for name in required_addins}
+        return dict((name, 'unknown') for name in required_addins)
 
     addin_files = _find_all_addin_files(search_dirs)
-    active_filenames = {f for f in addin_files.keys() if f.endswith('.addin')}
+    active_filenames = set(f for f in addin_files.keys() if f.endswith('.addin'))
 
     results = {}
     for tab_name in required_addins:
@@ -185,7 +212,7 @@ def check_addins(required_addins, revit_version):
         if entry:
             results[tab_name] = 'present' if entry['file'] in active_filenames else 'missing'
         else:
-            fname, fpath = _fuzzy_find(tab_name, search_dirs)
+            fname, fpath = _fuzzy_find(tab_name, search_dirs, overrides)
             if fname:
                 results[tab_name] = 'present'
             else:
@@ -196,10 +223,12 @@ def check_addins(required_addins, revit_version):
 
 
 def apply_hide_rules(hide_rules, revit_version):
-    """Rename .addin -> .addin.inactive for each tab in hide_rules across all locations."""
+    """Rename .addin -> .addin.inactive for each tab in hide_rules.
+    Only modifies files in user/ProgramData dirs, never Program Files."""
     log.info('Applying hide rules for Revit %s: %s', revit_version, hide_rules)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
+    overrides = _load_overrides()
 
     if not search_dirs:
         log.warning('No addin directories found')
@@ -208,53 +237,90 @@ def apply_hide_rules(hide_rules, revit_version):
     addin_files = _find_all_addin_files(search_dirs)
 
     for tab_name in hide_rules:
-        if tab_name == 'pyRevit':
-            log.debug('Skipping protected addin: pyRevit')
-            continue
+        fpath = None
+        resolved_filename = None
 
         entry = lookup.get(tab_name)
         if entry and entry['file'] in addin_files:
-            fpath = addin_files[entry['file']]
+            paths = addin_files[entry['file']]
+            resolved_filename = entry['file']
+            # Pick first non-Program-Files path
+            fpath = next((p for p in paths if not _is_program_files_dir(p)), None)
         else:
-            fname, fpath = _fuzzy_find(tab_name, search_dirs)
+            resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides)
+
+        # Check protection by filename
+        if resolved_filename and resolved_filename in PROTECTED_ADDINS:
+            log.debug('Skipping protected addin: %s', resolved_filename)
+            continue
 
         if not fpath:
             log.warning('No .addin file found for: %s', tab_name)
             continue
 
+        if _is_program_files_dir(fpath):
+            log.debug('Skipping Program Files addin: %s', fpath)
+            continue
+
         dest = fpath + '.inactive'
         if os.path.exists(fpath) and not fpath.endswith('.inactive'):
-            os.rename(fpath, dest)
-            log.info('Hidden: %s -> %s.inactive', fpath, fpath)
+            try:
+                os.rename(fpath, dest)
+                log.info('Hidden: %s', fpath)
+            except (OSError, IOError) as e:
+                log.error('Failed to hide %s: %s', fpath, e)
 
 
 def restore_all_addins(revit_version):
-    """Rename all .addin.inactive -> .addin across all locations (skip pyRevit)."""
+    """Rename all .addin.inactive -> .addin (skip protected, skip Program Files)."""
     log.info('Restoring all addins for Revit %s', revit_version)
     search_dirs = get_addins_dirs(revit_version)
 
+    protected_inactive = set(p + '.inactive' for p in PROTECTED_ADDINS)
+
     for base_dir in search_dirs:
+        if _is_program_files_dir(base_dir):
+            continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
             for f in filenames:
-                if f.endswith('.addin.inactive') and f not in {p + '.inactive' for p in PROTECTED_ADDINS}:
+                if f.endswith('.addin.inactive') and f not in protected_inactive:
                     src = os.path.join(dirpath, f)
                     dest = src.replace('.addin.inactive', '.addin')
-                    os.rename(src, dest)
-                    log.info('Restored: %s', dest)
+                    try:
+                        os.rename(src, dest)
+                        log.info('Restored: %s', dest)
+                    except (OSError, IOError) as e:
+                        log.error('Failed to restore %s: %s', src, e)
 
 
 def disable_non_required_addins(required_addins, revit_version):
-    """Disable all .addin files except required ones and protected ones across all locations."""
+    """Disable all .addin files except required and protected (skip Program Files)."""
     log.info('Disabling non-required addins for Revit %s (keeping: %s)', revit_version, required_addins)
     lookup = load_addin_lookup()
-    keep_files = {lookup[a]['file'] for a in required_addins if a in lookup}
-    keep_files.update(PROTECTED_ADDINS)
     search_dirs = get_addins_dirs(revit_version)
+    overrides = _load_overrides()
+
+    # Build set of filenames to keep
+    keep_files = set()
+    for a in required_addins:
+        if a in lookup:
+            keep_files.add(lookup[a]['file'])
+        else:
+            # Resolve fuzzy-matched addins too
+            fname, _ = _fuzzy_find(a, search_dirs, overrides)
+            if fname:
+                keep_files.add(fname)
+    keep_files.update(PROTECTED_ADDINS)
 
     for base_dir in search_dirs:
+        if _is_program_files_dir(base_dir):
+            continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
             for f in filenames:
                 if f.endswith('.addin') and f not in keep_files:
                     src = os.path.join(dirpath, f)
-                    os.rename(src, src + '.inactive')
-                    log.info('Disabled: %s', src)
+                    try:
+                        os.rename(src, src + '.inactive')
+                        log.info('Disabled: %s', src)
+                    except (OSError, IOError) as e:
+                        log.error('Failed to disable %s: %s', src, e)
