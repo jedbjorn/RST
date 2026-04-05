@@ -101,7 +101,7 @@ revit_data = {
     'commands': commands,
 }
 data_path = os.path.join(_root, 'app', '_revit_data.json')
-with open(data_path, 'w') as f:
+with open(data_path, 'w', encoding='utf-8') as f:
     json.dump(revit_data, f)
 log.info('Revit data written to %s', data_path)
 

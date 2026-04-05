@@ -1881,6 +1881,7 @@
 
   // ── COLOR PICKING ──────────────────────────────────────────────────────────
   function pickColor(el, color) {
+    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
     el.classList.add('on');
     state.panels[state.currentPanel].color = color;
@@ -2779,8 +2780,10 @@
 
   // ── INIT ──────────────────────────────────────────────────────────────────
   // Wire hex action buttons
-  document.querySelector('.hex-apply').addEventListener('click', applyHex);
-  document.querySelector('.hex-save').addEventListener('click', saveHexFavorite);
+  var hexApplyBtn = document.querySelector('.hex-apply');
+  if (hexApplyBtn) hexApplyBtn.addEventListener('click', applyHex);
+  var hexSaveBtn = document.querySelector('.hex-save');
+  if (hexSaveBtn) hexSaveBtn.addEventListener('click', saveHexFavorite);
 
   renderAll();
 

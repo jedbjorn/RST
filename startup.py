@@ -5,6 +5,7 @@ Reads active_profile.json, builds a custom ribbon tab if a profile is loaded.
 import os
 import sys
 import json
+import time
 import datetime
 
 _root = os.path.dirname(os.path.abspath(__file__))
@@ -24,11 +25,11 @@ _default_icon_path = os.path.join(_root, 'icons', 'RESTer_default.png')
 def _load_active_profile():
     """Read active_profile.json. Returns (active_data, profile_data) or (None, None)."""
     if not os.path.exists(_active_profile_path):
-        log.debug('No active_profile.json — nothing to build')
+        log.debug('No active_profile.json - nothing to build')
         return None, None
 
     try:
-        with open(_active_profile_path, 'r') as f:
+        with open(_active_profile_path, 'r', encoding='utf-8') as f:
             active = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         log.error('Failed to read active_profile.json: %s', e)
@@ -45,7 +46,7 @@ def _load_active_profile():
         return None, None
 
     try:
-        with open(profile_path, 'r') as f:
+        with open(profile_path, 'r', encoding='utf-8') as f:
             profile = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         log.error('Failed to read profile %s: %s', profile_file, e)
@@ -58,28 +59,28 @@ def _needs_rebuild(active, profile_path):
     """Compare profile file mtime against last_built timestamp."""
     last_built = active.get('last_built')
     if not last_built:
-        log.info('No last_built timestamp — rebuild needed')
+        log.info('No last_built timestamp - rebuild needed')
         return True
 
     try:
         file_mtime = os.path.getmtime(profile_path)
         built_dt = datetime.datetime.strptime(last_built, '%Y-%m-%dT%H:%M:%S')
-        built_ts = built_dt.timestamp()
+        built_ts = time.mktime(built_dt.timetuple())
         # Use >= to handle same-second edits (mtime precision)
         if file_mtime >= built_ts:
-            log.info('Profile modified since last build — rebuild needed')
+            log.info('Profile modified since last build - rebuild needed')
             return True
-        log.info('Profile unchanged since last build — skipping rebuild')
+        log.info('Profile unchanged since last build - skipping rebuild')
         return False
     except (ValueError, OSError) as e:
-        log.warning('Could not compare timestamps: %s — rebuilding', e)
+        log.warning('Could not compare timestamps: %s - rebuilding', e)
         return True
 
 
 def _update_last_built(active):
     """Write updated last_built timestamp to active_profile.json."""
     active['last_built'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    with open(_active_profile_path, 'w') as f:
+    with open(_active_profile_path, 'w', encoding='utf-8') as f:
         json.dump(active, f, indent=2)
     log.info('Updated last_built: %s', active['last_built'])
 
@@ -91,7 +92,7 @@ def _get_icon_path(slot):
         custom_path = os.path.join(_icons_dir, icon_file)
         if os.path.exists(custom_path):
             return custom_path
-        log.warning('Custom icon not found: %s — using default', icon_file)
+        log.warning('Custom icon not found: %s - using default', icon_file)
     return _default_icon_path
 
 
@@ -117,20 +118,6 @@ def _load_icon(icon_path):
         log.debug('Could not load icon %s: %s', icon_path, e)
     return None
 
-
-def _post_command(command_id):
-    """Create a callback that posts a Revit command by its commandId string."""
-    def callback(sender, args):
-        try:
-            from Autodesk.Revit.UI import RevitCommandId
-            cmd = RevitCommandId.LookupCommandId(command_id)
-            if cmd:
-                __revit__.PostCommand(cmd)  # noqa: F821
-            else:
-                log.warning('Command not found: %s', command_id)
-        except Exception as e:
-            log.error('PostCommand failed for %s: %s', command_id, e)
-    return callback
 
 
 def _build_ribbon(profile):
@@ -265,7 +252,9 @@ def _create_stack_button(stack_name, stack_def):
                 child.Image = icon
 
             if command_id:
-                child.CommandHandler = _PostCommandHandler(command_id)
+                handler = _make_command_handler(command_id)
+            if handler:
+                child.CommandHandler = handler
 
             split.Items.Add(child)
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
@@ -323,7 +312,7 @@ def main():
 
     active, profile = _load_active_profile()
     if not active or not profile:
-        log.info('No active profile — startup complete (no tab to build)')
+        log.info('No active profile - startup complete (no tab to build)')
         return
 
     log.info('Active profile: %s', active.get('profile'))
@@ -338,7 +327,7 @@ def main():
     min_version = profile.get('min_version')
     if revit_version and min_version:
         if int(revit_version) < int(min_version):
-            log.warning('Revit %s is below min_version %s — aborting',
+            log.warning('Revit %s is below min_version %s - aborting',
                         revit_version, min_version)
             # TODO: show balloon notification to user
             return
