@@ -249,14 +249,7 @@ def _create_tool_button(slot):
         btn.ShowText = True
         btn.Size = RibbonItemSize.Large
 
-        # Text below icon (vertical orientation)
-        try:
-            from System.Windows.Controls import Orientation
-            btn.Orientation = Orientation.Vertical
-        except Exception:
-            log.debug('Could not set vertical orientation for %s', name)
-
-        # 32x32 icon
+        # 32x32 icon (Large size shows icon on top, text below by default)
         icon = _load_icon(_get_icon_path(slot, small=False))
         if icon:
             btn.LargeImage = icon
