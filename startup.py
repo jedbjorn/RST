@@ -17,8 +17,7 @@ log = get_logger('startup')
 _active_profile_path = os.path.join(_root, 'app', 'active_profile.json')
 _profiles_dir = os.path.join(_root, 'app', 'profiles')
 _icons_dir = os.path.join(_root, 'icons')
-_default_icon_path = os.path.join(_root, 'RESTer.tab', 'Admin.panel',
-                                  'TabCreator.pushbutton', 'icon.png')
+_default_icon_path = os.path.join(_root, 'icons', 'RESTer_default.png')
 
 
 def _load_active_profile():
