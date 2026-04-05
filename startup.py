@@ -63,7 +63,7 @@ def _needs_rebuild(active, profile_path):
 
     try:
         file_mtime = os.path.getmtime(profile_path)
-        built_dt = datetime.datetime.fromisoformat(last_built)
+        built_dt = datetime.datetime.strptime(last_built, '%Y-%m-%dT%H:%M:%S')
         built_ts = built_dt.timestamp()
         # Use >= to handle same-second edits (mtime precision)
         if file_mtime >= built_ts:
@@ -78,7 +78,7 @@ def _needs_rebuild(active, profile_path):
 
 def _update_last_built(active):
     """Write updated last_built timestamp to active_profile.json."""
-    active['last_built'] = datetime.datetime.now().isoformat(timespec='seconds')
+    active['last_built'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     with open(_active_profile_path, 'w') as f:
         json.dump(active, f, indent=2)
     log.info('Updated last_built: %s', active['last_built'])
