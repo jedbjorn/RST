@@ -1024,7 +1024,7 @@
         renderCards();
       }
     }).catch(function(err) {
-      // User cancelled or error — do nothing
+      if (err) console.error('addProfile error:', err);
     });
   }
 

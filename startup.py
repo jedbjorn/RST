@@ -33,7 +33,7 @@ def _load_active_profile():
     try:
         with io.open(_active_profile_path, 'r', encoding='utf-8') as f:
             active = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (ValueError, IOError) as e:
         log.error('Failed to read active_profile.json: %s', e)
         return None, None
 
@@ -50,7 +50,7 @@ def _load_active_profile():
     try:
         with io.open(profile_path, 'r', encoding='utf-8') as f:
             profile = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (ValueError, IOError) as e:
         log.error('Failed to read profile %s: %s', profile_file, e)
         return None, None
 
@@ -428,7 +428,7 @@ def _on_app_initialized(sender, args):
 # Register for ApplicationInitialized event
 log.info('=== RESTer startup hook - registering for ApplicationInitialized ===')
 try:
-    __revit__.ApplicationInitialized += _on_app_initialized  # noqa: F821
+    __revit__.ControlledApplication.ApplicationInitialized += _on_app_initialized  # noqa: F821
     log.info('Registered ApplicationInitialized handler')
 except Exception as e:
     log.warning('Could not register ApplicationInitialized: %s', e)

@@ -519,31 +519,6 @@
     flex-shrink: 0;
   }
 
-  .record-btn {
-    width: 100%;
-    padding: 9px;
-    background: transparent;
-    border: 1px solid rgba(239,68,68,0.35);
-    border-radius: 5px;
-    color: var(--danger);
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: all 0.15s;
-  }
-  .record-btn:hover { border-color: var(--danger); background: rgba(239,68,68,0.06); }
-  .record-btn.recording {
-    border-color: var(--danger); color: var(--danger);
-    background: rgba(239,68,68,0.06);
-    animation: recPulse 1.4s ease-in-out infinite;
-  }
-  @keyframes recPulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
-
-  .rec-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
   /* Inline rename input */
   .sb-rename-input {
@@ -1982,44 +1957,6 @@
     selectPanel(name, color);
   }
 
-  // ── RECORD ────────────────────────────────────────────────────────────────
-  function toggleRecord() {
-    const btn = document.getElementById('recBtn');
-    const wasRecording = btn.classList.contains('recording');
-    btn.classList.toggle('recording');
-
-    if (!wasRecording) {
-      // Starting record mode — fetch installed commands from Revit ribbon
-      btn.innerHTML = '<div class="rec-dot"></div> Loading…';
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.get_installed_commands().then(cmds => {
-          if (Array.isArray(cmds) && cmds.length > 0) {
-            // Merge new commands into allTools, avoiding duplicates by commandId
-            const existingIds = new Set(state.allTools.map(t => t.commandId));
-            cmds.forEach(cmd => {
-              if (!existingIds.has(cmd.commandId)) {
-                state.allTools.push({
-                  name:      cmd.name,
-                  icon:      cmd.icon || '●',
-                  sourceTab: cmd.sourceTab || null,
-                  commandId: cmd.commandId,
-                });
-              }
-            });
-            renderToolList();
-            renderDetectedAddins();
-          }
-          btn.innerHTML = '<div class="rec-dot"></div> Recording…';
-        }).catch(() => {
-          btn.innerHTML = '<div class="rec-dot"></div> Recording…';
-        });
-      } else {
-        btn.innerHTML = '<div class="rec-dot"></div> Recording…';
-      }
-    } else {
-      btn.innerHTML = '<div class="rec-dot"></div> Record';
-    }
-  }
 
   // ── PROFILE MANAGEMENT ────────────────────────────────────────────────────
   function toggleProfileMenu() {
@@ -2587,7 +2524,9 @@
   // ── OPEN PROFILES FOLDER ─────────────────────────────────────────────────
   function openProfilesFolder() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.open_profiles_folder) {
-      window.pywebview.api.open_profiles_folder();
+      window.pywebview.api.open_profiles_folder().catch(function(err) {
+        showToast('Error', 'Could not open folder');
+      });
     }
   }
 
