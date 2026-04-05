@@ -231,6 +231,16 @@ class ProfileSelectorAPI:
         log.error('Profile not found for removal: %s', profile_name)
         return {'ok': False, 'error': 'Profile not found'}
 
+    def unload_profile(self):
+        """Remove active profile from Revit without deleting the profile file."""
+        log.info('Unloading active profile')
+        if os.path.exists(_active_profile_path):
+            os.remove(_active_profile_path)
+            log.info('Deleted active_profile.json')
+            return {'ok': True}
+        log.debug('No active profile to unload')
+        return {'ok': True}
+
     def restore_addins(self, revit_version):
         """Restore all .addin.inactive -> .addin for the given version."""
         log.info('Restoring addins for Revit %s', revit_version)
@@ -247,8 +257,8 @@ if __name__ == '__main__':
     window = webview.create_window(
         'RESTer - Profile Selector',
         url=_html_path,
-        width=1100,
-        height=700,
+        width=1200,
+        height=1000,
         js_api=api
     )
     webview.start()

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RESTer — Profile Selector</title>
+<!-- NOTE: Window size should be 1200x1000 to match tab creator. Set in profile_selector.py. -->
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -562,13 +563,21 @@
     padding: 14px 28px;
     border-top: 1px solid var(--border);
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
     background: var(--surface);
   }
+  .detail-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
 
-  .remove-btn {
+  .unload-btn {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -581,7 +590,22 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .remove-btn:hover { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.06); }
+  .unload-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface2); }
+
+  .delete-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .delete-btn:hover { border-color: var(--danger); color: #fff; background: var(--danger); }
 
   .load-btn {
     font-family: 'DM Mono', monospace;
@@ -729,15 +753,20 @@
     </div>
 
     <div class="detail-footer">
-      <button class="remove-btn" onclick="confirmRemove()">Remove Profile</button>
-      <button class="restore-btn" onclick="restoreAllAddins()">↺ Restore Add-ins</button>
-      <label class="toggle-label">
-        <div class="toggle-switch">
-          <input type="checkbox" id="disableAddinsCheck">
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-        </div>
-        Disable non-required add-ins on load
-      </label>
+      <div class="detail-footer-row">
+        <button class="unload-btn" onclick="unloadProfile()">Unload Profile</button>
+        <button class="delete-btn" onclick="confirmRemove()">Delete Profile</button>
+      </div>
+      <div class="detail-footer-row">
+        <button class="restore-btn" onclick="restoreAllAddins()">&#8634; Restore Add-ins</button>
+        <label class="toggle-label">
+          <div class="toggle-switch">
+            <input type="checkbox" id="disableAddinsCheck">
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </div>
+          Disable non-required add-ins on load
+        </label>
+      </div>
       <div class="blocked-notice" id="blockedNotice" style="display:none">
         <div class="b-dot"></div>
         Close Revit to switch profiles
@@ -1028,14 +1057,35 @@
     });
   }
 
-  // ── REMOVE PROFILE ────────────────────────────────────────────────────────────
+  // ── UNLOAD PROFILE ────────────────────────────────────────────────────────────
+  // Removes active_profile.json so Revit no longer loads this profile,
+  // but does NOT delete the profile JSON from the profiles directory.
+  function unloadProfile() {
+    if (!activeProfileName) { alert('No profile is currently loaded.'); return; }
+
+    window.pywebview.api.unload_profile().then(function(result) {
+      if (!result.ok) {
+        alert('Failed to unload profile.');
+        return;
+      }
+      activeProfileName = null;
+      selectedProfile = null;
+      renderCards();
+      const firstCard = document.querySelector('.profile-card');
+      if (firstCard) firstCard.click();
+    }).catch(function(err) {
+      alert('Error unloading profile: ' + (err.message || err));
+    });
+  }
+
+  // ── DELETE PROFILE ────────────────────────────────────────────────────────────
   function confirmRemove() {
     if (!selectedProfile) return;
     const name = selectedProfile.profile;
-    if (confirm(`Remove "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
+    if (confirm(`Delete "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
       window.pywebview.api.remove_profile(name).then(function(result) {
         if (!result.ok) {
-          alert('Failed to remove profile.');
+          alert('Failed to delete profile.');
           return;
         }
         const idx = profiles.findIndex(p => p.profile === name);
@@ -1046,7 +1096,7 @@
         const firstCard = document.querySelector('.profile-card');
         if (firstCard) firstCard.click();
       }).catch(function(err) {
-        alert('Error removing profile: ' + (err.message || err));
+        alert('Error deleting profile: ' + (err.message || err));
       });
     }
   }
