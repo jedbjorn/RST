@@ -23,11 +23,19 @@ _revit_data_path = os.path.join(_root, 'app', '_revit_data.json')
 os.makedirs(_profiles_dir, exist_ok=True)
 os.makedirs(_icons_dir, exist_ok=True)
 
+# pywebview file dialog constant (handle old and new API)
+_OPEN_DIALOG = getattr(webview, 'OPEN_DIALOG', None)
+if _OPEN_DIALOG is None:
+    try:
+        _OPEN_DIALOG = webview.FileDialog.OPEN
+    except AttributeError:
+        _OPEN_DIALOG = 0
+
 # Load Revit data collected by IronPython
 _revit_data = {}
 if os.path.exists(_revit_data_path):
     try:
-        with open(_revit_data_path, 'r') as f:
+        with open(_revit_data_path, 'r', encoding='utf-8') as f:
             _revit_data = json.load(f)
         log.info('Loaded Revit data: version=%s, %d commands',
                  _revit_data.get('revit_version'),
@@ -97,7 +105,7 @@ class TabCreatorAPI:
     def pick_icon(self, tool_name):
         log.info('Picking icon for tool: %s', tool_name)
         result = webview.windows[0].create_file_dialog(
-            webview.OPEN_DIALOG,
+            _OPEN_DIALOG,
             file_types=('PNG Images (*.png)',)
         )
         if not result:
@@ -123,7 +131,7 @@ class TabCreatorAPI:
         for fname in os.listdir(_profiles_dir):
             if fname.endswith('.json'):
                 try:
-                    with open(os.path.join(_profiles_dir, fname), 'r') as f:
+                    with open(os.path.join(_profiles_dir, fname), 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     profiles.append(data.get('profile', fname))
                 except (json.JSONDecodeError, IOError):
@@ -137,7 +145,7 @@ class TabCreatorAPI:
             if fname.endswith('.json'):
                 fpath = os.path.join(_profiles_dir, fname)
                 try:
-                    with open(fpath, 'r') as f:
+                    with open(fpath, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     if data.get('profile') == profile_name:
                         log.info('Found profile: %s', fname)

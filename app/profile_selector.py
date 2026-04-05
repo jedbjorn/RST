@@ -30,6 +30,14 @@ from addin_scanner import (
     get_installed_revit_versions,
 )
 
+# pywebview file dialog constant (handle old and new API)
+_OPEN_DIALOG = getattr(webview, 'OPEN_DIALOG', None)
+if _OPEN_DIALOG is None:
+    try:
+        _OPEN_DIALOG = webview.FileDialog.OPEN
+    except AttributeError:
+        _OPEN_DIALOG = 0
+
 
 class ProfileSelectorAPI:
 
@@ -41,11 +49,11 @@ class ProfileSelectorAPI:
             if fname.endswith('.json'):
                 fpath = os.path.join(_profiles_dir, fname)
                 try:
-                    with open(fpath, 'r') as f:
+                    with open(fpath, 'r', encoding='utf-8') as f:
                         profile = json.load(f)
                     profile['_filename'] = fname
                     profiles.append(profile)
-                except (json.JSONDecodeError, IOError) as e:
+                except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
                     log.error('Failed to read profile %s: %s', fname, e)
                     continue
         log.info('Loaded %d profiles', len(profiles))
@@ -57,7 +65,7 @@ class ProfileSelectorAPI:
             log.debug('No active_profile.json found')
             return None
         try:
-            with open(_active_profile_path, 'r') as f:
+            with open(_active_profile_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             name = data.get('profile')
             log.info('Active profile: %s', name)
@@ -89,7 +97,7 @@ class ProfileSelectorAPI:
         """Open file dialog, validate JSON, copy to app/profiles/."""
         log.info('Opening file dialog for profile import')
         result = webview.windows[0].create_file_dialog(
-            webview.OPEN_DIALOG,
+            _OPEN_DIALOG,
             file_types=('JSON Files (*.json)',)
         )
         if not result:
@@ -100,9 +108,9 @@ class ProfileSelectorAPI:
         log.info('Selected file: %s', file_path)
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
             log.error('Invalid JSON: %s', e)
             return {'ok': False, 'error': 'Invalid JSON: ' + str(e)}
 
@@ -112,11 +120,11 @@ class ProfileSelectorAPI:
             return {'ok': False, 'error': 'Missing fields: ' + ', '.join(sorted(missing))}
 
         dest_name = '{}_{}.json'.format(profile['profile'], profile['exportDate'])
-        # Check if profile with same name already exists — overwrite it
+        # Check if profile with same name already exists - overwrite it
         for fname in os.listdir(_profiles_dir):
             if fname.endswith('.json'):
                 try:
-                    with open(os.path.join(_profiles_dir, fname), 'r') as f:
+                    with open(os.path.join(_profiles_dir, fname), 'r', encoding='utf-8') as f:
                         existing = json.load(f)
                     if existing.get('profile') == profile['profile']:
                         os.remove(os.path.join(_profiles_dir, fname))
@@ -144,7 +152,7 @@ class ProfileSelectorAPI:
             if fname.endswith('.json'):
                 fpath = os.path.join(_profiles_dir, fname)
                 try:
-                    with open(fpath, 'r') as f:
+                    with open(fpath, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     if data.get('profile') == profile_name:
                         profile_data = data
@@ -182,7 +190,7 @@ class ProfileSelectorAPI:
                     profile_data.get('requiredAddins', []), revit_version
                 )
         else:
-            warnings.append('No Revit version detected — add-in toggling skipped')
+            warnings.append('No Revit version detected - add-in toggling skipped')
 
         # Write active_profile.json
         active = {
@@ -192,7 +200,7 @@ class ProfileSelectorAPI:
             'last_built': None,
             'disable_non_required': bool(disable_non_required),
         }
-        with open(_active_profile_path, 'w') as f:
+        with open(_active_profile_path, 'w', encoding='utf-8') as f:
             json.dump(active, f, indent=2)
 
         log.info('Profile loaded: %s (warnings: %s)', profile_name, warnings)
@@ -205,14 +213,14 @@ class ProfileSelectorAPI:
             if fname.endswith('.json'):
                 fpath = os.path.join(_profiles_dir, fname)
                 try:
-                    with open(fpath, 'r') as f:
+                    with open(fpath, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     if data.get('profile') == profile_name:
                         os.remove(fpath)
                         log.info('Deleted: %s', fname)
                         # Clear active if it was the active one
                         if os.path.exists(_active_profile_path):
-                            with open(_active_profile_path, 'r') as f:
+                            with open(_active_profile_path, 'r', encoding='utf-8') as f:
                                 active = json.load(f)
                             if active.get('profile') == profile_name:
                                 os.remove(_active_profile_path)
@@ -237,7 +245,7 @@ if __name__ == '__main__':
 
     api = ProfileSelectorAPI()
     window = webview.create_window(
-        'RESTer — Profile Selector',
+        'RESTer - Profile Selector',
         url=_html_path,
         width=1100,
         height=700,
