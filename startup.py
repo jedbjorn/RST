@@ -140,6 +140,7 @@ def _build_ribbon(profile):
             ComponentManager,
             RibbonTab,
             RibbonPanel as AwRibbonPanel,
+            RibbonPanelSource,
             RibbonButton,
             RibbonSplitButton,
             RibbonItemSize,
@@ -167,9 +168,10 @@ def _build_ribbon(profile):
         for panel_def in panels:
             panel_name = panel_def.get('name', 'Panel')
             aw_panel = AwRibbonPanel()
-            aw_panel.Source = AwRibbonPanel()
-            aw_panel.Source.Title = panel_name
-            aw_panel.Source.Id = 'RESTer_Panel_' + panel_name.replace(' ', '_')
+            panel_source = RibbonPanelSource()
+            panel_source.Title = panel_name
+            panel_source.Id = 'RESTer_Panel_' + panel_name.replace(' ', '_')
+            aw_panel.Source = panel_source
 
             tab.Panels.Add(aw_panel)
             log.info('Created panel: %s', panel_name)
