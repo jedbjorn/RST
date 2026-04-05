@@ -984,8 +984,8 @@
   //   6. On every subsequent launch, ProfileSelector reads all .json files from that dir
   function addProfile() {
     window.pywebview.api.add_profile().then(function(result) {
-      if (result) {
-        profiles.push(result);
+      if (result && result.ok) {
+        profiles.push(result.profile);
         renderCards();
       }
     }).catch(function(err) {
@@ -999,6 +999,13 @@
     const disableNonRequired = document.getElementById('disableAddinsCheck').checked;
 
     window.pywebview.api.load_profile(selectedProfile.profile, disableNonRequired, currentRevitVersion).then(function(result) {
+      if (!result.ok) {
+        alert('Failed to load profile.');
+        return;
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        alert('Profile loaded with warnings:\n\n' + result.warnings.join('\n'));
+      }
       activeProfileName = selectedProfile.profile;
       renderCards();
       const idx  = profiles.findIndex(p => p.profile === activeProfileName);
@@ -1012,6 +1019,7 @@
   // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
   function restoreAllAddins() {
     if (revitRunning) { alert('Close Revit before restoring add-ins.'); return; }
+    if (!currentRevitVersion) { alert('No Revit version selected.'); return; }
 
     window.pywebview.api.restore_addins(currentRevitVersion).then(function(result) {
       alert('All add-ins restored successfully.');
@@ -1026,6 +1034,10 @@
     const name = selectedProfile.profile;
     if (confirm(`Remove "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
       window.pywebview.api.remove_profile(name).then(function(result) {
+        if (!result.ok) {
+          alert('Failed to remove profile.');
+          return;
+        }
         const idx = profiles.findIndex(p => p.profile === name);
         if (idx !== -1) profiles.splice(idx, 1);
         if (activeProfileName === name) activeProfileName = null;
@@ -1071,15 +1083,15 @@
           const cards = document.querySelectorAll('.profile-card');
           if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
         }
-      });
-    });
+      }).catch(function(err) { console.error(err); });
+    }).catch(function(err) { console.error(err); });
 
     // Fetch Revit versions
     window.pywebview.api.get_revit_versions().then(function(versions) {
       if (versions && versions.length > 0) {
         populateRevitVersions(versions);
       }
-    });
+    }).catch(function(err) { console.error(err); });
 
     // Check if Revit is running (once)
     window.pywebview.api.is_revit_running().then(function(running) {
@@ -1090,7 +1102,7 @@
           '<div class="b-dot"></div> Close Revit before loading a profile';
         document.getElementById('loadBtn').classList.add('blocked');
       }
-    });
+    }).catch(function(err) { console.error(err); });
   });
 </script>
 </body>

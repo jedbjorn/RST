@@ -2453,7 +2453,7 @@
     // Gather from panel slots
     Object.values(state.panels).forEach(panel => {
       panel.slots.forEach(slot => {
-        if (slot.type === 'tool' && !seen.has(slot.commandId)) {
+        if (slot.type === 'tool' && slot.commandId && !seen.has(slot.commandId)) {
           seen.add(slot.commandId);
           const tool = state.allTools.find(t => t.name === slot.name);
           if (!tool) {
@@ -2524,7 +2524,7 @@
   window.addEventListener('pywebviewready', async function() {
     try {
       // Fetch Revit version
-      if (window.pywebview.api.get_revit_version) {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_revit_version) {
         const ver = await window.pywebview.api.get_revit_version();
         if (ver) {
           document.getElementById('rvtVersionDisplay').textContent = 'Revit ' + ver;
@@ -2534,7 +2534,7 @@
 
     try {
       // Fetch profile list
-      if (window.pywebview.api.get_profiles) {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_profiles) {
         const profiles = await window.pywebview.api.get_profiles();
         if (Array.isArray(profiles)) {
           populateProfileDropdown(profiles);

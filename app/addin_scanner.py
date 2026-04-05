@@ -35,14 +35,25 @@ def _record_fuzzy_match(tab_name, filename):
     _save_overrides(overrides)
 
 
+def _get_appdata():
+    """Get APPDATA path, return None on non-Windows."""
+    return os.environ.get('APPDATA')
+
+
 def get_addins_dir(revit_version):
-    return os.path.join(
-        os.environ['APPDATA'], 'Autodesk', 'Revit', 'Addins', str(revit_version)
-    )
+    appdata = _get_appdata()
+    if not appdata:
+        log.warning('APPDATA not set — not a Windows environment')
+        return None
+    return os.path.join(appdata, 'Autodesk', 'Revit', 'Addins', str(revit_version))
 
 
 def get_installed_revit_versions():
-    addins_root = os.path.join(os.environ['APPDATA'], 'Autodesk', 'Revit', 'Addins')
+    appdata = _get_appdata()
+    if not appdata:
+        log.warning('APPDATA not set — cannot scan for Revit versions')
+        return []
+    addins_root = os.path.join(appdata, 'Autodesk', 'Revit', 'Addins')
     if not os.path.isdir(addins_root):
         log.warning('Revit Addins dir not found: %s', addins_root)
         return []
@@ -74,7 +85,7 @@ def check_addins(required_addins, revit_version):
     log.info('Checking addins for Revit %s: %s', revit_version, required_addins)
     lookup = load_addin_lookup()
     addins_dir = get_addins_dir(revit_version)
-    if not os.path.isdir(addins_dir):
+    if not addins_dir or not os.path.isdir(addins_dir):
         log.warning('Addins dir not found: %s', addins_dir)
         return {name: 'unknown' for name in required_addins}
 

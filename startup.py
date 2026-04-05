@@ -65,7 +65,8 @@ def _needs_rebuild(active, profile_path):
         file_mtime = os.path.getmtime(profile_path)
         built_dt = datetime.datetime.fromisoformat(last_built)
         built_ts = built_dt.timestamp()
-        if file_mtime > built_ts:
+        # Use >= to handle same-second edits (mtime precision)
+        if file_mtime >= built_ts:
             log.info('Profile modified since last build — rebuild needed')
             return True
         log.info('Profile unchanged since last build — skipping rebuild')
@@ -102,21 +103,49 @@ def _get_revit_version():
         return None
 
 
-def _build_ribbon(profile):
-    """Build a custom Revit ribbon tab from the profile data."""
+def _load_icon(icon_path):
+    """Load a PNG file as a BitmapImage for the Revit ribbon."""
     try:
-        from Autodesk.Revit.UI import (
-            RibbonPanel,
-            PushButtonData,
-            PulldownButtonData,
-            SplitButtonData,
-            RevitCommandId,
-        )
-        from System.Drawing import Icon
         from System.Windows.Media.Imaging import BitmapImage
         from System import Uri, UriKind
-    except ImportError as e:
-        log.error('Revit API import failed: %s', e)
+        if icon_path and os.path.exists(icon_path):
+            uri = Uri(os.path.abspath(icon_path), UriKind.Absolute)
+            return BitmapImage(uri)
+    except Exception as e:
+        log.debug('Could not load icon %s: %s', icon_path, e)
+    return None
+
+
+def _post_command(command_id):
+    """Create a callback that posts a Revit command by its commandId string."""
+    def callback(sender, args):
+        try:
+            from Autodesk.Revit.UI import RevitCommandId
+            cmd = RevitCommandId.LookupCommandId(command_id)
+            if cmd:
+                __revit__.PostCommand(cmd)  # noqa: F821
+            else:
+                log.warning('Command not found: %s', command_id)
+        except Exception as e:
+            log.error('PostCommand failed for %s: %s', command_id, e)
+    return callback
+
+
+def _build_ribbon(profile):
+    """Build a custom Revit ribbon tab using the AdWindows API."""
+    try:
+        import clr
+        clr.AddReference('AdWindows')
+        from Autodesk.Windows import (
+            ComponentManager,
+            RibbonTab,
+            RibbonPanel as AwRibbonPanel,
+            RibbonButton,
+            RibbonSplitButton,
+            RibbonItemSize,
+        )
+    except Exception as e:
+        log.error('AdWindows import failed: %s', e)
         return False
 
     tab_name = profile.get('tab', 'RESTer')
@@ -126,35 +155,39 @@ def _build_ribbon(profile):
     log.info('Building ribbon tab: %s (%d panels)', tab_name, len(panels))
 
     try:
-        uiapp = __revit__  # noqa: F821
+        ribbon = ComponentManager.Ribbon
 
         # Create the tab
-        try:
-            uiapp.CreateRibbonTab(tab_name)
-            log.info('Created ribbon tab: %s', tab_name)
-        except Exception as e:
-            log.warning('Tab may already exist: %s', e)
+        tab = RibbonTab()
+        tab.Title = tab_name
+        tab.Id = 'RESTer_' + tab_name.replace(' ', '_')
+        ribbon.Tabs.Add(tab)
+        log.info('Created ribbon tab: %s', tab_name)
 
         for panel_def in panels:
             panel_name = panel_def.get('name', 'Panel')
-            try:
-                panel = uiapp.CreateRibbonPanel(tab_name, panel_name)
-            except Exception as e:
-                log.warning('Could not create panel %s: %s', panel_name, e)
-                continue
+            aw_panel = AwRibbonPanel()
+            aw_panel.Source = AwRibbonPanel()
+            aw_panel.Source.Title = panel_name
+            aw_panel.Source.Id = 'RESTer_Panel_' + panel_name.replace(' ', '_')
 
+            tab.Panels.Add(aw_panel)
             log.info('Created panel: %s', panel_name)
 
             for slot in panel_def.get('slots', []):
                 slot_type = slot.get('type')
 
                 if slot_type == 'tool':
-                    _add_tool_button(panel, slot)
+                    btn = _create_tool_button(slot)
+                    if btn:
+                        aw_panel.Source.Items.Add(btn)
                 elif slot_type == 'stack':
                     stack_name = slot.get('name', '')
-                    stack_def = stacks.get(stack_name)
-                    if stack_def:
-                        _add_stack_button(panel, stack_name, stack_def)
+                    stack_def_data = stacks.get(stack_name)
+                    if stack_def_data:
+                        split = _create_stack_button(stack_name, stack_def_data)
+                        if split:
+                            aw_panel.Source.Items.Add(split)
                     else:
                         log.warning('Stack not found: %s', stack_name)
 
@@ -166,64 +199,98 @@ def _build_ribbon(profile):
     return True
 
 
-def _add_tool_button(panel, slot):
-    """Add a single PushButton to a panel for a tool slot."""
-    from Autodesk.Revit.UI import PushButtonData
-    from System.Windows.Media.Imaging import BitmapImage
-    from System import Uri, UriKind
+def _create_tool_button(slot):
+    """Create a RibbonButton for a tool slot and bind its command."""
+    from Autodesk.Windows import RibbonButton, RibbonItemSize
 
     name = slot.get('name', 'Tool')
     command_id = slot.get('commandId', '')
 
-    # Create a unique internal name
-    internal_name = 'RESTer_' + name.replace(' ', '_')
-
     try:
-        # PyRevit button approach: create a push button that posts the command
-        button_data = PushButtonData(
-            internal_name,
-            name,
-            # For PyRevit, we need to point to an assembly — this is a placeholder
-            # The actual command execution uses PostCommand
-            '',
-            ''
-        )
+        btn = RibbonButton()
+        btn.Text = name
+        btn.Id = 'RESTer_Btn_' + name.replace(' ', '_')
+        btn.ShowText = True
+        btn.Size = RibbonItemSize.Large
 
         # Set icon
-        icon_path = _get_icon_path(slot)
-        if icon_path and os.path.exists(icon_path):
-            try:
-                uri = Uri(icon_path, UriKind.Absolute)
-                button_data.LargeImage = BitmapImage(uri)
-            except Exception as e:
-                log.debug('Could not set icon for %s: %s', name, e)
+        icon = _load_icon(_get_icon_path(slot))
+        if icon:
+            btn.LargeImage = icon
+            btn.Image = icon
 
-        log.debug('Added tool button: %s -> %s', name, command_id)
+        # Bind click to PostCommand
+        if command_id:
+            btn.CommandHandler = _PostCommandHandler(command_id)
+
+        log.debug('Created tool button: %s -> %s', name, command_id)
+        return btn
 
     except Exception as e:
-        log.error('Failed to add button %s: %s', name, e)
+        log.error('Failed to create button %s: %s', name, e)
+        return None
 
 
-def _add_stack_button(panel, stack_name, stack_def):
-    """Add a PulldownButton with child tools for a stack slot."""
-    from Autodesk.Revit.UI import PulldownButtonData
-    from System.Windows.Media.Imaging import BitmapImage
-    from System import Uri, UriKind
+def _create_stack_button(stack_name, stack_def):
+    """Create a RibbonSplitButton with child tools for a stack slot."""
+    from Autodesk.Windows import RibbonSplitButton, RibbonButton, RibbonItemSize
 
-    internal_name = 'RESTer_Stack_' + stack_name.replace(' ', '_')
     tools = stack_def.get('tools', [])
 
     try:
-        pulldown_data = PulldownButtonData(internal_name, stack_name)
-        log.debug('Added stack: %s (%d tools)', stack_name, len(tools))
+        split = RibbonSplitButton()
+        split.Text = stack_name
+        split.Id = 'RESTer_Stack_' + stack_name.replace(' ', '_')
+        split.Size = RibbonItemSize.Large
+        split.IsSplit = True
 
         for tool in tools:
             tool_name = tool.get('name', 'Tool')
             command_id = tool.get('commandId', '')
+
+            child = RibbonButton()
+            child.Text = tool_name
+            child.Id = 'RESTer_StackBtn_' + tool_name.replace(' ', '_')
+            child.ShowText = True
+
+            icon = _load_icon(_get_icon_path(tool))
+            if icon:
+                child.LargeImage = icon
+                child.Image = icon
+
+            if command_id:
+                child.CommandHandler = _PostCommandHandler(command_id)
+
+            split.Items.Add(child)
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
 
+        log.debug('Created stack: %s (%d tools)', stack_name, len(tools))
+        return split
+
     except Exception as e:
-        log.error('Failed to add stack %s: %s', stack_name, e)
+        log.error('Failed to create stack %s: %s', stack_name, e)
+        return None
+
+
+class _PostCommandHandler(object):
+    """ICommand handler that posts a Revit command by commandId string."""
+
+    def __init__(self, command_id):
+        self._command_id = command_id
+
+    def Execute(self, parameter):
+        try:
+            from Autodesk.Revit.UI import RevitCommandId
+            cmd = RevitCommandId.LookupCommandId(self._command_id)
+            if cmd:
+                __revit__.PostCommand(cmd)  # noqa: F821
+            else:
+                log.warning('Command not found: %s', self._command_id)
+        except Exception as e:
+            log.error('PostCommand failed for %s: %s', self._command_id, e)
+
+    def CanExecute(self, parameter):
+        return True
 
 
 # --- Main startup logic ---
