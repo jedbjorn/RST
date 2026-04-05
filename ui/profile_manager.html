@@ -22,7 +22,7 @@
     --text2: #94a3b8;
     --text3: #64748b;
     --heading: #f8fafc;
-    --sidebar-w: 263px;
+    --sidebar-w: 329px;
     --header-h: 54px;
   }
 
@@ -263,8 +263,33 @@
   .sb-items {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 4px 0;
   }
+
+  .tool-filters {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px 2px;
+    flex-shrink: 0;
+  }
+  .tool-filters input,
+  .tool-filters select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .tool-filters input { flex: 1; min-width: 0; }
+  .tool-filters select { flex-shrink: 0; max-width: 50%; }
+  .tool-filters input:focus,
+  .tool-filters select:focus { border-color: var(--accent); }
+  .tool-filters input::placeholder { color: var(--text3); }
   .sb-items::-webkit-scrollbar { width: 3px; }
   .sb-items::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
@@ -323,6 +348,7 @@
     display: flex; align-items: center; gap: 8px;
     padding: 7px 15px;
     font-size: 12px; color: var(--text2); font-weight: 300;
+    min-width: 0;
     border-left: 2px solid transparent;
     transition: background 0.1s, border-color 0.1s;
     cursor: pointer;
@@ -1209,6 +1235,12 @@
         </button>
       </div>
       <div class="sb-rule"></div>
+      <div class="tool-filters">
+        <input type="text" id="toolSearchInput" placeholder="Search tools..." oninput="renderToolList()">
+        <select id="toolTabFilter" onchange="renderToolList()">
+          <option value="">All</option>
+        </select>
+      </div>
       <div class="sb-items" id="toolList">
         <!-- Rendered by renderToolList() -->
       </div>
@@ -1523,6 +1555,28 @@
   function renderToolList() {
     const list = document.getElementById('toolList');
 
+    // ── Rebuild sourceTab dropdown options ──
+    const tabSelect = document.getElementById('toolTabFilter');
+    if (tabSelect) {
+      const uniqueTabs = [...new Set(
+        state.allTools.map(t => t.sourceTab).filter(Boolean)
+      )].sort();
+      const prevVal = tabSelect.value;
+      tabSelect.innerHTML = '<option value="">All</option>' +
+        uniqueTabs.map(t => `<option value="${t}">${t}</option>`).join('');
+      // Restore previous selection if it still exists
+      if (uniqueTabs.includes(prevVal)) tabSelect.value = prevVal;
+    }
+
+    // ── Filter tools by search text and sourceTab dropdown ──
+    const searchVal = (document.getElementById('toolSearchInput')?.value || '').toLowerCase();
+    const tabVal    = document.getElementById('toolTabFilter')?.value || '';
+    const filtered  = state.allTools.filter(tool => {
+      if (searchVal && !tool.name.toLowerCase().includes(searchVal)) return false;
+      if (tabVal && (tool.sourceTab || '') !== tabVal) return false;
+      return true;
+    });
+
     // Tools in the current panel — green checkbox, toggleable
     const currentSlots = (state.currentPanel && state.panels[state.currentPanel])
       ? state.panels[state.currentPanel].slots : [];
@@ -1536,7 +1590,7 @@
         .flatMap(([, p]) => p.slots.map(s => s.name))
     );
 
-    list.innerHTML = state.allTools.map(tool => {
+    list.innerHTML = filtered.map(tool => {
       const isInCurrent  = currentPanelNames.has(tool.name);
       const isElsewhere  = !isInCurrent && otherPanelNames.has(tool.name);
       const hasAddin     = !!tool.sourceTab;
