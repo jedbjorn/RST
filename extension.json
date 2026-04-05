@@ -1,7 +1,13 @@
 {
+  "builtin": "False",
+  "default_enabled": "True",
+  "type": "extension",
   "name": "RESTer",
   "description": "Custom toolbar profile system for Revit",
-  "type": "extension",
-  "startup_script": "startup.py",
-  "author": "Design/OS"
+  "author": "Design/OS",
+  "author_profile": "https://github.com/jedbjorn",
+  "url": "https://github.com/jedbjorn/RESTer.git",
+  "website": "https://github.com/jedbjorn/RESTer",
+  "image": "",
+  "dependencies": []
 }
