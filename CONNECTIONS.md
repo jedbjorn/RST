@@ -156,7 +156,7 @@ TabCreator (admin)                    ProfileSelector (user)
 
 | Decision | Detail |
 |----------|--------|
-| Install method | Copy `RESTer/` into `%APPDATA%\pyRevit\Extensions\` |
+| Install method | Run `install_rester.bat` (clones repo to Extensions, creates Documents launcher) or manually copy `RESTer/` |
 | Profile re-export | Overwrites existing file (matched by profile name) |
 | Icon naming | `{toolName}.png`, appends `(1)` on collision |
 | Revit check | Once at ProfileSelector launch, not polled |
@@ -180,4 +180,6 @@ TabCreator (admin)                    ProfileSelector (user)
 | `profile_selector.py` | Done |
 | `addin_scanner.py` | Done |
 | `launch_profile_loader.bat` | Done |
-| `icons/` (default icon) | Needs placeholder PNG |
+| `icons/RESTer_default.png` | Done — 256x256 default icon |
+| `icon.png` (pushbutton) | Done — 32x32 |
+| `install_rester.bat` | Done — clones to Extensions, creates Documents launcher |
