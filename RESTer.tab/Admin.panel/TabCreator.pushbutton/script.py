@@ -68,7 +68,11 @@ with open(data_path, 'w') as f:
 log.info('Revit data written to %s', data_path)
 
 # Launch CPython with tab_creator.py
+# Use cmd /k so the window stays open if there's an error
 launcher = os.path.join(_root, 'app', 'tab_creator.py')
 log.info('Launching CPython: %s', launcher)
-subprocess.Popen(['python', launcher])
+subprocess.Popen(
+    'python "{}" & pause'.format(launcher),
+    shell=True,
+)
 log.info('TabCreator launched')
