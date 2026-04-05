@@ -8,6 +8,15 @@ log = get_logger('addin_scanner')
 
 PROTECTED_ADDINS = {'pyRevit.addin'}
 
+# Built-in Revit ribbon tabs - these are not add-ins and have no .addin files
+BUILTIN_TABS = {
+    'Architecture', 'Structure', 'Systems', 'Steel', 'Precast',
+    'Insert', 'Annotate', 'Analyze', 'Massing & Site', 'Collaborate',
+    'View', 'Manage', 'Modify', 'Add-Ins',
+    'Modify | Walls', 'Modify | Floors', 'Modify | Roofs',
+    'Modify | Structural Framing', 'Modify | Generic Models',
+}
+
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 _overrides_path = os.path.join(_root, 'app', 'user_addin_overrides.json')
@@ -208,6 +217,11 @@ def check_addins(required_addins, revit_version):
 
     results = {}
     for tab_name in required_addins:
+        # Built-in Revit tabs are always present
+        if tab_name in BUILTIN_TABS:
+            results[tab_name] = 'present'
+            continue
+
         entry = lookup.get(tab_name)
         if entry:
             results[tab_name] = 'present' if entry['file'] in active_filenames else 'missing'

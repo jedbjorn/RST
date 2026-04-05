@@ -1,5 +1,6 @@
 {
   "DiRoots":    { "displayName": "DiRoots Suite",           "file": "DiRoots.addin"              },
+  "DiRootsOne": { "displayName": "DiRootsOne",              "file": "DiRootsOne.addin"           },
   "Naviate":    { "displayName": "Naviate",                  "file": "Naviate.addin"              },
   "pyRevit":    { "displayName": "pyRevit",                  "file": "pyRevit.addin"              },
   "Dynamo":     { "displayName": "Dynamo for Revit",         "file": "DynamoRevitDS.addin"        },

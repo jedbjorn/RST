@@ -563,18 +563,22 @@
     padding: 14px 28px;
     border-top: 1px solid var(--border);
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 10px;
     flex-shrink: 0;
     background: var(--surface);
   }
-  .detail-footer-row {
+  .detail-footer-left {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 10px;
-    width: 100%;
+  }
+  .detail-footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
   }
 
   .unload-btn {
@@ -753,19 +757,21 @@
     </div>
 
     <div class="detail-footer">
-      <div class="detail-footer-row">
+      <div class="detail-footer-left">
         <button class="unload-btn" onclick="unloadProfile()">Unload Profile</button>
         <button class="delete-btn" onclick="confirmRemove()">Delete Profile</button>
       </div>
-      <div class="detail-footer-row">
-        <button class="restore-btn" onclick="restoreAllAddins()">&#8634; Restore Add-ins</button>
-        <label class="toggle-label">
-          <div class="toggle-switch">
-            <input type="checkbox" id="disableAddinsCheck">
-            <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          </div>
-          Disable non-required add-ins on load
-        </label>
+      <div class="detail-footer-center">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="restore-btn" onclick="restoreAllAddins()">&#8634; Restore Add-ins</button>
+          <label class="toggle-label">
+            <div class="toggle-switch">
+              <input type="checkbox" id="disableAddinsCheck">
+              <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </div>
+            Disable non-required add-ins on load
+          </label>
+        </div>
       </div>
       <div class="blocked-notice" id="blockedNotice" style="display:none">
         <div class="b-dot"></div>
