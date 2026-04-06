@@ -91,7 +91,7 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
             if not name:
                 name = cmd_str
 
-            # Build unique display name: "ToolName (Tab > Panel)" or "ToolName (Tab)"
+            # Build display name with source for browser disambiguation
             display_name = name
             if source_panel and source_panel != source_tab:
                 display_name = '%s (%s > %s)' % (name, source_tab, source_panel)
@@ -100,6 +100,7 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
 
             results.append({
                 'name': display_name,
+                'baseName': name,
                 'commandId': cmd_str,
                 'sourceTab': source_tab,
                 'sourcePanel': source_panel,

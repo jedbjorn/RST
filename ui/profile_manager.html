@@ -1492,7 +1492,7 @@
         tools.insertAdjacentHTML('beforeend',
           `<div class="rib-btn" style="background:${panelColor};border-color:${panelColor}">
              <div class="rib-icon" style="background:rgba(255,255,255,0.2);color:${textCol}">${slot.icon}</div>
-             <div class="rib-label" style="color:${textCol}">${slot.name}</div>
+             <div class="rib-label" style="color:${textCol}">${slot.baseName || slot.name}</div>
            </div>`);
       } else {
         const stackTools = state.stacks[slot.name]?.tools || [];
@@ -1525,7 +1525,7 @@
                 ondrop="onSlotDrop(event)">
              <span class="drag-h">⠿</span>
              <div class="slot-icon">${slot.icon}</div>
-             ${slot.name}
+             ${slot.baseName || slot.name}
              <button class="slot-icon-pick" title="Set custom icon" onclick="event.stopPropagation();pickIconForSlot(${idx})">
                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
@@ -1713,7 +1713,7 @@
     } else {
       const tool = state.allTools.find(t => t.name === name);
       if (!tool) return;
-      slots.push({ type: 'tool', name: tool.name, icon: tool.icon, commandId: tool.commandId });
+      slots.push({ type: 'tool', name: tool.name, baseName: tool.baseName || tool.name, icon: tool.icon, commandId: tool.commandId, sourceTab: tool.sourceTab, sourcePanel: tool.sourcePanel });
     }
     renderDetectedAddins();
     renderSlotList();
@@ -2343,7 +2343,7 @@
         if (slot.type === 'tool') {
           return `<div class="rib-btn" style="width:50px;background:${pColor};border-color:${pColor}">
             <div class="rib-icon" style="width:22px;height:22px;font-size:10px;background:rgba(255,255,255,0.2);color:${tCol}">${slot.icon || '?'}</div>
-            <div class="rib-label" style="color:${tCol}">${slot.name}</div>
+            <div class="rib-label" style="color:${tCol}">${slot.baseName || slot.name}</div>
           </div>`;
         }
         const stackTools = state.stacks[slot.name]?.tools || [];

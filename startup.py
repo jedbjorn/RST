@@ -239,18 +239,32 @@ def _create_tool_button(slot):
     """Create a large RibbonButton (32x32 icon, text below)."""
     from Autodesk.Windows import RibbonButton, RibbonItemSize
 
-    name = slot.get('name', 'Tool')
+    display_name = slot.get('baseName', slot.get('name', 'Tool'))
+    full_name = slot.get('name', display_name)
     command_id = slot.get('commandId', '')
+    source_tab = slot.get('sourceTab', '')
+    source_panel = slot.get('sourcePanel', '')
 
     try:
         import clr
         clr.AddReference('PresentationFramework')
 
         btn = RibbonButton()
-        btn.Text = name
-        btn.Id = 'REST_Btn_' + name.replace(' ', '_')
+        btn.Text = display_name
+        btn.Id = 'REST_Btn_' + full_name.replace(' ', '_')
         btn.ShowText = True
         btn.Size = RibbonItemSize.Large
+
+        # Tooltip shows source info on hover
+        tip = display_name
+        if source_panel and source_tab:
+            tip = '%s\nSource: %s > %s' % (display_name, source_tab, source_panel)
+        elif source_tab:
+            tip = '%s\nSource: %s' % (display_name, source_tab)
+        try:
+            btn.ToolTip = tip
+        except Exception:
+            pass
 
         # Text below icon
         try:
