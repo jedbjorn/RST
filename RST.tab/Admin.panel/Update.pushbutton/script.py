@@ -106,13 +106,13 @@ if not pulled:
         else:
             source_dir = extract_dir
 
-        # Preserve local data that shouldn't be overwritten
-        _preserve = ['app/active_profile.json', 'app/profiles', 'app/hide_config.json', 'rester.log']
-        preserved = {}
+        # 1. Preserve user data
+        _preserve = ['app/active_profile.json', 'app/profiles', 'rester.log']
+        preserve_dir = os.path.join(tmp_dir, 'preserve')
         for rel in _preserve:
             src = os.path.join(_root, rel)
             if os.path.exists(src):
-                bak = os.path.join(tmp_dir, 'preserve', rel)
+                bak = os.path.join(preserve_dir, rel)
                 bak_parent = os.path.dirname(bak)
                 if not os.path.exists(bak_parent):
                     os.makedirs(bak_parent)
@@ -120,31 +120,40 @@ if not pulled:
                     shutil.copytree(src, bak)
                 else:
                     shutil.copy2(src, bak)
-                preserved[rel] = bak
 
-        # Copy new files over install dir
+        # 2. Wipe install dir (except .git)
+        for item in os.listdir(_root):
+            if item == '.git':
+                continue
+            item_path = os.path.join(_root, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+
+        # 3. Install new files from zip
         for dirpath, dirnames, filenames in os.walk(source_dir):
             rel_dir = os.path.relpath(dirpath, source_dir)
             target_dir = os.path.join(_root, rel_dir) if rel_dir != '.' else _root
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
             for fn in filenames:
-                src_file = os.path.join(dirpath, fn)
-                dst_file = os.path.join(target_dir, fn)
-                shutil.copy2(src_file, dst_file)
+                shutil.copy2(
+                    os.path.join(dirpath, fn),
+                    os.path.join(target_dir, fn),
+                )
 
-        # Restore preserved data
-        for rel, bak in preserved.items():
-            dst = os.path.join(_root, rel)
-            dst_parent = os.path.dirname(dst)
-            if not os.path.exists(dst_parent):
-                os.makedirs(dst_parent)
-            if os.path.isdir(bak):
-                if os.path.exists(dst):
-                    shutil.rmtree(dst)
-                shutil.copytree(bak, dst)
-            else:
-                shutil.copy2(bak, dst)
+        # 4. Restore user data
+        for dirpath, dirnames, filenames in os.walk(preserve_dir):
+            rel_dir = os.path.relpath(dirpath, preserve_dir)
+            target_dir = os.path.join(_root, rel_dir) if rel_dir != '.' else _root
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+            for fn in filenames:
+                shutil.copy2(
+                    os.path.join(dirpath, fn),
+                    os.path.join(target_dir, fn),
+                )
 
         # Cleanup temp
         shutil.rmtree(tmp_dir, ignore_errors=True)
