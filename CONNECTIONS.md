@@ -42,7 +42,7 @@ RESTer/                                     ← repo root & install root
 ├── startup.py                              ← PyRevit startup hook — builds ribbon tab
 ├── launch_profile_loader.bat               ← Standalone launcher for ProfileSelector
 │
-├── RESTer.tab/
+├── Add-Ins.tab/                                ← Adds RST panel to existing Add-Ins tab
 │   └── Admin.panel/
 │       └── TabCreator.pushbutton/
 │           ├── script.py                   ← Opens profile_manager.html in pywebview inside Revit
