@@ -170,10 +170,36 @@ if not pulled:
 elif result_msg == 'already_up_to_date':
     forms.alert('RST is already up to date.', title='RST Update')
 else:
-    log.info('Update found, reloading pyRevit...')
+    log.info('Update complete, reloading pyRevit...')
+    reloaded = False
+    # Try pyRevit internal reload first (we're running inside Revit)
     try:
         from pyrevit.loader import sessionmgr
         sessionmgr.reload()
+        reloaded = True
     except Exception as e:
-        log.error('Reload failed: %s', e)
+        log.warning('sessionmgr.reload() failed: %s', e)
+    # Fallback to CLI
+    if not reloaded:
+        cli_candidates = []
+        appdata = os.environ.get('APPDATA', '')
+        if appdata:
+            cli_candidates.append(os.path.join(appdata, 'pyRevit-Master', 'bin', 'pyrevit.exe'))
+            cli_candidates.append(os.path.join(appdata, 'pyRevit', 'bin', 'pyrevit.exe'))
+        cli_candidates.append('pyrevit')
+        CREATE_NO_WINDOW = 0x08000000
+        for cli in cli_candidates:
+            try:
+                subprocess.Popen(
+                    [cli, 'reload'],
+                    creationflags=CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                log.info('pyRevit reload triggered via CLI: %s', cli)
+                reloaded = True
+                break
+            except Exception:
+                continue
+    if not reloaded:
         forms.alert('Updated. Please reload pyRevit manually.', title='RST Update')
