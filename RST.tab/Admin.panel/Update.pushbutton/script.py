@@ -123,15 +123,19 @@ if not pulled:
                 else:
                     shutil.copy2(src, bak)
 
-        # 2. Wipe install dir (except .git)
+        # 2. Wipe install dir (except .git and locked files)
+        _skip = {'.git', 'rester.log'}
         for item in os.listdir(_root):
-            if item == '.git':
+            if item in _skip:
                 continue
             item_path = os.path.join(_root, item)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-            else:
-                os.remove(item_path)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+            except OSError as e:
+                log.warning('Could not remove %s: %s (skipping)', item, e)
 
         # 3. Install new files from zip
         for dirpath, dirnames, filenames in os.walk(source_dir):
