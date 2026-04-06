@@ -265,8 +265,8 @@ if __name__ == '__main__':
     window = webview.create_window(
         'RESTer - Profile Selector',
         url=_html_path,
-        width=1500,
-        height=1000,
+        width=1350,
+        height=850,
         js_api=api
     )
     api.set_window(window)

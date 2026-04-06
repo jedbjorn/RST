@@ -245,8 +245,8 @@ if __name__ == '__main__':
     window = webview.create_window(
         'RESTer - Tab Creator',
         url=_html_path,
-        width=1200,
-        height=1000,
+        width=1350,
+        height=850,
         resizable=True,
         on_top=True,
         js_api=api
