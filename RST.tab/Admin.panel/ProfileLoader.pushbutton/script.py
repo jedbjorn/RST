@@ -2,6 +2,7 @@
 """ProfileLoader - PyRevit pushbutton script.
 Launches Profile Selector, waits for it to close, then reloads pyRevit.
 """
+__title__ = 'Profile\nLoader'
 import io
 import os
 import sys

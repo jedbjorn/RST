@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Update RST - pulls latest via git, or downloads zip from GitHub as fallback."""
+__title__ = 'Update\nRST'
 import io
 import os
 import sys
