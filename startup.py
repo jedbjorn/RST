@@ -569,11 +569,16 @@ def _style_rst_admin_panels():
                         # Skip our custom REST_ panels (branding + user panels)
                         if pid.startswith('REST_'):
                             continue
-                        # This is a pyRevit-created panel (Admin, etc.)
+                        # This is a pyRevit-created panel
                         if brush:
                             panel.CustomPanelBackground = brush
                             panel.CustomPanelTitleBarBackground = brush
-                            log.debug('Styled RST admin panel: %s', pid)
+                        # Hide panel title label
+                        try:
+                            panel.Source.Title = ' '
+                        except Exception:
+                            pass
+                        log.debug('Styled RST admin panel: %s', pid)
                     except Exception as e:
                         log.debug('Could not style panel: %s', e)
                 log.info('Styled RST admin panels')
