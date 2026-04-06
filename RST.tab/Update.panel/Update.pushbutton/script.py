@@ -135,28 +135,19 @@ if not pulled:
         apply_bat = os.path.join(staging_dir, 'apply_update.bat')
         with open(apply_bat, 'w') as f:
             f.write('@echo off\r\n')
-            f.write('echo RST Update: waiting for pyRevit to release files...\r\n')
             f.write('timeout /t 5 /nobreak >nul\r\n')
-            f.write('echo RST Update: applying...\r\n')
             # Wipe install dir (except .git and rester.log)
             f.write('for /d %%D in ("%s\\*") do (\r\n' % _root)
-            f.write('  if /i not "%%~nxD"==".git" (\r\n')
-            f.write('    rmdir /s /q "%%D" 2>nul\r\n')
-            f.write('  )\r\n')
+            f.write('  if /i not "%%~nxD"==".git" rmdir /s /q "%%D" 2>nul\r\n')
             f.write(')\r\n')
             f.write('for %%F in ("%s\\*") do (\r\n' % _root)
-            f.write('  if /i not "%%~nxF"=="rester.log" (\r\n')
-            f.write('    del /q "%%F" 2>nul\r\n')
-            f.write('  )\r\n')
+            f.write('  if /i not "%%~nxF"=="rester.log" del /f /q "%%F" 2>nul\r\n')
             f.write(')\r\n')
-            # Copy new files
-            f.write('xcopy "%s\\*" "%s\\" /e /y /q\r\n' % (source_dir, _root))
+            # Copy new files (/i assumes directory target, /e includes subdirs, /y no prompts)
+            f.write('xcopy "%s" "%s" /e /y /q /i 2>nul\r\n' % (source_dir, _root))
             # Restore user data
-            f.write('if exist "%s" (\r\n' % preserve_dir)
-            f.write('  xcopy "%s\\*" "%s\\" /e /y /q\r\n' % (preserve_dir, _root))
-            f.write(')\r\n')
+            f.write('if exist "%s" xcopy "%s" "%s" /e /y /q /i 2>nul\r\n' % (preserve_dir, preserve_dir, _root))
             # Cleanup staging
-            f.write('echo RST Update: done. Reload pyRevit to complete.\r\n')
             f.write('timeout /t 2 /nobreak >nul\r\n')
             f.write('rmdir /s /q "%s" 2>nul\r\n' % staging_dir)
 
