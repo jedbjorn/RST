@@ -200,8 +200,9 @@ log.info('Revit data written to %s', data_path)
 # Launch CPython with tab_creator.py
 launcher = os.path.join(_root, 'app', 'tab_creator.py')
 log.info('Launching CPython: %s', launcher)
+CREATE_NO_WINDOW = 0x08000000
 subprocess.Popen(
-    'python "{}" & pause'.format(launcher),
-    shell=True,
+    ['python', launcher],
+    creationflags=CREATE_NO_WINDOW,
 )
 log.info('TabCreator launched')

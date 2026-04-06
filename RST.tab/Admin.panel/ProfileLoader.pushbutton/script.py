@@ -30,7 +30,8 @@ if os.path.exists(_active_path):
 # Launch Profile Selector and wait
 launcher = os.path.join(_root, 'app', 'profile_selector.py')
 log.info('Launching Profile Selector: %s', launcher)
-proc = subprocess.Popen(['python', launcher])
+CREATE_NO_WINDOW = 0x08000000
+proc = subprocess.Popen(['python', launcher], creationflags=CREATE_NO_WINDOW)
 proc.wait()
 log.info('Profile Selector closed')
 

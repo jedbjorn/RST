@@ -100,7 +100,8 @@ if os.path.exists(result_path):
 # Launch CPython and WAIT for it to finish
 launcher = os.path.join(_root, 'app', 'hide_tabs_ui.py')
 log.info('Launching Hide Tabs UI...')
-proc = subprocess.Popen(['python', launcher])
+CREATE_NO_WINDOW = 0x08000000
+proc = subprocess.Popen(['python', launcher], creationflags=CREATE_NO_WINDOW)
 proc.wait()
 log.info('Hide Tabs UI closed')
 
