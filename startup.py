@@ -600,50 +600,6 @@ def _style_rst_admin_panels():
         log.warning('Could not style RST admin panels: %s', e)
 
 
-# --- Main startup logic ---
-
-def _on_app_initialized(sender, args):
-    """Called after Revit has fully loaded all addins and ribbon items."""
-    try:
-        log.info('=== RST deferred build (ApplicationInitialized) ===')
-
-        active, profile = _load_active_profile()
-        if not active or not profile:
-            log.info('No active profile - nothing to build')
-            return
-
-        log.info('Active profile: %s', active.get('profile'))
-
-        # Blank profiles always rebuild (no file to cache-check)
-        if not active.get('blank'):
-            profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
-            if not _needs_rebuild(active, profile_path):
-                return
-
-        # Version check
-        revit_version = _get_revit_version()
-        min_version = profile.get('min_version')
-        if revit_version and min_version:
-            try:
-                if int(revit_version) < int(min_version):
-                    log.warning('Revit %s is below min_version %s - aborting',
-                                revit_version, min_version)
-                    return
-            except ValueError:
-                pass
-
-        # Build the ribbon
-        if _build_ribbon(profile):
-            _update_last_built(active)
-
-        # Style admin panels on Idling (pyRevit panels may not exist yet)
-        _schedule_admin_styling()
-
-        log.info('=== RST deferred build complete ===')
-    except Exception as e:
-        log.error('Deferred build failed: %s', e)
-        import traceback
-        log.error(traceback.format_exc())
 
 
 _idling_style_pending = [False]
@@ -674,30 +630,30 @@ def _on_idling_style(sender, args):
         log.warning('Idling styling failed: %s', e)
 
 
-# Register for ApplicationInitialized event
-log.info('=== RST startup hook - registering for ApplicationInitialized ===')
-try:
-    # Try UIApplication.Application first (pyRevit gives us UIApplication)
-    app = getattr(__revit__, 'Application', None)  # noqa: F821
-    if app and hasattr(app, 'ApplicationInitialized'):
-        app.ApplicationInitialized += _on_app_initialized
-    elif hasattr(__revit__, 'ControlledApplication'):
-        __revit__.ControlledApplication.ApplicationInitialized += _on_app_initialized  # noqa: F821
+# Always build immediately — ApplicationInitialized only fires on initial
+# Revit launch and is missed on pyRevit reloads. Since startup.py runs
+# after Revit and all add-ins are loaded, immediate build is safe.
+log.info('=== RST startup — immediate build ===')
+active, profile = _load_active_profile()
+if active and profile:
+    log.info('Active profile: %s', active.get('profile'))
+    if active.get('blank'):
+        _build_ribbon(profile)
     else:
-        raise AttributeError('No ApplicationInitialized event found')
-    log.info('Registered ApplicationInitialized handler')
-except Exception as e:
-    log.warning('Could not register ApplicationInitialized: %s', e)
-    log.info('Falling back to immediate build')
-    # Fallback: try building immediately (may miss late-loading addins)
-    active, profile = _load_active_profile()
-    if active and profile:
-        if not active.get('blank'):
-            profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
-            if not _needs_rebuild(active, profile_path):
-                pass  # skip build
-            elif _build_ribbon(profile):
+        profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
+        if _needs_rebuild(active, profile_path):
+            if _build_ribbon(profile):
                 _update_last_built(active)
-        else:
-            _build_ribbon(profile)
-    _schedule_admin_styling()
+
+        # Version check
+        revit_version = _get_revit_version()
+        min_version = profile.get('min_version')
+        if revit_version and min_version:
+            try:
+                if int(revit_version) < int(min_version):
+                    log.warning('Revit %s is below min_version %s', revit_version, min_version)
+            except ValueError:
+                pass
+else:
+    log.info('No active profile — nothing to build')
+_schedule_admin_styling()
