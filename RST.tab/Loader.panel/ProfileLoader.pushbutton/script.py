@@ -49,15 +49,14 @@ if new_profile != old_profile:
     log.info('Profile changed: %s -> %s, reloading pyRevit...', old_profile, new_profile)
     try:
         from pyrevit.loader import sessionmgr
-        sessionmgr.reload()
+        if hasattr(sessionmgr, 'reload'):
+            sessionmgr.reload()
+        elif hasattr(sessionmgr, 'load_session'):
+            sessionmgr.load_session()
+        else:
+            raise AttributeError('No reload or load_session found on sessionmgr')
         log.info('pyRevit reloaded successfully')
     except Exception as e:
         log.error('Failed to reload pyRevit: %s', e)
-        try:
-            # Fallback: use pyRevit script command
-            from pyrevit import script
-            script.get_results().newsession = True
-        except Exception as e2:
-            log.error('Fallback reload also failed: %s', e2)
 else:
     log.info('Profile unchanged, no reload needed')

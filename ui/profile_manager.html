@@ -1593,14 +1593,14 @@
         panel.slots.forEach(slot => {
           if (slot.type === 'tool') {
             const tool = state.allTools.find(t => t.name === slot.name);
-            if (tool?.sourceTab) tabs.add(tool.sourceTab);
+            if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) tabs.add(tool.sourceTab);
           } else if (slot.type === 'stack') {
             // Also resolve sourceTab for every tool inside a placed stack
             const stack = state.stacks[slot.name];
             if (stack) {
               stack.tools.forEach(toolName => {
                 const tool = state.allTools.find(t => t.name === toolName);
-                if (tool?.sourceTab) tabs.add(tool.sourceTab);
+                if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) tabs.add(tool.sourceTab);
               });
             }
           }
