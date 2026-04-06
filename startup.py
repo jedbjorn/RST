@@ -631,14 +631,42 @@ def _on_app_initialized(sender, args):
         if _build_ribbon(profile):
             _update_last_built(active)
 
-        # Style the pyRevit-created RST admin panels
-        _style_rst_admin_panels()
+        # Style admin panels on Idling (pyRevit panels may not exist yet)
+        _schedule_admin_styling()
 
         log.info('=== RST deferred build complete ===')
     except Exception as e:
         log.error('Deferred build failed: %s', e)
         import traceback
         log.error(traceback.format_exc())
+
+
+_idling_style_pending = [False]
+
+def _schedule_admin_styling():
+    """Schedule _style_rst_admin_panels to run on the next Idling event,
+    after pyRevit has finished creating all panels."""
+    _idling_style_pending[0] = True
+    try:
+        __revit__.Idling += _on_idling_style  # noqa: F821
+        log.info('Scheduled admin panel styling on Idling')
+    except Exception as e:
+        log.warning('Could not schedule Idling: %s — styling now', e)
+        _style_rst_admin_panels()
+
+def _on_idling_style(sender, args):
+    """Runs once on first Idling event, styles admin panels, then unhooks."""
+    if not _idling_style_pending[0]:
+        return
+    _idling_style_pending[0] = False
+    try:
+        __revit__.Idling -= _on_idling_style  # noqa: F821
+    except Exception:
+        pass
+    try:
+        _style_rst_admin_panels()
+    except Exception as e:
+        log.warning('Idling styling failed: %s', e)
 
 
 # Register for ApplicationInitialized event
@@ -656,4 +684,4 @@ except Exception as e:
         if _needs_rebuild(active, profile_path):
             if _build_ribbon(profile):
                 _update_last_built(active)
-    _style_rst_admin_panels()
+    _schedule_admin_styling()
