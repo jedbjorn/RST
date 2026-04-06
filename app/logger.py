@@ -5,6 +5,14 @@ import os
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _log_path = os.path.join(_root, 'rester.log')
 
+# Truncate if over 1 MB
+_MAX_LOG_BYTES = 1 * 1024 * 1024
+try:
+    if os.path.exists(_log_path) and os.path.getsize(_log_path) > _MAX_LOG_BYTES:
+        open(_log_path, 'w').close()
+except Exception:
+    pass
+
 try:
     _handler = logging.FileHandler(_log_path, encoding='utf-8')
 except TypeError:
