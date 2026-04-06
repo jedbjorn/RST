@@ -117,16 +117,27 @@ if os.path.exists(result_path):
         # Get the list of non-contextual tabs we showed in the UI
         shown_titles = set(t.get('title', '') for t in tabs_data)
 
+        # Tabs Revit manages contextually — never touch these
+        _CONTEXTUAL = {'Family Editor', 'In-Place Model', 'In-Place Mass', 'Zone', 'Create'}
+
         for tab in ribbon.Tabs:
             try:
                 title = str(tab.Title) if tab.Title else ''
                 if not title or title == 'RST' or title == 'File':
                     continue
+                # Skip contextual tabs — Revit controls their visibility
+                is_contextual = False
+                try:
+                    is_contextual = bool(tab.IsContextualTab)
+                except Exception:
+                    pass
+                if is_contextual or title in _CONTEXTUAL:
+                    continue
+
                 if title in hidden_tabs:
                     tab.IsVisible = False
                     log.info('Hidden tab: %s', title)
                 elif title in shown_titles:
-                    # Only unhide tabs we showed in the UI — don't touch contextual tabs
                     tab.IsVisible = True
                     log.debug('Visible tab: %s', title)
             except Exception as e:
