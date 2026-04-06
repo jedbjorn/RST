@@ -396,9 +396,12 @@ def _create_tool_button(slot):
             btn.LargeImage = icon
             btn.Image = icon
 
-        # Bind click to PostCommand
+        # Bind click to PostCommand (or URL handler for custom URL tools)
         if command_id:
-            handler = _make_command_handler(command_id)
+            if command_id.startswith('URL:'):
+                handler = _make_url_handler(command_id[4:])
+            else:
+                handler = _make_command_handler(command_id)
             if handler:
                 btn.CommandHandler = handler
 
@@ -443,7 +446,10 @@ def _create_stack_button(stack_name, stack_def):
                 child.Image = icon
 
             if command_id:
-                handler = _make_command_handler(command_id)
+                if command_id.startswith('URL:'):
+                    handler = _make_url_handler(command_id[4:])
+                else:
+                    handler = _make_command_handler(command_id)
                 if handler:
                     child.CommandHandler = handler
 

@@ -1275,6 +1275,7 @@
         <input type="text" id="toolSearchInput" placeholder="Search tools..." oninput="renderToolList()">
         <select id="toolTabFilter" onchange="renderToolList()">
           <option value="">All</option>
+          <option value="Custom">Custom</option>
         </select>
       </div>
       <div class="sb-items" id="toolList">
@@ -1635,6 +1636,8 @@
 
     window.pywebview.api.get_installed_commands().then(function(cmds) {
       if (Array.isArray(cmds) && cmds.length > 0) {
+        // Preserve custom URL tools across detect
+        var customTools = state.allTools.filter(function(t) { return t.sourceTab === 'Custom'; });
         var existingIds = {};
         state.allTools.forEach(function(t) { existingIds[t.commandId] = true; });
         cmds.forEach(function(cmd) {
@@ -1647,6 +1650,12 @@
               sourcePanel: cmd.sourcePanel || null,
               commandId: cmd.commandId,
             });
+          }
+        });
+        // Re-append any custom URL tools that may have been lost
+        customTools.forEach(function(ct) {
+          if (!state.allTools.find(function(t) { return t.commandId === ct.commandId && t.sourceTab === 'Custom'; })) {
+            state.allTools.push(ct);
           }
         });
       }
@@ -1670,6 +1679,8 @@
         state.allTools.map(t => t.sourceTab).filter(Boolean)
       )].sort();
       const prevVal = tabSelect.value;
+      // Always include "Custom" as second option
+      if (!uniqueTabs.includes('Custom')) uniqueTabs.unshift('Custom');
       tabSelect.innerHTML = '<option value="">All</option>' +
         uniqueTabs.map(t => `<option value="${t}">${t}</option>`).join('');
       // Restore previous selection if it still exists
@@ -1698,12 +1709,18 @@
         .flatMap(([, p]) => p.slots.map(s => s.name))
     );
 
-    list.innerHTML = filtered.map(tool => {
+    list.innerHTML = filtered.map((tool, filteredIdx) => {
       const isInCurrent  = currentPanelNames.has(tool.name);
       const isElsewhere  = !isInCurrent && otherPanelNames.has(tool.name);
       const hasAddin     = !!tool.sourceTab;
       const addinBadge   = hasAddin
         ? `<span class="source-tab-badge">${tool.sourceTab}</span>`
+        : '';
+      const isCustom = tool.sourceTab === 'Custom';
+      const allToolsIdx = state.allTools.indexOf(tool);
+      const customIcons = isCustom
+        ? `<span onclick="event.stopPropagation();editCustomTool(${allToolsIdx})" style="cursor:pointer;font-size:11px;color:var(--text3);margin-left:4px" title="Edit">✎</span>` +
+          `<span onclick="event.stopPropagation();deleteCustomTool(${allToolsIdx})" style="cursor:pointer;font-size:11px;color:var(--text3);margin-left:2px;transition:color 0.15s" onmouseenter="this.style.color='var(--danger)'" onmouseleave="this.style.color='var(--text3)'" title="Delete">✕</span>`
         : '';
 
       return `
@@ -1712,10 +1729,12 @@
           <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isElsewhere ? 'elsewhere' : ''}">
             <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : isElsewhere ? '–' : ''}</div>
             <span style="flex:1">${tool.name}</span>
+            ${customIcons}
             ${addinBadge}
           </div>
         </div>`;
-    }).join('');
+    }).join('') +
+    '<div class="add-url-btn" onclick="promptAddUrl()" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;margin:6px;border:1px dashed var(--border2);border-radius:4px;cursor:pointer;color:var(--accent3);font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:0.06em;transition:all 0.15s" onmouseenter="this.style.borderColor=\'var(--accent3)\';this.style.background=\'rgba(16,185,129,0.06)\'" onmouseleave="this.style.borderColor=\'var(--border2)\';this.style.background=\'transparent\'">+ Add URL</div>';
 
     // Click sb-row-body → toggle in current panel
     list.querySelectorAll('.sb-row').forEach(row => {
@@ -1791,6 +1810,108 @@
     renderStackList();
     renderTabCanvas();
     renderPanelSlotList();
+  }
+
+  // ── CUSTOM URL TOOLS ──────────────────────────────────────────────────────
+  function promptAddUrl() {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,17,23,0.85);display:flex;align-items:center;justify-content:center;z-index:1000';
+    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:24px;width:340px">' +
+      '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;color:var(--heading);margin-bottom:16px">Add URL Tool</div>' +
+      '<div style="margin-bottom:12px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">Name</label>' +
+      '<input id="urlToolName" type="text" placeholder="e.g. Company Wiki" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="margin-bottom:18px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">URL</label>' +
+      '<input id="urlToolUrl" type="text" placeholder="https://..." style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Cancel</button>' +
+      '<button onclick="confirmAddUrl()" style="padding:6px 14px;border-radius:4px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);color:var(--accent3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Add Tool</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    document.getElementById('urlToolName').focus();
+  }
+
+  function confirmAddUrl() {
+    var name = document.getElementById('urlToolName').value.trim();
+    var url = document.getElementById('urlToolUrl').value.trim();
+    if (!name || !url) return;
+    var overlay = document.querySelector('div[style*="fixed"][style*="inset"]');
+    if (overlay) overlay.remove();
+    state.allTools.push({
+      name: name,
+      baseName: name,
+      icon: '\u{1F517}',
+      sourceTab: 'Custom',
+      sourcePanel: null,
+      commandId: 'URL:' + url,
+    });
+    renderToolList();
+  }
+
+  function editCustomTool(toolIdx) {
+    var tool = state.allTools[toolIdx];
+    if (!tool || tool.sourceTab !== 'Custom') return;
+    var currentUrl = (tool.commandId || '').replace(/^URL:/, '');
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,17,23,0.85);display:flex;align-items:center;justify-content:center;z-index:1000';
+    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:24px;width:340px">' +
+      '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;color:var(--heading);margin-bottom:16px">Edit URL Tool</div>' +
+      '<div style="margin-bottom:12px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">Name</label>' +
+      '<input id="urlToolName" type="text" value="' + tool.name.replace(/"/g, '&quot;') + '" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="margin-bottom:18px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">URL</label>' +
+      '<input id="urlToolUrl" type="text" value="' + currentUrl.replace(/"/g, '&quot;') + '" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Cancel</button>' +
+      '<button onclick="confirmEditUrl(' + toolIdx + ')" style="padding:6px 14px;border-radius:4px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);color:var(--accent3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Save</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    document.getElementById('urlToolName').focus();
+  }
+
+  function confirmEditUrl(toolIdx) {
+    var name = document.getElementById('urlToolName').value.trim();
+    var url = document.getElementById('urlToolUrl').value.trim();
+    if (!name || !url) return;
+    var overlay = document.querySelector('div[style*="fixed"][style*="inset"]');
+    if (overlay) overlay.remove();
+
+    var oldName = state.allTools[toolIdx].name;
+    state.allTools[toolIdx].name = name;
+    state.allTools[toolIdx].baseName = name;
+    state.allTools[toolIdx].commandId = 'URL:' + url;
+
+    // Update references in panel slots
+    Object.values(state.panels).forEach(function(panel) {
+      panel.slots.forEach(function(slot) {
+        if (slot.type === 'tool' && slot.name === oldName) {
+          slot.name = name;
+          slot.baseName = name;
+          slot.commandId = 'URL:' + url;
+        }
+      });
+    });
+
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
+  }
+
+  function deleteCustomTool(toolIdx) {
+    var tool = state.allTools[toolIdx];
+    if (!tool || tool.sourceTab !== 'Custom') return;
+    var name = tool.name;
+    state.allTools.splice(toolIdx, 1);
+    // Remove from any panels
+    Object.values(state.panels).forEach(function(panel) {
+      panel.slots = panel.slots.filter(function(s) {
+        return !(s.type === 'tool' && s.name === name);
+      });
+    });
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
   }
 
   function deleteStackFromState(name) {
