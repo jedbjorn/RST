@@ -531,10 +531,11 @@ def _on_app_initialized(sender, args):
 
         log.info('Active profile: %s', active.get('profile'))
 
-        # Cache check
-        profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
-        if not _needs_rebuild(active, profile_path):
-            return
+        # Blank profiles always rebuild (no file to cache-check)
+        if not active.get('blank'):
+            profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
+            if not _needs_rebuild(active, profile_path):
+                return
 
         # Version check
         revit_version = _get_revit_version()

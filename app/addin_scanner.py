@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import re
 import json
 from logger import get_logger
 
@@ -21,10 +20,6 @@ _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 _overrides_path = os.path.join(_root, 'app', 'user_addin_overrides.json')
 
-
-def _safe_filename(s):
-    """Sanitize a string for use in filenames."""
-    return re.sub(r'[\\/:*?"<>|]', '_', s).strip()
 
 
 def load_addin_lookup():

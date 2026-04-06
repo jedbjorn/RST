@@ -918,7 +918,7 @@
         if (slot.type === 'tool') {
           return `<div class="p-rib-btn">
             <div class="p-rib-icon">${slot.icon || '⬜'}</div>
-            <div class="p-rib-label">${slot.name}</div>
+            <div class="p-rib-label">${slot.baseName || slot.name}</div>
           </div>`;
         } else if (slot.type === 'stack') {
           const stackDef = profile.stacks?.[slot.name];
@@ -943,6 +943,16 @@
   }
 
   // ── CARD SELECTION ────────────────────────────────────────────────────────────
+  function clearDetailPane() {
+    selectedProfile = null;
+    document.getElementById('detailName').childNodes[0].textContent = '— ';
+    document.getElementById('detailLoadedBadge').style.display = 'none';
+    document.getElementById('detailMeta').innerHTML = '';
+    document.getElementById('tabCanvas').innerHTML = '';
+    document.getElementById('detailAddins').style.display = 'none';
+    document.getElementById('detailHideRules').style.display = 'none';
+  }
+
   function selectCard(el, idx) {
     const profile = profiles[idx];
     selectedProfile = profile;
@@ -1070,6 +1080,7 @@
       document.getElementById('successTitle').textContent = 'Profile Loaded \u2014 ' + activeProfileName;
       document.getElementById('successDetail').innerHTML = lines.map(function(l) { return '\u2022 ' + l; }).join('<br>');
       document.getElementById('successOverlay').classList.add('visible');
+      setTimeout(function() { window.close(); }, 4000);
     }).catch(function(err) {
       alert('Error loading profile: ' + (err.message || err));
     });
@@ -1144,7 +1155,11 @@
         selectedProfile = null;
         renderCards();
         var firstCard = document.querySelector('.profile-card');
-        if (firstCard) firstCard.click();
+        if (firstCard) {
+          firstCard.click();
+        } else {
+          clearDetailPane();
+        }
         if (isLoaded) {
           showReloadPrompt('Profile Deleted', ['A blank RST tab will replace the current one.']);
         }

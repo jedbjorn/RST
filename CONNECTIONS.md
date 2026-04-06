@@ -44,20 +44,32 @@ RESTer/                                     ← repo root & install root
 │
 ├── RST.tab/
 │   └── Admin.panel/
-│       └── TabCreator.pushbutton/
-│           ├── script.py                   ← Opens profile_manager.html in pywebview inside Revit
-│           └── icon.png                    ← Button icon for the Admin ribbon (32x32)
+│       ├── _layout                         ← Button ordering
+│       ├── TabCreator.pushbutton/
+│       │   ├── script.py                   ← Opens profile_manager.html in pywebview inside Revit
+│       │   └── icon.png                    ← Button icon (32x32)
+│       ├── ProfileLoader.pushbutton/
+│       │   ├── script.py                   ← Launches profile_loader.html standalone
+│       │   └── icon.png
+│       ├── Update.pushbutton/
+│       │   ├── script.py                   ← Git pull / zip download + pyRevit reload
+│       │   └── icon.png
+│       └── MinifyUI.pushbutton/
+│           └── script.py                   ← Toggles pyRevit MinifyUI
 │
 ├── app/
 │   ├── logger.py                           ← Shared logger → rester.log
-│   ├── profile_selector.py                 ← Standalone pywebview launcher + ProfileSelectorAPI
+│   ├── tab_creator.py                      ← TabCreator pywebview backend (TabCreatorAPI)
+│   ├── profile_selector.py                 ← ProfileSelector pywebview backend (ProfileSelectorAPI)
 │   ├── addin_scanner.py                    ← Addin presence check, suppression, restore
 │   ├── active_profile.json                 ← Written by ProfileSelector, read by startup.py
 │   └── profiles/                           ← Profile JSON files (source of truth)
 │       └── (*.json)
 │
 ├── icons/                                  ← Custom tool icons ({toolName}.png)
-│   └── RESTer_default.png                  ← Default icon for all ribbon buttons (256x256)
+│   ├── RESTer_default.png                  ← Default icon for ribbon buttons (32x32)
+│   ├── RESTer_default_16.png               ← 16x16 variant for stack items
+│   └── branding.png                        ← Branding panel logo (32x32, replaceable)
 │
 ├── ui/
 │   ├── profile_manager.html                ← TabCreator UI (wired to pywebview)
@@ -96,7 +108,6 @@ RESTer/                                     ← repo root & install root
 | `get_profiles()` | `ProfileSelectorAPI` | `get_profiles()` | Read all profiles from `app/profiles/` |
 | `get_active_profile()` | `ProfileSelectorAPI` | `get_active_profile()` | Read `app/active_profile.json` |
 | `get_revit_versions()` | `ProfileSelectorAPI` | `get_revit_versions()` | Scan `%APPDATA%\Autodesk\Revit\Addins\` for year dirs |
-| `is_revit_running()` | `ProfileSelectorAPI` | `is_revit_running()` | Check for `Revit.exe` process (once at launch) |
 | `add_profile()` | `ProfileSelectorAPI` | `add_profile()` | File dialog → validate → copy to `app/profiles/` |
 | `load_profile(name, disable, version)` | `ProfileSelectorAPI` | `load_profile(name, disable, version)` | Write `active_profile.json`, apply hideRules |
 | `remove_profile(name)` | `ProfileSelectorAPI` | `remove_profile(name)` | Delete from `app/profiles/` |

@@ -4,7 +4,6 @@ import os
 import re
 import json
 import shutil
-import subprocess
 import datetime
 
 from logger import get_logger
