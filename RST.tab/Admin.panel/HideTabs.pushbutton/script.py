@@ -49,11 +49,24 @@ try:
         except Exception as e:
             log.error('Error reading profile for source tabs: %s', e)
 
+    seen_titles = set()
     for tab in ribbon.Tabs:
         try:
             title = str(tab.Title) if tab.Title else ''
             if not title:
                 continue
+            # Skip contextual tabs and duplicates
+            is_contextual = False
+            try:
+                is_contextual = bool(tab.IsContextualTab)
+            except Exception:
+                pass
+            if is_contextual:
+                continue
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+
             tab_id = str(tab.Id) if tab.Id else ''
             is_visible = bool(tab.IsVisible)
             tabs_data.append({

@@ -243,12 +243,7 @@ HTML = r"""<!DOCTYPE html>
       window.pywebview.api.get_tabs().then(function(data) {
         tabs = data.tabs || [];
         rstSourceTabs = data.rstSourceTabs || [];
-        // Pre-check currently hidden tabs
-        tabs.forEach(function(t) {
-          if (!t.visible && PROTECTED.indexOf(t.title) < 0) {
-            hiddenSet[t.title] = true;
-          }
-        });
+        // Start clean — nothing checked. User opts in.
         render();
       });
     }
