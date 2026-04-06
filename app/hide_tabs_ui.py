@@ -274,7 +274,7 @@ if __name__ == '__main__':
     window = webview.create_window(
         'RST - Hide Tabs',
         html=HTML,
-        width=300,
+        width=350,
         height=600,
         x=wx,
         y=wy,
