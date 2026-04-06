@@ -129,22 +129,6 @@ class ProfileSelectorAPI:
     def get_revit_versions(self):
         return get_installed_revit_versions()
 
-    def is_revit_running(self):
-        try:
-            output = subprocess.check_output(
-                ['tasklist', '/FI', 'IMAGENAME eq Revit.exe', '/NH'],
-                stderr=subprocess.DEVNULL,
-                text=True
-            )
-            running = any(
-                line.strip().lower().startswith('revit.exe')
-                for line in output.splitlines()
-            )
-            log.info('Revit running: %s', running)
-            return running
-        except subprocess.SubprocessError as e:
-            log.error('Failed to check Revit process: %s', e)
-            return False
 
     def add_profile(self):
         log.info('Opening file dialog for profile import')
