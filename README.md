@@ -1,4 +1,4 @@
-# REST
+# RST
 
 Custom toolbar profile system for Autodesk Revit, built on PyRevit.
 
@@ -29,14 +29,14 @@ To verify Python is installed and in PATH, run `python --version` in PowerShell.
    ```
 4. Reload pyRevit
 
-You should see a **REST** tab in the Revit ribbon.
+You should see a **RST** tab in the Revit ribbon.
 
 ---
 
 ## Usage
 
 **Admin (inside Revit):**
-Click the **Tab Creator** button in the REST ribbon tab. Build your toolbar profile, then export. The profile saves to the extension and copies to your Desktop for sharing.
+Click the **Tab Creator** button in the RST ribbon tab. Build your toolbar profile, then export. The profile saves to the extension and copies to your Desktop for sharing.
 
 **User (outside Revit):**
 Run `launch_profile_loader.bat` from the extension folder to open the Profile Selector. Add the profile JSON you received, pick your Revit version, and click Load Profile. Close Revit first.

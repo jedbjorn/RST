@@ -2,12 +2,12 @@
   "builtin": "False",
   "default_enabled": "True",
   "type": "extension",
-  "name": "REST",
+  "name": "RST",
   "description": "Custom toolbar profile system for Revit",
   "author": "Designs/OS",
   "author_profile": "https://github.com/jedbjorn",
-  "url": "https://github.com/jedbjorn/RESTer.git",
-  "website": "https://github.com/jedbjorn/RESTer",
+  "url": "https://github.com/jedbjorn/RST.git",
+  "website": "https://github.com/jedbjorn/RST",
   "image": "",
   "dependencies": []
 }

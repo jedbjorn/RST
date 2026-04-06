@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REST startup hook - runs on every Revit launch via PyRevit.
+"""RST startup hook - runs on every Revit launch via PyRevit.
 Reads active_profile.json, builds a custom ribbon tab if a profile is loaded.
 """
 import io
@@ -169,7 +169,7 @@ def _build_ribbon(profile):
         log.error('AdWindows import failed: %s', e)
         return False
 
-    tab_name = profile.get('tab', 'REST')
+    tab_name = profile.get('tab', 'RST')
     panels = profile.get('panels', [])
     stacks = profile.get('stacks', {})
 
@@ -402,7 +402,7 @@ def _make_command_handler(command_id):
 def _on_app_initialized(sender, args):
     """Called after Revit has fully loaded all addins and ribbon items."""
     try:
-        log.info('=== REST deferred build (ApplicationInitialized) ===')
+        log.info('=== RST deferred build (ApplicationInitialized) ===')
 
         active, profile = _load_active_profile()
         if not active or not profile:
@@ -432,7 +432,7 @@ def _on_app_initialized(sender, args):
         if _build_ribbon(profile):
             _update_last_built(active)
 
-        log.info('=== REST deferred build complete ===')
+        log.info('=== RST deferred build complete ===')
     except Exception as e:
         log.error('Deferred build failed: %s', e)
         import traceback
@@ -440,7 +440,7 @@ def _on_app_initialized(sender, args):
 
 
 # Register for ApplicationInitialized event
-log.info('=== REST startup hook - registering for ApplicationInitialized ===')
+log.info('=== RST startup hook - registering for ApplicationInitialized ===')
 try:
     __revit__.ControlledApplication.ApplicationInitialized += _on_app_initialized  # noqa: F821
     log.info('Registered ApplicationInitialized handler')

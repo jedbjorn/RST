@@ -252,7 +252,7 @@ if __name__ == '__main__':
         wx, wy = None, None
 
     window = webview.create_window(
-        'REST - Tab Creator',
+        'RST - Tab Creator',
         url=_html_path,
         width=1350,
         height=900,
