@@ -555,8 +555,8 @@ def _style_rst_admin_panels():
         from Autodesk.Windows import ComponentManager
 
         ribbon = ComponentManager.Ribbon
-        light_grey = '#c8ccd4'
-        brush = _make_brush(light_grey, 0.35)
+        light_grey = '#8a8e96'
+        brush = _make_brush(light_grey, 0.55)
 
         for tab in ribbon.Tabs:
             try:
