@@ -233,6 +233,40 @@ class TabCreatorAPI:
         log.info('Found profile: %s', profile_name)
         return data
 
+    def pick_branding_logo(self):
+        log.info('Picking branding logo')
+        window = self._window or (webview.windows[0] if webview.windows else None)
+        if not window:
+            return {'ok': False, 'error': 'No window available'}
+
+        result = window.create_file_dialog(
+            _OPEN_DIALOG,
+            file_types=('Image Files (*.png;*.jpg;*.jpeg)',)
+        )
+        if not result:
+            log.debug('Branding logo pick cancelled')
+            return {'ok': False}
+
+        src_path = result[0] if isinstance(result, (list, tuple)) else result
+        dest_path = os.path.join(_icons_dir, 'branding.png')
+
+        try:
+            from PIL import Image
+            img = Image.open(src_path)
+            img = img.resize((256, 256), Image.LANCZOS)
+            img.save(dest_path, 'PNG')
+            log.info('Branding logo saved (resized 256x256): %s', dest_path)
+        except ImportError:
+            log.info('PIL not available, copying file directly')
+            shutil.copy2(src_path, dest_path)
+            log.info('Branding logo saved (raw copy): %s', dest_path)
+        except Exception as e:
+            log.warning('PIL resize failed, copying file directly: %s', e)
+            shutil.copy2(src_path, dest_path)
+            log.info('Branding logo saved (raw copy): %s', dest_path)
+
+        return {'ok': True}
+
     def open_profiles_folder(self):
         log.info('Opening profiles folder: %s', _profiles_dir)
         subprocess.Popen(['explorer', os.path.normpath(_profiles_dir)])

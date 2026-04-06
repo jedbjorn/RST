@@ -1247,6 +1247,8 @@
     </div>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:7px;flex-shrink:0">
+    <button onclick="pickBrandingLogo()" title="Square logo recommended (256x256)"
+      style="font-family:'DM Mono',monospace;font-size:10px;padding:3px 10px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:4px;cursor:pointer;white-space:nowrap">Add Logo</button>
     <div style="width:6px;height:6px;border-radius:50%;background:var(--accent3);flex-shrink:0"></div>
     <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);white-space:nowrap;letter-spacing:0.06em">
       detected &nbsp;<span id="rvtVersionDisplay" style="color:var(--text2);letter-spacing:0">Revit 2024</span>
@@ -2361,7 +2363,20 @@
     }
 
     const a = opacityFrac();
-    canvas.innerHTML = active.map(([name, panel]) => {
+
+    // Branding panel (always leftmost, not selectable)
+    const brandingHtml = `<div class="tab-panel" style="background:transparent;pointer-events:none;opacity:0.85">
+      <div class="tab-panel-stripe" style="background:transparent"></div>
+      <div class="tab-panel-inner" style="justify-content:center;align-items:center;min-height:48px">
+        <div class="rib-btn" style="width:50px;background:transparent;border-color:transparent">
+          <div class="rib-icon" style="width:22px;height:22px;font-size:9px;background:rgba(120,120,120,0.15);color:var(--text2);font-weight:700;letter-spacing:0.05em">RST</div>
+          <div class="rib-label" style="color:var(--text3)">RST</div>
+        </div>
+      </div>
+      <div class="tab-panel-name" style="color:var(--text3);background:rgba(0,0,0,0.08)">RST</div>
+    </div>`;
+
+    canvas.innerHTML = brandingHtml + active.map(([name, panel]) => {
       const isSelected = name === state.currentPanel;
       const pColor = panel.color || '#4f8ef7';
       const pRgb = hexToRgb(pColor);
@@ -2531,6 +2546,19 @@
     if (!document.getElementById('panelSlotList').contains(event.relatedTarget)) {
       document.getElementById('panelSlotList').querySelectorAll('.drop-line').forEach(l => l.remove());
       panelDropTarget = null;
+    }
+  }
+
+  // ── BRANDING LOGO PICKER ──────────────────────────────────────────────
+  function pickBrandingLogo() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_branding_logo) {
+      window.pywebview.api.pick_branding_logo().then(function(result) {
+        if (result && result.ok) {
+          // Could show a toast or update preview
+        }
+      }).catch(function(err) {
+        console.error('Branding logo pick failed:', err);
+      });
     }
   }
 

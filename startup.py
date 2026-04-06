@@ -233,6 +233,39 @@ def _build_ribbon(profile):
         ribbon.Tabs.Add(tab)
         log.info('Created ribbon tab: %s', tab_name)
 
+        # ── Branding panel (always leftmost) ──
+        try:
+            branding_panel = AwRibbonPanel()
+            branding_source = RibbonPanelSource()
+            branding_source.Title = 'RST'
+            branding_source.Id = 'REST_Branding'
+            branding_panel.Source = branding_source
+
+            # Branding button with logo
+            branding_btn = RibbonButton()
+            branding_btn.Text = 'RST'
+            branding_btn.Id = 'REST_Branding_Btn'
+            branding_btn.ShowText = True
+            branding_btn.Size = RibbonItemSize.Large
+
+            # Load branding.png
+            branding_icon_path = os.path.join(_icons_dir, 'branding.png')
+            icon = _load_icon(branding_icon_path)
+            if icon:
+                branding_btn.LargeImage = icon
+                branding_btn.Image = icon
+
+            # Click opens GitHub
+            branding_handler = _make_url_handler('https://github.com/jedbjorn/RST')
+            if branding_handler:
+                branding_btn.CommandHandler = branding_handler
+
+            branding_panel.Source.Items.Add(branding_btn)
+            tab.Panels.Add(branding_panel)
+            log.info('Added branding panel')
+        except Exception as e:
+            log.warning('Could not add branding panel: %s', e)
+
         for panel_def in panels:
             panel_name = panel_def.get('name', 'Panel')
             panel_color = panel_def.get('color', '#4f8ef7')
@@ -445,6 +478,37 @@ def _make_command_handler(command_id):
         return None
 
 
+def _make_url_handler(url):
+    """Create an ICommand handler that opens a URL in the default browser."""
+    try:
+        import clr
+        clr.AddReference('PresentationCore')
+        from System.Windows.Input import ICommand
+
+        class UrlHandler(ICommand):
+            def __init__(self):
+                self._url = url
+
+            def add_CanExecuteChanged(self, handler):
+                pass
+
+            def remove_CanExecuteChanged(self, handler):
+                pass
+
+            def CanExecute(self, parameter):
+                return True
+
+            def Execute(self, parameter):
+                try:
+                    import webbrowser
+                    webbrowser.open(self._url)
+                except Exception as e:
+                    log.error('Could not open URL %s: %s', self._url, e)
+
+        return UrlHandler()
+    except Exception as e:
+        log.error('Failed to create URL handler: %s', e)
+        return None
 
 
 # --- Main startup logic ---
