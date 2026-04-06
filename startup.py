@@ -285,11 +285,11 @@ def _create_tool_button(slot):
             if handler:
                 btn.CommandHandler = handler
 
-        log.debug('Created tool button: %s -> %s', name, command_id)
+        log.debug('Created tool button: %s -> %s', display_name, command_id)
         return btn
 
     except Exception as e:
-        log.error('Failed to create button %s: %s', name, e)
+        log.error('Failed to create button %s: %s', display_name, e)
         return None
 
 

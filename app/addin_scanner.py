@@ -66,13 +66,18 @@ def _get_appdata():
     return os.environ.get('APPDATA')
 
 
-def _is_program_files_dir(path):
-    """Check if a path is under Program Files (read-only, never modify)."""
-    pf = os.environ.get('PROGRAMFILES', r'C:\Program Files')
-    pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
+def _is_readonly_dir(path):
+    """Check if a path is under Program Files or ProgramData (never modify)."""
     path_lower = os.path.normpath(path).lower()
-    return (path_lower.startswith(os.path.normpath(pf).lower()) or
-            path_lower.startswith(os.path.normpath(pf86).lower()))
+    protected = [
+        os.environ.get('PROGRAMFILES', r'C:\Program Files'),
+        os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)'),
+        os.environ.get('PROGRAMDATA', r'C:\ProgramData'),
+    ]
+    for d in protected:
+        if path_lower.startswith(os.path.normpath(d).lower()):
+            return True
+    return False
 
 
 def get_addins_dirs(revit_version):
@@ -263,7 +268,7 @@ def apply_hide_rules(hide_rules, revit_version):
             paths = addin_files[entry['file']]
             resolved_filename = entry['file']
             # Pick first non-Program-Files path
-            fpath = next((p for p in paths if not _is_program_files_dir(p)), None)
+            fpath = next((p for p in paths if not _is_readonly_dir(p)), None)
         else:
             resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides)
 
@@ -276,7 +281,7 @@ def apply_hide_rules(hide_rules, revit_version):
             log.warning('No .addin file found for: %s', tab_name)
             continue
 
-        if _is_program_files_dir(fpath):
+        if _is_readonly_dir(fpath):
             log.debug('Skipping Program Files addin: %s', fpath)
             continue
 
@@ -297,7 +302,7 @@ def restore_all_addins(revit_version):
     protected_inactive = set(p + '.inactive' for p in PROTECTED_ADDINS)
 
     for base_dir in search_dirs:
-        if _is_program_files_dir(base_dir):
+        if _is_readonly_dir(base_dir):
             continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
             for f in filenames:
@@ -331,7 +336,7 @@ def disable_non_required_addins(required_addins, revit_version):
     keep_files.update(PROTECTED_ADDINS)
 
     for base_dir in search_dirs:
-        if _is_program_files_dir(base_dir):
+        if _is_readonly_dir(base_dir):
             continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
             for f in filenames:
