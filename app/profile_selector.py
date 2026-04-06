@@ -18,33 +18,6 @@ _html_path = os.path.join(_root, 'ui', 'profile_loader.html')
 REQUIRED_FIELDS = {'profile', 'tab', 'min_version', 'exportDate', 'requiredAddins', 'hideRules', 'stacks', 'panels'}
 
 
-def _reload_pyrevit():
-    """Trigger a pyRevit reload via the CLI so the new profile tab builds.
-    Runs in the background — does not block the UI. Fails silently if
-    pyRevit CLI is not found or Revit is not running."""
-    cli_candidates = []
-    appdata = os.environ.get('APPDATA', '')
-    if appdata:
-        # pyRevit 4.x default install locations
-        cli_candidates.append(os.path.join(appdata, 'pyRevit-Master', 'bin', 'pyrevit.exe'))
-        cli_candidates.append(os.path.join(appdata, 'pyRevit', 'bin', 'pyrevit.exe'))
-    # Also check PATH
-    cli_candidates.append('pyrevit')
-
-    CREATE_NO_WINDOW = 0x08000000
-    for cli in cli_candidates:
-        try:
-            subprocess.Popen(
-                [cli, 'reload'],
-                creationflags=CREATE_NO_WINDOW,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            log.info('pyRevit reload triggered via: %s', cli)
-            return
-        except Exception:
-            continue
-    log.warning('pyRevit CLI not found — reload skipped')
 
 os.makedirs(_profiles_dir, exist_ok=True)
 
@@ -227,9 +200,6 @@ class ProfileSelectorAPI:
         except IOError as e:
             log.error('Failed to write active_profile.json: %s', e)
             return {'ok': False, 'warnings': ['Failed to save active profile: ' + str(e)]}
-
-        # Reload pyRevit so the new profile tab builds immediately
-        _reload_pyrevit()
 
         log.info('Profile loaded: %s (warnings: %s)', profile_name, warnings)
         return {'ok': True, 'warnings': warnings}
