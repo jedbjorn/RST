@@ -1247,8 +1247,11 @@
     </div>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:7px;flex-shrink:0">
-    <button onclick="pickBrandingLogo()" title="Square logo recommended (32x32)"
-      style="font-family:'DM Mono',monospace;font-size:10px;padding:3px 10px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:4px;cursor:pointer;white-space:nowrap">Add Logo</button>
+    <button onclick="pickBrandingLogo()" title="Square logo recommended (48x48)"
+      style="font-family:'DM Mono',monospace;font-size:10px;padding:3px 10px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.06);color:var(--accent3);border-radius:4px;cursor:pointer;white-space:nowrap;transition:all 0.15s"
+      onmouseenter="this.style.background='var(--accent3)';this.style.color='#0f1117';this.style.borderColor='var(--accent3)'"
+      onmouseleave="this.style.background='rgba(16,185,129,0.06)';this.style.color='var(--accent3)';this.style.borderColor='rgba(16,185,129,0.4)'"
+      >Add Logo</button>
     <div style="width:6px;height:6px;border-radius:50%;background:var(--accent3);flex-shrink:0"></div>
     <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);white-space:nowrap;letter-spacing:0.06em">
       detected &nbsp;<span id="rvtVersionDisplay" style="color:var(--text2);letter-spacing:0">Revit 2024</span>
@@ -2564,10 +2567,10 @@
     if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_branding_logo) {
       window.pywebview.api.pick_branding_logo().then(function(result) {
         if (result && result.ok) {
-          // Could show a toast or update preview
+          showToast('Logo Saved', 'Reload pyRevit to see it in the ribbon.');
         }
       }).catch(function(err) {
-        console.error('Branding logo pick failed:', err);
+        showToast('Error', 'Branding logo pick failed: ' + err);
       });
     }
   }
