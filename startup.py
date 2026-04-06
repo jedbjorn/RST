@@ -547,6 +547,43 @@ def _make_url_handler(url):
         return None
 
 
+def _style_rst_admin_panels():
+    """Find the pyRevit-created RST tab and apply light grey rounded backgrounds."""
+    try:
+        import clr
+        clr.AddReference('AdWindows')
+        from Autodesk.Windows import ComponentManager
+
+        ribbon = ComponentManager.Ribbon
+        light_grey = '#c8ccd4'
+        brush = _make_brush(light_grey, 0.35)
+
+        for tab in ribbon.Tabs:
+            try:
+                t_title = str(tab.Title) if tab.Title else ''
+                if t_title != 'RST':
+                    continue
+                for panel in tab.Panels:
+                    try:
+                        pid = str(panel.Source.Id) if panel.Source and panel.Source.Id else ''
+                        # Skip our custom REST_ panels (branding + user panels)
+                        if pid.startswith('REST_'):
+                            continue
+                        # This is a pyRevit-created panel (Admin, etc.)
+                        if brush:
+                            panel.CustomPanelBackground = brush
+                            panel.CustomPanelTitleBarBackground = brush
+                            log.debug('Styled RST admin panel: %s', pid)
+                    except Exception as e:
+                        log.debug('Could not style panel: %s', e)
+                log.info('Styled RST admin panels')
+                break
+            except Exception:
+                continue
+    except Exception as e:
+        log.warning('Could not style RST admin panels: %s', e)
+
+
 # --- Main startup logic ---
 
 def _on_app_initialized(sender, args):
@@ -583,6 +620,9 @@ def _on_app_initialized(sender, args):
         if _build_ribbon(profile):
             _update_last_built(active)
 
+        # Style the pyRevit-created RST admin panels
+        _style_rst_admin_panels()
+
         log.info('=== RST deferred build complete ===')
     except Exception as e:
         log.error('Deferred build failed: %s', e)
@@ -605,3 +645,4 @@ except Exception as e:
         if _needs_rebuild(active, profile_path):
             if _build_ribbon(profile):
                 _update_last_built(active)
+    _style_rst_admin_panels()
