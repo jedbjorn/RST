@@ -968,11 +968,12 @@
     const loadBtn       = document.getElementById('loadBtn');
     if (revitRunning) {
       blockedNotice.style.display = 'flex';
-      loadBtn.classList.add('blocked');
+      blockedNotice.innerHTML = '<div class="b-dot"></div> Revit is running. Add-in changes will take effect after restart.';
+      // Don't block — allow loading profiles while Revit is open
     } else {
       blockedNotice.style.display = 'none';
-      loadBtn.classList.remove('blocked');
     }
+    loadBtn.classList.remove('blocked');
   }
 
   // ── REVIT STATUS DISPLAY ──────────────────────────────────────────────────────
@@ -1030,7 +1031,7 @@
 
   // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
   function loadProfile() {
-    if (revitRunning || !selectedProfile) return;
+    if (!selectedProfile) return;
     const disableNonRequired = document.getElementById('disableAddinsCheck').checked;
 
     window.pywebview.api.load_profile(selectedProfile.profile, disableNonRequired, currentRevitVersion).then(function(result) {
@@ -1038,9 +1039,14 @@
         alert('Failed to load profile.');
         return;
       }
-      if (result.warnings && result.warnings.length > 0) {
-        alert('Profile loaded with warnings:\n\n' + result.warnings.join('\n'));
+      var msg = 'Profile loaded successfully.';
+      if (revitRunning) {
+        msg += '\n\nReload pyRevit to apply the new tab. Add-in changes take effect after Revit restart.';
       }
+      if (result.warnings && result.warnings.length > 0) {
+        msg += '\n\nWarnings:\n' + result.warnings.join('\n');
+      }
+      alert(msg);
       activeProfileName = selectedProfile.profile;
       renderCards();
       const idx  = profiles.findIndex(p => p.profile === activeProfileName);
@@ -1053,7 +1059,7 @@
 
   // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
   function restoreAllAddins() {
-    if (revitRunning) { alert('Close Revit before restoring add-ins.'); return; }
+    // Allow restore even while Revit is running — changes take effect after restart
     if (!currentRevitVersion) { alert('No Revit version selected.'); return; }
 
     window.pywebview.api.restore_addins(currentRevitVersion).then(function(result) {
