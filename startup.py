@@ -126,6 +126,27 @@ def _load_icon(icon_path):
     return None
 
 
+def _load_icon_sized(icon_path, width, height):
+    """Load a PNG and force it to a specific pixel size via DecodePixelWidth/Height."""
+    try:
+        import clr
+        clr.AddReference('PresentationCore')
+        from System.Windows.Media.Imaging import BitmapImage, BitmapCacheOption
+        from System import Uri, UriKind
+        if icon_path and os.path.exists(icon_path):
+            bmp = BitmapImage()
+            bmp.BeginInit()
+            bmp.UriSource = Uri(os.path.abspath(icon_path), UriKind.Absolute)
+            bmp.DecodePixelWidth = width
+            bmp.DecodePixelHeight = height
+            bmp.CacheOption = BitmapCacheOption.OnLoad
+            bmp.EndInit()
+            return bmp
+    except Exception as e:
+        log.debug('Could not load sized icon %s: %s', icon_path, e)
+    return _load_icon(icon_path)
+
+
 def _hex_to_color(hex_str, alpha=1.0):
     """Convert hex color string like '#4f8ef7' to a System.Windows.Media.Color."""
     try:
@@ -243,20 +264,20 @@ def _build_ribbon(profile):
         try:
             branding_panel = AwRibbonPanel()
             branding_source = RibbonPanelSource()
-            branding_source.Title = 'RST'
+            branding_source.Title = ' '
             branding_source.Id = 'REST_Branding'
             branding_panel.Source = branding_source
 
-            # Branding button with logo
+            # Branding button — logo only, no text, 80x80
             branding_btn = RibbonButton()
-            branding_btn.Text = 'RST'
+            branding_btn.Text = ''
             branding_btn.Id = 'REST_Branding_Btn'
-            branding_btn.ShowText = True
+            branding_btn.ShowText = False
             branding_btn.Size = RibbonItemSize.Large
 
-            # Load branding.png
+            # Load branding.png and force 80x80
             branding_icon_path = os.path.join(_icons_dir, 'branding.png')
-            icon = _load_icon(branding_icon_path)
+            icon = _load_icon_sized(branding_icon_path, 80, 80)
             if icon:
                 branding_btn.LargeImage = icon
                 branding_btn.Image = icon
