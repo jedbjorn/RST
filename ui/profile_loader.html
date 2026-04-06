@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RST — Profile Selector</title>
-<!-- NOTE: Window size should be 1200x1000 to match tab creator. Set in profile_selector.py. -->
+<title>RESTer — Profile Selector</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -136,32 +135,84 @@
   .revit-menu-item.current::before { content: '✓'; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent3); }
   .revit-menu-item:not(.current)::before { content: ''; width: 10px; display: inline-block; }
 
-  .revit-status {
-    display: flex;
-    align-items: center;
-    gap: 7px;
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── SUCCESS OVERLAY ── */
+  .success-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .success-overlay.visible { opacity: 1; pointer-events: auto; }
+  .success-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 32px 36px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+  }
+  .success-icon {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.35);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 22px; color: var(--accent3);
+  }
+  .success-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--heading);
+    margin-bottom: 10px;
+  }
+  .success-detail {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
-    padding: 5px 11px;
-    border-radius: 4px;
-    border: 1px solid;
-    flex-shrink: 0;
-    cursor: pointer;
-    user-select: none;
+    line-height: 1.7;
+    color: var(--text2);
+    margin-bottom: 20px;
+    text-align: left;
   }
-  .revit-status.closed {
-    background: rgba(16,185,129,0.06);
-    border-color: rgba(16,185,129,0.25);
+  .success-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    line-height: 1.6;
+    color: var(--text3);
+    background: rgba(79,142,247,0.06);
+    border: 1px solid rgba(79,142,247,0.15);
+    border-radius: 5px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    text-align: left;
+  }
+  .success-hint strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .success-actions {
+    display: flex; gap: 10px; justify-content: center;
+  }
+  .btn-dismiss {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.4);
     color: var(--accent3);
   }
-  .revit-status.running {
-    background: rgba(239,68,68,0.06);
-    border-color: rgba(239,68,68,0.25);
-    color: var(--danger);
-  }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-  .status-dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .btn-dismiss:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
 
   .add-profile-btn {
     margin-left: auto;
@@ -563,25 +614,13 @@
     padding: 14px 28px;
     border-top: 1px solid var(--border);
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 10px;
     flex-shrink: 0;
     background: var(--surface);
   }
-  .detail-footer-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .detail-footer-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
 
-  .unload-btn {
+  .remove-btn {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -594,22 +633,7 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .unload-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface2); }
-
-  .delete-btn {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 7px 14px;
-    border-radius: 4px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text3);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .delete-btn:hover { border-color: var(--danger); color: #fff; background: var(--danger); }
+  .remove-btn:hover { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.06); }
 
   .load-btn {
     font-family: 'DM Mono', monospace;
@@ -629,22 +653,7 @@
     margin-left: auto;
   }
   .load-btn:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
-  .load-btn.blocked { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
 
-  .blocked-notice {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--danger);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .blocked-notice .b-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--danger);
-    animation: pulse 1.4s ease-in-out infinite;
-  }
 
   /* ── TOGGLE ── */
   .toggle-label {
@@ -691,17 +700,14 @@
     <label>Revit Install</label>
     <div class="revit-dropdown">
       <div class="revit-dropdown-btn" id="revitBtn" onclick="toggleRevitMenu()">
-        <span id="revitSelected">—</span>
+        <span id="revitSelected">Revit 2024</span>
         <span class="chevron">▼</span>
       </div>
       <div class="revit-menu" id="revitMenu">
-        <!-- Populated by get_revit_versions() -->
+        <div class="revit-menu-item current" onclick="selectRevit(this,'Revit 2024')">Revit 2024</div>
+        <div class="revit-menu-item" onclick="selectRevit(this,'Revit 2025')">Revit 2025</div>
       </div>
     </div>
-  </div>
-  <div class="revit-status closed" id="revitStatus">
-    <div class="status-dot"></div>
-    Revit Closed
   </div>
   <button class="add-profile-btn" onclick="addProfile()">+ Add Profile</button>
 </div>
@@ -757,30 +763,35 @@
     </div>
 
     <div class="detail-footer">
-      <div class="detail-footer-left">
-        <button class="unload-btn" onclick="unloadProfile()">Unload Profile</button>
-        <button class="delete-btn" onclick="confirmRemove()">Delete Profile</button>
-      </div>
-      <div class="detail-footer-center">
-        <div style="display:flex;align-items:center;gap:10px">
-          <button class="restore-btn" onclick="restoreAllAddins()">&#8634; Restore Add-ins</button>
-          <label class="toggle-label">
-            <div class="toggle-switch">
-              <input type="checkbox" id="disableAddinsCheck">
-              <div class="toggle-track"><div class="toggle-thumb"></div></div>
-            </div>
-            Disable non-required add-ins on load
-          </label>
+      <button class="remove-btn" onclick="confirmRemove()">Remove Profile</button>
+      <button class="restore-btn" onclick="restoreAllAddins()">↺ Restore Add-ins</button>
+      <label class="toggle-label">
+        <div class="toggle-switch">
+          <input type="checkbox" id="disableAddinsCheck">
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
         </div>
-      </div>
-      <div class="blocked-notice" id="blockedNotice" style="display:none">
-        <div class="b-dot"></div>
-        Close Revit to switch profiles
-      </div>
+        Disable non-required add-ins on load
+      </label>
       <button class="load-btn" id="loadBtn" onclick="loadProfile()">Load Profile →</button>
     </div>
   </div>
 
+</div>
+
+<!-- Success Overlay -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <div class="success-icon">&#10003;</div>
+    <div class="success-title" id="successTitle">Profile Loaded</div>
+    <div class="success-detail" id="successDetail"></div>
+    <div class="success-hint">
+      <strong>If Revit is open</strong> — reload pyRevit to apply:<br>
+      pyRevit tab &#8594; About &#8594; Reload
+    </div>
+    <div class="success-actions">
+      <button class="btn-dismiss" onclick="dismissSuccess()">Done</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -823,13 +834,103 @@
   //   hideRules      — ribbon tab names to suppress at load time (.addin → .addin.inactive)
   //   stacks         — dict: stackName → { tools: [{name, commandId}] }
   //   panels         — array: { name, color, slots: [{type, name, icon?, commandId?}] }
-  const profiles = [];
+  const profiles = [
+    {
+      profile:        'Design_2025',
+      tab:            'Design',
+      min_version:    '2024',
+      exportDate:     '2024-03-12',
+      requiredAddins: ['DiRoots', 'Naviate'],
+      hideRules:      ['Naviate'],
+      stacks: {
+        'Edit Stack': {
+          tools: [
+            { name: 'Move',   commandId: 'ID_MODIFY_MOVE'   },
+            { name: 'Rotate', commandId: 'ID_MODIFY_ROTATE' },
+            { name: 'Copy',   commandId: 'ID_MODIFY_COPY'   },
+          ],
+        },
+      },
+      panels: [
+        { name: 'Modify', color: '#4f8ef7', slots: [
+          { type: 'tool',  name: 'Align',         icon: '↔', commandId: 'ID_MODIFY_ALIGN'                                       },
+          { type: 'tool',  name: 'Mirror',         icon: '⊿', commandId: 'ID_MODIFY_MIRROR_PICK'                                 },
+          { type: 'stack', name: 'Edit Stack'                                                                                     },
+          { type: 'tool',  name: 'Sheet Manager',  icon: '⊞', commandId: 'CustomCtrl_%CustomCtrl_%DiRoots%SheetsManager%ShtMgr' },
+        ]},
+        { name: 'View', color: '#10b981', slots: [
+          { type: 'tool', name: 'Section',        icon: '□', commandId: 'ID_VIEW_SECTION'                                        },
+          { type: 'tool', name: 'Camera',         icon: '◎', commandId: 'ID_VIEW_CAMERA_PERSPECTIVE'                             },
+          { type: 'tool', name: 'Solar Analysis', icon: '☀', commandId: 'CustomCtrl_%CustomCtrl_%Naviate%Analysis%SolarAnalysis' },
+        ]},
+        { name: 'Annotate', color: '#a78bfa', slots: [
+          { type: 'tool', name: 'Detail View', icon: '📐', commandId: 'ID_VIEW_DETAIL'   },
+          { type: 'tool', name: 'Tag All',     icon: '⊹',  commandId: 'ID_ANNOTATE_ALL'  },
+        ]},
+      ],
+    },
+    {
+      profile:        'Documentation_2025',
+      tab:            'Documentation',
+      min_version:    '2024',
+      exportDate:     '2024-02-28',
+      requiredAddins: [],
+      hideRules:      [],
+      stacks:         {},
+      panels: [
+        { name: 'Sheets', color: '#4f8ef7', slots: [
+          { type: 'tool', name: 'New Sheet',     icon: '⬜', commandId: 'ID_DRAFTINGVIEW_SHEET'    },
+          { type: 'tool', name: 'Title Block',   icon: '⊟', commandId: 'ID_INSERT_TITLEBLOCK'      },
+          { type: 'tool', name: 'Revision',      icon: '↺', commandId: 'ID_ANNOTATE_REVISION'      },
+          { type: 'tool', name: 'Legend',        icon: '≡',  commandId: 'ID_VIEW_LEGEND'            },
+        ]},
+        { name: 'Detail', color: '#10b981', slots: [
+          { type: 'tool', name: 'Detail Line',   icon: '╱', commandId: 'ID_DETAILCURVE_LINE'       },
+          { type: 'tool', name: 'Filled Region', icon: '▪', commandId: 'ID_DETAIL_FILLEDREGION'    },
+          { type: 'tool', name: 'Masking Region',icon: '◻', commandId: 'ID_DETAIL_MASKINGREGION'   },
+        ]},
+        { name: 'Annotate', color: '#a78bfa', slots: [
+          { type: 'tool', name: 'Text',          icon: 'T', commandId: 'ID_ANNOTATE_TEXT'           },
+          { type: 'tool', name: 'Dimension',     icon: '⟷', commandId: 'ID_ANNOTATE_DIMENSION'     },
+          { type: 'tool', name: 'Tag',           icon: '⊹', commandId: 'ID_ANNOTATE_TAG'            },
+        ]},
+      ],
+    },
+    {
+      profile:        'Coordination_2025',
+      tab:            'Coordination',
+      min_version:    '2025',
+      exportDate:     '2025-01-10',
+      requiredAddins: ['DiRoots'],
+      hideRules:      [],
+      stacks: {
+        'Link Stack': {
+          tools: [
+            { name: 'Link Revit',   commandId: 'ID_LINK_REVIT'   },
+            { name: 'Manage Links', commandId: 'ID_MANAGE_LINKS' },
+          ],
+        },
+      },
+      panels: [
+        { name: 'Coordination', color: '#4f8ef7', slots: [
+          { type: 'stack', name: 'Link Stack'                                                                                    },
+          { type: 'tool',  name: 'Copy/Monitor', icon: '⊛', commandId: 'ID_COLLABORATE_COPY_MONITOR'                           },
+          { type: 'tool',  name: 'Model Checker',icon: '✔', commandId: 'CustomCtrl_%CustomCtrl_%DiRoots%ModelChecker%MdlChk'   },
+        ]},
+        { name: 'Worksets', color: '#10b981', slots: [
+          { type: 'tool', name: 'Worksets', icon: '⊚', commandId: 'ID_WORKSET'                                                 },
+          { type: 'tool', name: 'Sync',     icon: '⟳', commandId: 'ID_COLLABORATE_SYNCHRONIZE_AND_MODIFY'                     },
+        ]},
+        { name: 'Clash', color: '#ef4444', slots: [
+          { type: 'tool', name: 'Interference', icon: '⊗', commandId: 'ID_ANALYZE_INTERFERENCE_CHECK' },
+        ]},
+      ],
+    },
+  ];
 
   // ── STATE ─────────────────────────────────────────────────────────────────────
-  let activeProfileName = null;
-  let revitRunning      = false;
+  let activeProfileName = 'Design_2025';
   let selectedProfile   = null;
-  let currentRevitVersion = null;
 
   // ── HELPERS ───────────────────────────────────────────────────────────────────
   function hexToRgb(hex) {
@@ -959,35 +1060,6 @@
       hideContainer.style.display = 'none';
     }
 
-    updateFooter();
-  }
-
-  // ── FOOTER STATE ──────────────────────────────────────────────────────────────
-  function updateFooter() {
-    const blockedNotice = document.getElementById('blockedNotice');
-    const loadBtn       = document.getElementById('loadBtn');
-    if (revitRunning) {
-      blockedNotice.style.display = 'flex';
-      blockedNotice.innerHTML = '<div class="b-dot"></div> Revit is running. Add-in changes will take effect after restart.';
-      // Don't block — allow loading profiles while Revit is open
-    } else {
-      blockedNotice.style.display = 'none';
-    }
-    loadBtn.classList.remove('blocked');
-  }
-
-  // ── REVIT STATUS DISPLAY ──────────────────────────────────────────────────────
-  function setRevitStatus(running) {
-    revitRunning = running;
-    const el = document.getElementById('revitStatus');
-    if (revitRunning) {
-      el.className = 'revit-status running';
-      el.innerHTML = '<div class="status-dot pulse"></div> Revit Running';
-    } else {
-      el.className = 'revit-status closed';
-      el.innerHTML = '<div class="status-dot"></div> Revit Closed';
-    }
-    updateFooter();
   }
 
   // ── REVIT VERSION DROPDOWN ────────────────────────────────────────────────────
@@ -999,7 +1071,6 @@
     document.querySelectorAll('.revit-menu-item').forEach(i => i.classList.remove('current'));
     el.classList.add('current');
     document.getElementById('revitSelected').textContent = name;
-    currentRevitVersion = name;
     document.getElementById('revitBtn').classList.remove('open');
     document.getElementById('revitMenu').classList.remove('open');
   }
@@ -1013,154 +1084,66 @@
   // ── ADD PROFILE ───────────────────────────────────────────────────────────────
   // Production flow:
   //   1. OS file picker → user selects a .json file shared by admin (email, Slack, etc.)
-  //   2. REST validates schema (required fields, min_version format, panels not empty)
+  //   2. RESTer validates schema (required fields, min_version format, panels not empty)
   //   3. Validated file is copied to %APPDATA%\RESTer\profiles\ (or install-relative subdir)
   //   4. Copied filename: {profile}_{exportDate}.json
   //   5. Profile is immediately added to profiles[] and rendered in the list
   //   6. On every subsequent launch, ProfileSelector reads all .json files from that dir
   function addProfile() {
-    window.pywebview.api.add_profile().then(function(result) {
-      if (result && result.ok) {
-        profiles.push(result.profile);
-        renderCards();
-      }
-    }).catch(function(err) {
-      if (err) console.error('addProfile error:', err);
-    });
+    alert('File picker → user selects a .json profile file shared by admin.\n\nRESTer will:\n  1. Validate the schema\n  2. Copy it to the RESTer profiles directory\n  3. Add it to the profile list immediately\n\nThe profile persists across sessions and is available every launch.');
   }
 
   // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
   function loadProfile() {
     if (!selectedProfile) return;
     const disableNonRequired = document.getElementById('disableAddinsCheck').checked;
+    activeProfileName = selectedProfile.profile;
+    renderCards();
+    const idx  = profiles.findIndex(p => p.profile === activeProfileName);
+    const cards = document.querySelectorAll('.profile-card');
+    if (cards[idx]) selectCard(cards[idx], idx);
 
-    window.pywebview.api.load_profile(selectedProfile.profile, disableNonRequired, currentRevitVersion).then(function(result) {
-      if (!result.ok) {
-        alert('Failed to load profile.');
-        return;
-      }
-      if (result.warnings && result.warnings.length > 0) {
-        alert('Profile loaded with warnings:\n\n' + result.warnings.join('\n'));
-      }
-      activeProfileName = selectedProfile.profile;
-      renderCards();
-      const idx  = profiles.findIndex(p => p.profile === activeProfileName);
-      const cards = document.querySelectorAll('.profile-card');
-      if (cards[idx]) selectCard(cards[idx], idx);
-    }).catch(function(err) {
-      alert('Error loading profile: ' + (err.message || err));
-    });
+    const lines = [];
+    if (disableNonRequired) lines.push('Non-required add-ins will be disabled (.addin → .addin.inactive).');
+    if (selectedProfile.hideRules?.length) lines.push(`Suppressed tabs: ${selectedProfile.hideRules.join(', ')}`);
+    lines.push(`Tab "${selectedProfile.tab}" will build automatically on next Revit launch.`);
+
+    document.getElementById('successTitle').textContent = `Profile Loaded — ${activeProfileName}`;
+    document.getElementById('successDetail').innerHTML = lines.map(l => `• ${l}`).join('<br>');
+    const overlay = document.getElementById('successOverlay');
+    overlay.classList.add('visible');
   }
+
+  function dismissSuccess() {
+    document.getElementById('successOverlay').classList.remove('visible');
+  }
+
 
   // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
   function restoreAllAddins() {
-    // Allow restore even while Revit is running — changes take effect after restart
-    if (!currentRevitVersion) { alert('No Revit version selected.'); return; }
-
-    window.pywebview.api.restore_addins(currentRevitVersion).then(function(result) {
-      alert('All add-ins restored successfully.');
-    }).catch(function(err) {
-      alert('Error restoring add-ins: ' + (err.message || err));
-    });
+    alert('All .addin.inactive files renamed back to .addin.\nOpen Revit normally — all add-ins restored.');
   }
 
-  // ── UNLOAD PROFILE ────────────────────────────────────────────────────────────
-  // Removes active_profile.json so Revit no longer loads this profile,
-  // but does NOT delete the profile JSON from the profiles directory.
-  function unloadProfile() {
-    if (!activeProfileName) { alert('No profile is currently loaded.'); return; }
-
-    window.pywebview.api.unload_profile().then(function(result) {
-      if (!result.ok) {
-        alert('Failed to unload profile.');
-        return;
-      }
-      activeProfileName = null;
+  // ── REMOVE PROFILE ────────────────────────────────────────────────────────────
+  function confirmRemove() {
+    if (!selectedProfile) return;
+    const name = selectedProfile.profile;
+    if (confirm(`Remove "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
+      const idx = profiles.findIndex(p => p.profile === name);
+      if (idx !== -1) profiles.splice(idx, 1);
+      if (activeProfileName === name) activeProfileName = null;
       selectedProfile = null;
       renderCards();
       const firstCard = document.querySelector('.profile-card');
       if (firstCard) firstCard.click();
-    }).catch(function(err) {
-      alert('Error unloading profile: ' + (err.message || err));
-    });
-  }
-
-  // ── DELETE PROFILE ────────────────────────────────────────────────────────────
-  function confirmRemove() {
-    if (!selectedProfile) return;
-    const name = selectedProfile.profile;
-    if (confirm(`Delete "${name}" from your profile library?\n\nThis deletes the local copy from the profiles directory. The original file shared by the admin is not affected.`)) {
-      window.pywebview.api.remove_profile(name).then(function(result) {
-        if (!result.ok) {
-          alert('Failed to delete profile.');
-          return;
-        }
-        const idx = profiles.findIndex(p => p.profile === name);
-        if (idx !== -1) profiles.splice(idx, 1);
-        if (activeProfileName === name) activeProfileName = null;
-        selectedProfile = null;
-        renderCards();
-        const firstCard = document.querySelector('.profile-card');
-        if (firstCard) firstCard.click();
-      }).catch(function(err) {
-        alert('Error deleting profile: ' + (err.message || err));
-      });
     }
   }
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
-  function populateRevitVersions(versions) {
-    const menu = document.getElementById('revitMenu');
-    menu.innerHTML = '';
-    versions.forEach(function(ver, i) {
-      const item = document.createElement('div');
-      item.className = 'revit-menu-item' + (i === 0 ? ' current' : '');
-      item.textContent = ver;
-      item.addEventListener('click', function() { selectRevit(item, ver); });
-      menu.appendChild(item);
-    });
-    if (versions.length > 0) {
-      currentRevitVersion = versions[0];
-      document.getElementById('revitSelected').textContent = versions[0];
-    }
-  }
-
-  window.addEventListener('pywebviewready', function() {
-    // Fetch profiles
-    window.pywebview.api.get_profiles().then(function(data) {
-      data.forEach(function(p) { profiles.push(p); });
-      renderCards();
-
-      // Highlight the active profile after cards are rendered
-      window.pywebview.api.get_active_profile().then(function(name) {
-        if (name) {
-          activeProfileName = name;
-          renderCards();
-          const idx = profiles.findIndex(function(p) { return p.profile === name; });
-          const cards = document.querySelectorAll('.profile-card');
-          if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
-        }
-      }).catch(function(err) { console.error(err); });
-    }).catch(function(err) { console.error(err); });
-
-    // Fetch Revit versions
-    window.pywebview.api.get_revit_versions().then(function(versions) {
-      if (versions && versions.length > 0) {
-        populateRevitVersions(versions);
-      }
-    }).catch(function(err) { console.error(err); });
-
-    // Check if Revit is running (once)
-    window.pywebview.api.is_revit_running().then(function(running) {
-      setRevitStatus(running);
-      if (running) {
-        document.getElementById('blockedNotice').style.display = 'flex';
-        document.getElementById('blockedNotice').innerHTML =
-          '<div class="b-dot"></div> Close Revit before loading a profile';
-        document.getElementById('loadBtn').classList.add('blocked');
-      }
-    }).catch(function(err) { console.error(err); });
-  });
+  renderCards();
+  const initIdx  = profiles.findIndex(p => p.profile === 'Documentation_2025');
+  const initCard = document.querySelectorAll('.profile-card')[initIdx];
+  if (initCard) selectCard(initCard, initIdx);
 </script>
 </body>
 </html>
