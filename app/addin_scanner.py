@@ -174,7 +174,7 @@ def _search_addin_contents(tab_name, addin_files):
     return None, None
 
 
-def _fuzzy_find(tab_name, search_dirs, overrides=None):
+def _fuzzy_find(tab_name, search_dirs, overrides=None, addin_files=None):
     """Check overrides, then filename match, then content search."""
     if overrides is None:
         overrides = _load_overrides()
@@ -184,7 +184,8 @@ def _fuzzy_find(tab_name, search_dirs, overrides=None):
         if os.path.exists(cached_path):
             return os.path.basename(cached_path), cached_path
 
-    addin_files = _find_all_addin_files(search_dirs)
+    if addin_files is None:
+        addin_files = _find_all_addin_files(search_dirs)
 
     tab_lower = tab_name.lower()
     for fname, paths in addin_files.items():
@@ -228,7 +229,7 @@ def check_addins(required_addins, revit_version):
             results[tab_name] = 'present'
         else:
             # Fuzzy search: filename match then content search
-            fname, fpath = _fuzzy_find(tab_name, search_dirs, overrides)
+            fname, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
             if fname:
                 results[tab_name] = 'present'
             elif entry:
@@ -265,7 +266,7 @@ def apply_hide_rules(hide_rules, revit_version):
             # Pick first non-Program-Files path
             fpath = next((p for p in paths if not _is_readonly_dir(p)), None)
         else:
-            resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides)
+            resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
 
         # Check protection by filename
         if resolved_filename and resolved_filename in PROTECTED_ADDINS:
@@ -317,6 +318,7 @@ def disable_non_required_addins(required_addins, revit_version):
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
     overrides = _load_overrides()
+    addin_files = _find_all_addin_files(search_dirs)
 
     # Build set of filenames to keep
     keep_files = set()
@@ -325,7 +327,7 @@ def disable_non_required_addins(required_addins, revit_version):
             keep_files.add(lookup[a]['file'])
         else:
             # Resolve fuzzy-matched addins too
-            fname, _ = _fuzzy_find(a, search_dirs, overrides)
+            fname, _ = _fuzzy_find(a, search_dirs, overrides, addin_files)
             if fname:
                 keep_files.add(fname)
     keep_files.update(PROTECTED_ADDINS)

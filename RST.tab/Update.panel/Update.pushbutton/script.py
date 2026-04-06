@@ -73,6 +73,7 @@ if not pulled:
             continue
 
 # ── Fallback: download zip, stage, then apply after pyRevit reload ───────────
+_zip_error = ''
 if not pulled:
     log.info('Git not available — downloading zip from GitHub')
     try:
@@ -183,7 +184,7 @@ if not pulled:
 
 # ── Result ────────────────────────────────────────────────────────────────────
 if not pulled:
-    err_detail = _zip_error if '_zip_error' in dir() else 'Git not available'
+    err_detail = _zip_error or 'Git not available'
     forms.alert(
         'Could not update RST.\n\n%s' % err_detail,
         title='RST Update'

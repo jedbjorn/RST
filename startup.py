@@ -675,8 +675,12 @@ except Exception as e:
     # Fallback: try building immediately (may miss late-loading addins)
     active, profile = _load_active_profile()
     if active and profile:
-        profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
-        if _needs_rebuild(active, profile_path):
-            if _build_ribbon(profile):
+        if not active.get('blank'):
+            profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
+            if not _needs_rebuild(active, profile_path):
+                pass  # skip build
+            elif _build_ribbon(profile):
                 _update_last_built(active)
+        else:
+            _build_ribbon(profile)
     _schedule_admin_styling()
