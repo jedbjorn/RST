@@ -145,9 +145,26 @@ def get_installed_commands():
             return results
         log.info('Ribbon found, tabs: %d', ribbon.Tabs.Count)
 
+        # Tabs to skip entirely (contextual, non-project, or editor-only)
+        SKIP_TABS = {
+            'Family Editor', 'In-Place Model', 'In-Place Mass',
+            'Zone', 'Create',
+        }
+
         for tab in ribbon.Tabs:
             try:
                 source_tab = tab.Title
+                if not source_tab:
+                    continue
+                # Skip contextual and non-project tabs
+                is_contextual = False
+                try:
+                    is_contextual = bool(tab.IsContextualTab)
+                except Exception:
+                    pass
+                if is_contextual or source_tab in SKIP_TABS:
+                    log.debug('Skipping tab: %s (contextual=%s)', source_tab, is_contextual)
+                    continue
                 log.debug('Scanning tab: %s', source_tab)
             except Exception as e:
                 log.error('Error reading tab title: %s', e)
