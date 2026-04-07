@@ -603,54 +603,26 @@ _has_active_profile = False
 
 
 def _disable_minifyui():
-    """Delete MinifyUI's script so it can't run, rename the button."""
+    """Delete all .py files from MinifyUI's known location."""
     try:
-        # Find pyRevit extensions directory
         appdata = os.environ.get('APPDATA', '')
         if not appdata:
             return
-        # Search common pyRevit extension paths for MinifyUI
-        search_roots = [
-            os.path.join(appdata, 'pyRevit', 'Extensions'),
-        ]
-        for search_root in search_roots:
-            if not os.path.isdir(search_root):
-                continue
-            for dirpath, dirnames, filenames in os.walk(search_root):
-                dirname = os.path.basename(dirpath)
-                if 'MinifyUI' in dirname and (dirname.endswith('.smartbutton') or dirname.endswith('.pushbutton')):
-                    # Found MinifyUI — delete its script files
-                    for fn in filenames:
-                        if fn.endswith('.py') and fn != '__init__.py':
-                            fpath = os.path.join(dirpath, fn)
-                            try:
-                                os.remove(fpath)
-                                log.info('Removed MinifyUI script: %s', fpath)
-                            except (OSError, IOError) as e:
-                                log.debug('Could not remove %s: %s', fpath, e)
-                    # Write a stub script that shows disabled message
-                    stub_path = os.path.join(dirpath, 'script.py')
-                    try:
-                        stub = (
-                            '# -*- coding: utf-8 -*-\n'
-                            '"""MinifyUI disabled by RST."""\n'
-                            '__title__ = "MNF - Disabled"\n'
-                            '__doc__ = "MinifyUI replaced by RSTify. '
-                            'Reinstall pyRevit to restore."\n'
-                            'from pyrevit import forms\n'
-                            'forms.alert(\n'
-                            '    "MinifyUI has been replaced by RSTify.\\n\\n"\n'
-                            '    "Use the RSTify button on the RST tab.\\n\\n"\n'
-                            '    "To restore, reinstall pyRevit.",\n'
-                            '    title="RST"\n'
-                            ')\n'
-                        )
-                        with io.open(stub_path, 'w', encoding='utf-8') as f:
-                            f.write(stub)
-                        log.info('Wrote MinifyUI disabled stub: %s', stub_path)
-                    except (OSError, IOError) as e:
-                        log.debug('Could not write stub: %s', e)
-                    return
+        minify_dir = os.path.join(
+            appdata, 'pyRevit-Master', 'extensions', 'pyRevitTools.extension',
+            'pyRevit.tab', 'Toggles.panel', 'toggles1.stack', 'MinifyUI.smartbutton'
+        )
+        if not os.path.isdir(minify_dir):
+            log.debug('MinifyUI dir not found: %s', minify_dir)
+            return
+        for fn in os.listdir(minify_dir):
+            if fn.endswith('.py'):
+                fpath = os.path.join(minify_dir, fn)
+                try:
+                    os.remove(fpath)
+                    log.info('Removed MinifyUI: %s', fpath)
+                except (OSError, IOError) as e:
+                    log.debug('Could not remove %s: %s', fpath, e)
     except Exception as e:
         log.debug('MinifyUI disable failed: %s', e)
 
