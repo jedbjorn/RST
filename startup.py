@@ -315,9 +315,8 @@ def _build_ribbon(profile):
                     stack_name = slot.get('name', '')
                     stack_def_data = stacks.get(stack_name)
                     if stack_def_data:
-                        row = _create_stack(stack_name, stack_def_data)
-                        if row:
-                            aw_panel.Source.Items.Add(row)
+                        for btn in _create_stack_buttons(stack_name, stack_def_data):
+                            aw_panel.Source.Items.Add(btn)
                     else:
                         log.warning('Stack not found: %s', stack_name)
 
@@ -363,6 +362,13 @@ def _create_tool_button(slot):
         except Exception:
             pass
 
+        # Text below icon
+        try:
+            from System.Windows.Controls import Orientation
+            btn.Orientation = Orientation.Vertical
+        except Exception:
+            pass
+
         # 32x32 icon
         icon = _load_icon(_get_icon_path(slot, small=False))
         if icon:
@@ -386,21 +392,17 @@ def _create_tool_button(slot):
         return None
 
 
-def _create_stack(stack_name, stack_def):
-    """Create a RibbonRowPanel containing standard-sized text-only buttons.
-    This is the AdWindows equivalent of Revit API's AddStackedItems."""
-    from Autodesk.Windows import RibbonRowPanel, RibbonButton, RibbonItemSize
+def _create_stack_buttons(stack_name, stack_def):
+    """Create a list of standard-sized text-only buttons for a stack.
+    Added directly to the panel — the ribbon auto-stacks consecutive
+    standard-sized items vertically in groups of up to 3."""
+    from Autodesk.Windows import RibbonButton, RibbonItemSize
 
     tools = stack_def.get('tools', [])
-    if len(tools) < 2:
-        log.debug('Stack %s has fewer than 2 items, skipping', stack_name)
-        return None
+    buttons = []
 
-    try:
-        row = RibbonRowPanel()
-        row.Id = 'REST_Stack_' + stack_name.replace(' ', '_')
-
-        for tool in tools:
+    for tool in tools:
+        try:
             tool_name = tool.get('baseName', tool.get('name', 'Tool'))
             full_name = tool.get('name', tool_name)
             command_id = tool.get('commandId', '')
@@ -433,15 +435,13 @@ def _create_stack(stack_name, stack_def):
                 if handler:
                     btn.CommandHandler = handler
 
-            row.Items.Add(btn)
+            buttons.append(btn)
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
+        except Exception as e:
+            log.error('Failed to create stack button %s: %s', tool_name, e)
 
-        log.debug('Created stack: %s (%d tools)', stack_name, len(tools))
-        return row
-
-    except Exception as e:
-        log.error('Failed to create stack %s: %s', stack_name, e)
-        return None
+    log.debug('Created stack: %s (%d tools)', stack_name, len(buttons))
+    return buttons
 
 
 def _make_command_handler(command_id):
