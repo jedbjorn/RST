@@ -2,7 +2,7 @@
 
 Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curated toolbar profiles from any installed Revit tool or add-in. Users load profiles to get a clean, purpose-built ribbon — no digging through tabs. Supports custom URL buttons, company branding, colored panels with rounded corners, opacity control, tool stacks, and one-click updates.
 
-> **DISCLAIMER: THIS IS AN ALPHA RELEASE. DISABLING EXTENSIONS IS UNTESTED. USE AT YOUR OWN RISK.**
+> **DISCLAIMER: THIS IS AN ALPHA RELEASE. USE AT YOUR OWN RISK.**
 
 ---
 
@@ -10,18 +10,18 @@ Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curate
 
 - **Detect** every tool on every ribbon tab in Revit (1400+ commands across all installed add-ins)
 - **Build** custom panels with tools from any source — Architecture, DiRootsOne, Kinship, pyRevit, Modify, View, Manage, etc.
-- **Custom URL tools** — add company links, wikis, SharePoint, Teams, or any URL as clickable toolbar buttons
-- **Branding** — company logo on every profile tab, customizable per install, links to your GitHub
+- **Custom URL tools** — add company links, wikis, SharePoint, Teams, or any URL as clickable toolbar buttons (persistent across sessions)
+- **Branding** — company logo on every profile tab, customizable per install
 - **Color** each panel with a custom hex color and adjustable opacity (10%–100%) with rounded corners
-- **Tool stacks** — group related tools into dropdown stacks
+- **Tool stacks** — group 2–3 related tools into vertically stacked small buttons (text-only, like native Revit)
 - **Two-line tool names** — long names auto-split at the first space for compact display
+- **Add-in detection** — live session scan shows which add-ins are loaded, flags native Revit tools
 - **Export** profiles as self-contained JSON files for easy sharing (email, OneDrive, Slack, etc.)
 - **Load** profiles and rebuild the ribbon live inside Revit — no restart needed
-- **Profile switching** — hot-swap between profiles with a reload
-- **Blank profiles** — deleting the active profile creates a clean blank tab
-- **One-click update** — pulls latest from GitHub with no git required, skips locked files
-- **Minify UI** — one-click access to pyRevit's MinifyUI to hide unused ribbon tabs
-- **Protect** pyRevit and Kinship add-ins from ever being disabled
+- **Profile switching** — hot-swap between profiles with automatic pyRevit reload
+- **Blank profiles** — unloading or deleting the active profile creates a clean blank tab
+- **One-click update** — downloads latest from GitHub (zip), preserves user data, reloads automatically
+- **MinifyUI** — auto-activates after profile load to hide unused ribbon tabs
 
 ---
 
@@ -52,109 +52,122 @@ You should see an **RST** tab in the Revit ribbon.
 
 ---
 
+## How It Works
+
+### Architecture
+
+```
+Revit (IronPython)              CPython 3.12 + pywebview
+┌──────────────────────┐       ┌─────────────────────────┐
+│ Pushbutton scripts   │─JSON─▶│ Tab Creator UI (admin)  │
+│ startup.py           │ file  │ Profile Loader UI (user) │
+│ (builds ribbon)      │       └─────────────────────────┘
+└──────────────────────┘
+```
+
+One IronPython process inside Revit, one CPython process for UIs, temp JSON files as the bridge. No persistent services, no background processes.
+
+### On Revit Launch (startup.py)
+
+1. Reads `active_profile.json` → loads the referenced profile
+2. Removes any existing `REST_*` tabs from the ribbon
+3. Builds branding panel (logo, always leftmost)
+4. Creates colored panels with rounded-corner backgrounds
+5. Adds large tool buttons with PostCommand handlers
+6. Adds stacks as `RibbonRowPanel` with 2–3 small text-only buttons
+7. On Idling event: styles RST admin panels grey, activates MinifyUI if configured
+
+### Profiler Flow (Admin)
+
+1. Click **Profiler** → IronPython scans ribbon (1400+ commands) + loaded add-ins → writes `_revit_data.json` → launches CPython UI
+2. Admin detects tools, creates panels, picks colors, adds tools/stacks/URLs, sets branding
+3. **Export** → saves profile JSON to `app/profiles/` + Desktop copy → animated overlay → window auto-closes (3s)
+
+### Loader Flow (User)
+
+1. Click **Loader** → IronPython collects Revit version + loaded add-ins → writes `_loader_data.json` → launches CPython UI
+2. User browses profiles, sees tab preview, checks add-in compatibility (Native/Loaded/Not Loaded)
+3. **Load Profile** → writes `active_profile.json` → animated overlay → window auto-closes (3s)
+4. ProfileLoader button detects the change → shows "Reloading pyRevit..." with animated dots → `sessionmgr.reload()` → ribbon rebuilds
+
+### Add-in Detection
+
+Uses AdWindows ribbon tab scan from the live Revit session. Every non-builtin, non-contextual tab title is captured as a loaded add-in:
+
+- **Native** (green) — built-in Revit tabs (Architecture, View, Manage, etc.) — always available
+- **Loaded** (green) — add-in tabs detected in the current session (DiRootsOne, pyRevit, Kinship, etc.)
+- **Not Loaded** (red) — required by the profile but not found in the current session
+
+### Update Flow
+
+1. Click **Update** → downloads zip from GitHub → extracts to staging
+2. Preserves user data (profiles, active profile, branding logo, config, custom tools, log)
+3. Copies new files, skips locked files
+4. Shows "Reloading pyRevit..." → auto-reloads
+
+---
+
 ## RST Tab
 
-The RST tab contains five tool panels, each with its own icon and rounded grey background:
+Five tool panels with rounded grey backgrounds:
 
 ### Profiler
-Build and edit toolbar profiles. Opens a full editor UI where you:
-- Click **Detect** to scan all installed tools across every ribbon tab (1400+ commands)
-- Search and filter tools by name, source tab, or "Custom" for URL tools
-- Create panels, assign colors with hex input, set opacity (10%–100%)
-- Drag panels to reorder in the tab preview
-- Add tools to panels via checkbox — display names in panels, full source info in tooltips
-- Create tool stacks (grouped dropdown buttons)
-- **+ Add URL** — create custom URL buttons (company wikis, project links, standards portals)
-- **Add Logo** — upload a company logo (48x48) for the branding panel
-- Export profiles as JSON — auto-saves to extension folder + Desktop copy
-- Auto-closes 4 seconds after successful export
+Build and edit toolbar profiles:
+- **Detect** scans all installed tools across every ribbon tab
+- Search and filter tools by name or source tab
+- Create panels with custom colors (hex input + swatches) and opacity (10%–100%)
+- Add tools via checkbox, drag to reorder
+- Create tool stacks (2–3 small buttons stacked vertically)
+- A tool can only be in one place — adding to a stack removes it from standalone; greyed tools show "Go to [location]" on click
+- **+ Add URL** for custom URL buttons (persistent across sessions)
+- **Add Logo** for company branding (48x48, resized automatically)
+- Export → animated overlay with file paths → auto-closes
 
 ### Loader
-Switch between profiles without leaving Revit:
-- Browse saved profiles with full tab preview showing panels, tools, and stacks
-- Load a profile — success overlay with pyRevit reload instructions, auto-closes after 4 seconds
-- Add profiles received from your admin via file picker
-- Unload or delete profiles (warns and creates blank tab if deleting the active profile)
-- Restore all disabled add-ins
-- Toggle "disable non-required add-ins" per profile
-
-> **WARNING: DISABLING ADD-INS IS UNTESTED. USE WITH CAUTION.**
+Load and manage profiles:
+- Header: Revit version (live from session), "Add Profile from Path"
+- Profile cards with tab preview, required add-ins status
+- Load Profile → auto-closes, triggers pyRevit reload
+- Unload or delete profiles (creates blank tab if active)
 
 ### Minify
-One-click toggle for pyRevit's built-in MinifyUI. Hides unused ribbon tabs to declutter the interface. Alerts if pyRevit command not found.
+One-click toggle for pyRevit's MinifyUI. Also auto-activates after profile load.
 
 ### Update
-One-click update for the extension:
-- Tries pyRevit git, then system git, then downloads zip from GitHub (no git required)
-- Copies files directly, skips any locked files (icons, log)
-- Preserves user data: profiles, active profile, branding logo, log
-- Reloads pyRevit automatically after update
-- Shows actual error details if something fails
+Downloads latest from GitHub (zip-only), preserves user data, reloads pyRevit with animated message.
 
 ### Reload
-Triggers a pyRevit reload to apply profile changes and refresh the ribbon. Use after loading a new profile or switching profiles.
+Triggers pyRevit reload to apply changes.
 
 ---
 
 ## Custom URL Tools
 
-Add company-specific URL links directly to your toolbar:
-
 1. In the Profiler, click **+ Add URL** at the bottom of the tool list
 2. Enter a name (e.g. "Company Wiki") and a URL
-3. The tool appears in the list tagged "Custom" with a link icon
-4. Add it to any panel like a regular tool
-5. In Revit, clicking the button opens the URL in the default browser
+3. The tool appears tagged "Custom" — add to any panel like a regular tool
+4. In Revit, clicking the button opens the URL in the default browser
 
-Custom tools can be edited or deleted at any time. They survive the Detect scan and round-trip cleanly through profile export/import. Filter the tool list to "Custom" to see only your URL tools.
+Custom tools persist across Profiler sessions (`app/custom_tools.json`). They can be edited, deleted, and survive Detect scans and profile export/import.
 
 ---
 
 ## Branding
 
-Every profile tab includes a branding panel (always leftmost) with a logo that links to the RST GitHub page.
+Every profile tab includes a branding panel (always leftmost) with a logo.
 
 - **Default:** RST logo ships with the extension
-- **Custom:** Click **Add Logo** in the Profiler header to upload your company logo (48x48 recommended, resized automatically)
-- The logo is set as the panel background via WPF ImageBrush
-- A transparent button on top handles the click → opens [github.com/jedbjorn/RST](https://github.com/jedbjorn/RST)
-- Logo persists across sessions and profile switches (`icons/branding.png`)
+- **Custom:** Click **Add Logo** in the Profiler to upload your company logo (48x48 recommended)
+- Logo persists across sessions and updates (`icons/branding.png`)
 
 ---
 
 ## Panel Styling
 
-- **Colors** — each panel gets a custom hex color, applied with opacity control (10%–100%)
-- **Rounded corners** — panel backgrounds use a WPF DrawingBrush with RectangleGeometry for rounded corners
-- **RST admin panels** — styled with light grey rounded backgrounds, applied via Idling event after pyRevit finishes creating them
-- **Two-line names** — tool names with spaces auto-split at the first space for compact ribbon display
-
----
-
-## Workflow
-
-### Admin
-1. Open Revit → RST tab → **Profiler**
-2. Click **Detect** to scan all available tools
-3. Create panels, pick colors, set opacity, add tools
-4. Optionally add custom URL tools and a company logo
-5. **Export Config** → saves profile JSON + Desktop copy
-6. Send the Desktop copy to users (email, OneDrive, Slack, etc.)
-
-### User
-1. Open Revit → RST tab → **Loader**
-2. **Add Profile** → select the JSON from admin
-3. Select profile → **Load Profile**
-4. Click **Reload** on the RST tab → custom ribbon appears
-5. Use **Minify** to hide unused tabs
-
-### Profile Switching
-1. RST tab → **Loader** → select different profile → **Load Profile**
-2. Click **Reload** → ribbon updates to new profile
-3. Previous tab is removed, new tab appears with branding
-
-### External Use
-The Profile Loader also works outside Revit via `launch_profile_loader.bat` in the extension folder.
+- **Colors** — custom hex color per panel with opacity control (10%–100%)
+- **Rounded corners** — WPF DrawingBrush with RectangleGeometry
+- **RST admin panels** — light grey rounded backgrounds, applied after pyRevit finishes loading
+- **Two-line names** — tool names with spaces split at the first space
 
 ---
 
@@ -167,14 +180,15 @@ Profiles are self-contained JSON files:
   "profile": "Design_2025",
   "tab": "Design",
   "min_version": "2024",
-  "exportDate": "2025-04-05",
+  "exportDate": "2025-04-07",
   "panelOpacity": 80,
   "requiredAddins": ["DiRootsOne", "pyRevit"],
   "hideRules": [],
   "stacks": {
-    "Edit Stack": {
+    "Links": {
       "tools": [
-        { "name": "Move", "baseName": "Move", "commandId": "ID_MODIFY_MOVE", "sourceTab": null }
+        { "name": "SharePoint", "baseName": "SharePoint", "commandId": "URL:https://sharepoint.com", "sourceTab": "Custom" },
+        { "name": "Teams", "baseName": "Teams", "commandId": "URL:https://teams.com", "sourceTab": "Custom" }
       ]
     }
   },
@@ -184,40 +198,22 @@ Profiles are self-contained JSON files:
       "color": "#4f8ef7",
       "slots": [
         { "type": "tool", "baseName": "Wall", "name": "Wall (Architecture > Build)", "commandId": "ID_OBJECTS_WALL", "sourceTab": "Architecture" },
-        { "type": "tool", "baseName": "Wiki", "name": "Wiki", "commandId": "URL:https://company.wiki", "sourceTab": "Custom" },
-        { "type": "stack", "name": "Edit Stack" }
+        { "type": "stack", "name": "Links" }
       ]
     }
   ]
 }
 ```
 
-The branding panel is **not** in the profile JSON — it is injected automatically by `startup.py` at runtime.
+The branding panel is not in the profile — injected automatically at runtime.
 
 ---
 
-## Known Limitations
+## Configuration
 
-- **pyRevit script-based tools** (e.g. pyRevit Selection tools) can be detected and placed but may not execute via PostCommand — they use pyRevit's internal execution engine
-- **Some OOTB Revit tools** with dropdown/list button CommandIds (e.g. `ID_OBJECTS_WALL_RibbonListButton`) are filtered out automatically
-- **UIState persistence** — Revit saves ribbon state to UIState.dat on session close, which can interfere with tab visibility between sessions
-- **Locked files during update** — icons loaded by Revit (PNGs) are skipped during update and overwritten on next restart
-- **Panel ordering** — `bundle.yaml` controls RST tab panel order; custom profile tab panel order follows the profile JSON
-- **Tab persistence** — custom tabs built via AdWindows don't survive Revit restart; `startup.py` rebuilds on every launch
+### Add-in Lookup (`lookup/addin_lookup.json`)
 
-> **WARNING: DISABLING EXTENSIONS IS UNTESTED. THIS FEATURE MAY CAUSE ISSUES WITH YOUR REVIT INSTALLATION. USE AT YOUR OWN RISK.**
-
----
-
-## Add-in Lookup
-
-RST maps Revit ribbon tab names to `.addin` filenames so it can check presence, suppress, and restore add-ins. This mapping lives in a single file:
-
-```
-lookup/addin_lookup.json
-```
-
-Both UIs (Profiler and Loader) and the Python backend read from this file. The format is:
+Maps ribbon tab names to `.addin` filenames for display purposes. Single source of truth read by both UIs.
 
 ```json
 {
@@ -225,17 +221,9 @@ Both UIs (Profiler and Loader) and the Python backend read from this file. The f
 }
 ```
 
-**Adding entries:** If your firm uses add-ins not in the default list, you can add them to `addin_lookup.json`. Find the `.addin` filename in `%APPDATA%\Autodesk\Revit\Addins\{version}\` and the ribbon tab name it creates in Revit. Add an entry mapping the tab name to the file. Changes take effect the next time you open the Profiler or Loader.
+Add entries for firm-specific add-ins. Changes take effect on next Profiler/Loader open.
 
-Add-ins not in the lookup will show as "Unknown" in the UI. RST will still attempt a fuzzy match by searching `.addin` file names and contents at load time, but an explicit entry is more reliable.
-
-> **Editing this file is at your own risk.** Invalid JSON will prevent add-in detection from working. Back up the file before making changes.
-
----
-
-## Protected Add-ins & Exempt Paths
-
-Configured in `lookup/config.json`:
+### Protected Add-ins & Exempt Paths (`lookup/config.json`)
 
 ```json
 {
@@ -251,21 +239,29 @@ Configured in `lookup/config.json`:
 }
 ```
 
-**`protected_addins`** — these `.addin` files are never renamed, disabled, or touched by RST. Add any filenames your firm needs to keep safe.
+**`protected_addins`** — never touched by RST. **`exempt_paths`** — entire directories RST will never modify. Supports environment variables.
 
-**`exempt_paths`** — entire directories RST will never modify. Files under these paths are skipped during disable, restore, and hide operations. Supports environment variables (`%APPDATA%`, `%PROGRAMFILES%`, etc.).
+Both files are preserved across updates.
 
-Defaults ship with pyRevit, Kinship, and Dynamo protected. Edit `config.json` to add your own entries.
+---
+
+## Known Limitations
+
+- **pyRevit script-based tools** can be detected and placed but may not execute via PostCommand
+- **Some OOTB Revit tools** with dropdown/list button CommandIds are filtered out automatically
+- **Locked files during update** — icons loaded by Revit are skipped and overwritten on next restart
+- **Tab persistence** — custom tabs don't survive Revit restart; `startup.py` rebuilds on every launch
+- **Add-in disabling** — feature deferred; code exists but is not active
 
 ---
 
 ## Tech Stack
 
 - **pyRevit** — extension framework, ribbon buttons, startup hooks
-- **IronPython** — Revit-side scripts (tab scanning, ribbon building, panel styling)
+- **IronPython** — Revit-side scripts (ribbon scanning, ribbon building, panel styling, reload UI)
 - **CPython 3.12** — UI windows via pywebview
-- **AdWindows.dll** — Revit ribbon manipulation (scan tools, build panels, set colors, rounded corners)
-- **WPF** — ImageBrush for branding, DrawingBrush for rounded panel backgrounds
+- **AdWindows.dll** — ribbon manipulation (scan tools, build panels, detect add-ins, set colors)
+- **WPF** — ImageBrush for branding, DrawingBrush for rounded corners, ToolWindow for reload message
 - **pywebview** — HTML-based UI windows for Profiler and Loader
 
 ---
