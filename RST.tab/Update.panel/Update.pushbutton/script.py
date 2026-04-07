@@ -144,12 +144,12 @@ if not pulled:
                         for fn in fns:
                             try:
                                 os.remove(os.path.join(dp, fn))
-                            except OSError:
+                            except (OSError, IOError):
                                 pass
                         for dn in dns:
                             try:
                                 os.rmdir(os.path.join(dp, dn))
-                            except OSError:
+                            except (OSError, IOError):
                                 pass
                     try:
                         os.rmdir(item_path)
@@ -157,7 +157,7 @@ if not pulled:
                         pass
                 else:
                     os.remove(item_path)
-            except OSError as e:
+            except (OSError, IOError) as e:
                 log.warning('Could not remove %s: %s', item, e)
 
         # 3. Copy new files (skip locked)
@@ -170,7 +170,7 @@ if not pulled:
             for fn in fns:
                 try:
                     shutil.copy2(os.path.join(dp, fn), os.path.join(target_dir, fn))
-                except OSError:
+                except (OSError, IOError):
                     skipped.append(fn)
 
         # 4. Restore user data (skip locked)
@@ -183,7 +183,7 @@ if not pulled:
                 for fn in fns:
                     try:
                         shutil.copy2(os.path.join(dp, fn), os.path.join(target_dir, fn))
-                    except OSError:
+                    except (OSError, IOError):
                         pass
 
         # Cleanup staging
