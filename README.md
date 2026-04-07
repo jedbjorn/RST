@@ -209,11 +209,53 @@ The branding panel is **not** in the profile JSON — it is injected automatical
 
 ---
 
-## Protected Add-ins
+## Add-in Lookup
 
-These are never disabled:
-- **pyRevit** (`pyRevit.addin`) — RST is built on it
-- **Kinship** (`Kinship.addin`) — protected by default
+RST maps Revit ribbon tab names to `.addin` filenames so it can check presence, suppress, and restore add-ins. This mapping lives in a single file:
+
+```
+lookup/addin_lookup.json
+```
+
+Both UIs (Profiler and Loader) and the Python backend read from this file. The format is:
+
+```json
+{
+  "TabName": { "displayName": "Human-readable Name", "file": "Filename.addin" }
+}
+```
+
+**Adding entries:** If your firm uses add-ins not in the default list, you can add them to `addin_lookup.json`. Find the `.addin` filename in `%APPDATA%\Autodesk\Revit\Addins\{version}\` and the ribbon tab name it creates in Revit. Add an entry mapping the tab name to the file. Changes take effect the next time you open the Profiler or Loader.
+
+Add-ins not in the lookup will show as "Unknown" in the UI. RST will still attempt a fuzzy match by searching `.addin` file names and contents at load time, but an explicit entry is more reliable.
+
+> **Editing this file is at your own risk.** Invalid JSON will prevent add-in detection from working. Back up the file before making changes.
+
+---
+
+## Protected Add-ins & Exempt Paths
+
+Configured in `lookup/config.json`:
+
+```json
+{
+  "protected_addins": [
+    "pyRevit.addin",
+    "Kinship.addin",
+    "Dynamo.addin",
+    "DynamoForRevit.addin"
+  ],
+  "exempt_paths": [
+    "%APPDATA%\\Dynamo"
+  ]
+}
+```
+
+**`protected_addins`** — these `.addin` files are never renamed, disabled, or touched by RST. Add any filenames your firm needs to keep safe.
+
+**`exempt_paths`** — entire directories RST will never modify. Files under these paths are skipped during disable, restore, and hide operations. Supports environment variables (`%APPDATA%`, `%PROGRAMFILES%`, etc.).
+
+Defaults ship with pyRevit, Kinship, and Dynamo protected. Edit `config.json` to add your own entries.
 
 ---
 

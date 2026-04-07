@@ -6,8 +6,6 @@ import io
 import os
 import sys
 import json
-import time
-import datetime
 
 _root = os.path.dirname(os.path.abspath(__file__))
 
@@ -62,34 +60,6 @@ def _load_active_profile():
 
     return active, profile
 
-
-def _needs_rebuild(active, profile_path):
-    """Compare profile file mtime against last_built timestamp."""
-    last_built = active.get('last_built')
-    if not last_built:
-        log.info('No last_built timestamp - rebuild needed')
-        return True
-
-    try:
-        file_mtime = os.path.getmtime(profile_path)
-        built_dt = datetime.datetime.strptime(last_built, '%Y-%m-%dT%H:%M:%S')
-        built_ts = time.mktime(built_dt.timetuple())
-        if file_mtime >= built_ts:
-            log.info('Profile modified since last build - rebuild needed')
-            return True
-        log.info('Profile unchanged since last build - skipping rebuild')
-        return False
-    except (ValueError, OSError) as e:
-        log.warning('Could not compare timestamps: %s - rebuilding', e)
-        return True
-
-
-def _update_last_built(active):
-    """Write updated last_built timestamp to active_profile.json."""
-    active['last_built'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    with io.open(_active_profile_path, 'w', encoding='utf-8') as f:
-        json.dump(active, f, indent=2)
-    log.info('Updated last_built: %s', active['last_built'])
 
 
 def _get_icon_path(slot, small=False):
@@ -346,9 +316,9 @@ def _build_ribbon(profile):
                     stack_name = slot.get('name', '')
                     stack_def_data = stacks.get(stack_name)
                     if stack_def_data:
-                        split = _create_stack_button(stack_name, stack_def_data)
-                        if split:
-                            aw_panel.Source.Items.Add(split)
+                        row = _create_stack_button(stack_name, stack_def_data)
+                        if row:
+                            aw_panel.Source.Items.Add(row)
                     else:
                         log.warning('Stack not found: %s', stack_name)
 
@@ -425,31 +395,38 @@ def _create_tool_button(slot):
 
 
 def _create_stack_button(stack_name, stack_def):
-    """Create a RibbonSplitButton with child tools (16x16 icons)."""
-    from Autodesk.Windows import RibbonSplitButton, RibbonButton, RibbonItemSize
+    """Create a RibbonRowPanel with up to 3 small buttons stacked vertically."""
+    from Autodesk.Windows import RibbonRowPanel, RibbonButton, RibbonItemSize
 
     tools = stack_def.get('tools', [])
 
     try:
-        split = RibbonSplitButton()
-        split.Text = stack_name
-        split.Id = 'REST_Stack_' + stack_name.replace(' ', '_')
-        split.Size = RibbonItemSize.Large
-
-        try:
-            split.IsSplit = True
-        except Exception:
-            log.debug('Could not set IsSplit for %s', stack_name)
+        row = RibbonRowPanel()
+        row.Id = 'REST_Stack_' + stack_name.replace(' ', '_')
 
         for tool in tools:
-            tool_name = tool.get('name', 'Tool')
+            tool_name = tool.get('baseName', tool.get('name', 'Tool'))
+            full_name = tool.get('name', tool_name)
             command_id = tool.get('commandId', '')
 
             child = RibbonButton()
             child.Text = tool_name
-            child.Id = 'REST_StackBtn_' + tool_name.replace(' ', '_')
+            child.Id = 'REST_StackBtn_' + full_name.replace(' ', '_')
             child.ShowText = True
             child.Size = RibbonItemSize.Standard
+
+            # Tooltip with source info
+            source_tab = tool.get('sourceTab', '')
+            source_panel = tool.get('sourcePanel', '')
+            tip = tool_name
+            if source_panel and source_tab:
+                tip = '%s\nSource: %s > %s' % (tool_name, source_tab, source_panel)
+            elif source_tab:
+                tip = '%s\nSource: %s' % (tool_name, source_tab)
+            try:
+                child.ToolTip = tip
+            except Exception:
+                pass
 
             # 16x16 icon for stack items
             icon = _load_icon(_get_icon_path(tool, small=True))
@@ -464,11 +441,11 @@ def _create_stack_button(stack_name, stack_def):
                 if handler:
                     child.CommandHandler = handler
 
-            split.Items.Add(child)
+            row.Items.Add(child)
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
 
         log.debug('Created stack: %s (%d tools)', stack_name, len(tools))
-        return split
+        return row
 
     except Exception as e:
         log.error('Failed to create stack %s: %s', stack_name, e)
@@ -604,6 +581,7 @@ def _style_rst_admin_panels():
 
 
 _idling_style_pending = [False]
+_profile_loaded = [False]
 
 def _schedule_admin_styling():
     """Schedule _style_rst_admin_panels to run on the next Idling event,
@@ -616,8 +594,50 @@ def _schedule_admin_styling():
         log.warning('Could not schedule Idling: %s — styling now', e)
         _style_rst_admin_panels()
 
+def _activate_minifyui():
+    """Activate MinifyUI if a profile is loaded — hides tabs from the config."""
+    try:
+        from pyrevit.coreutils import ribbon
+        from pyrevit.userconfig import user_config
+
+        # MinifyUI stores hidden_tabs in pyRevit's user config
+        # under the section keyed by its script component unique ID.
+        # Search all config sections for one with a hidden_tabs key.
+        hidden_tabs = None
+        for section in user_config:
+            try:
+                val = user_config.get_section(section).get_option('hidden_tabs', None)
+                if val is not None:
+                    hidden_tabs = val
+                    break
+            except Exception:
+                continue
+
+        if not hidden_tabs:
+            log.debug('MinifyUI: no hidden_tabs configured')
+            return
+
+        # Set the env var so MinifyUI's toggle icon stays in sync
+        try:
+            from pyrevit import script as pyscript
+            pyscript.set_envvar('MINIFYUIACTIVE', True)
+        except Exception:
+            pass
+
+        # Hide the tabs
+        count = 0
+        for tab in ribbon.get_current_ui():
+            if tab.name in hidden_tabs:
+                tab.visible = False
+                count += 1
+
+        log.info('MinifyUI activated: hiding %d tabs', count)
+    except Exception as e:
+        log.debug('Could not activate MinifyUI: %s', e)
+
+
 def _on_idling_style(sender, args):
-    """Runs once on first Idling event, styles admin panels, then unhooks."""
+    """Runs once on first Idling event, styles admin panels and activates MinifyUI."""
     if not _idling_style_pending[0]:
         return
     _idling_style_pending[0] = False
@@ -629,6 +649,11 @@ def _on_idling_style(sender, args):
         _style_rst_admin_panels()
     except Exception as e:
         log.warning('Idling styling failed: %s', e)
+    if _profile_loaded[0]:
+        try:
+            _activate_minifyui()
+        except Exception as e:
+            log.warning('MinifyUI activation failed: %s', e)
 
 
 # Always build immediately — ApplicationInitialized only fires on initial
@@ -638,36 +663,8 @@ log.info('=== RST startup — immediate build ===')
 active, profile = _load_active_profile()
 if active and profile:
     log.info('Active profile: %s', active.get('profile'))
-    # Check if our tab already exists in the ribbon (survives pyRevit reload
-    # but NOT a Revit restart — AdWindows tabs are session-only)
-    tab_exists = False
-    try:
-        import clr
-        clr.AddReference('AdWindows')
-        from Autodesk.Windows import ComponentManager
-        for t in ComponentManager.Ribbon.Tabs:
-            try:
-                if str(t.Id or '').startswith('REST_'):
-                    tab_exists = True
-                    break
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    if active.get('blank'):
-        _build_ribbon(profile)
-    elif not tab_exists:
-        # Fresh Revit launch — tab doesn't exist, must build
-        log.info('Tab not in ribbon — building regardless of cache')
-        if _build_ribbon(profile):
-            _update_last_built(active)
-    else:
-        # pyRevit reload — tab exists, only rebuild if profile changed
-        profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
-        if _needs_rebuild(active, profile_path):
-            if _build_ribbon(profile):
-                _update_last_built(active)
+    _build_ribbon(profile)
+    _profile_loaded[0] = True
 else:
     log.info('No active profile — nothing to build')
 _schedule_admin_styling()

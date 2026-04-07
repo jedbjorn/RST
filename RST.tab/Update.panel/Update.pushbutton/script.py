@@ -116,8 +116,8 @@ if not pulled:
             source_dir = extract_dir
 
         # 1. Preserve user data
-        _preserve = ['app/active_profile.json', 'app/profiles', 'rester.log',
-                      'icons/branding.png']
+        _preserve = ['app/active_profile.json', 'app/profiles', 'rst.log',
+                      'icons/branding.png', 'lookup/config.json']
         preserve_dir = os.path.join(staging_dir, 'preserve')
         for rel in _preserve:
             src = os.path.join(_root, rel)
@@ -132,7 +132,7 @@ if not pulled:
                     shutil.copy2(src, bak)
 
         # 2. Wipe install dir (skip .git, skip locked files)
-        _skip_root = {'.git', 'rester.log'}
+        _skip_root = {'.git', 'rst.log'}
         for item in os.listdir(_root):
             if item in _skip_root:
                 continue
@@ -214,16 +214,5 @@ elif result_msg == 'already_up_to_date':
     forms.alert('RST is already up to date.', title='RST Update')
 else:
     log.info('Update complete, reloading pyRevit...')
-    reloaded = False
-    try:
-        from pyrevit.loader import sessionmgr
-        if hasattr(sessionmgr, 'reload'):
-            sessionmgr.reload()
-            reloaded = True
-        elif hasattr(sessionmgr, 'load_session'):
-            sessionmgr.load_session()
-            reloaded = True
-    except Exception as e:
-        log.warning('Reload failed: %s', e)
-    if not reloaded:
-        forms.alert('Updated. Please reload pyRevit manually.', title='RST Update')
+    from reload_ui import reload_with_message
+    reload_with_message()

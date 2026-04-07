@@ -5,8 +5,6 @@ from logger import get_logger
 
 log = get_logger('addin_scanner')
 
-PROTECTED_ADDINS = {'pyRevit.addin', 'Kinship.addin'}
-
 # Built-in Revit ribbon tabs - these are not add-ins and have no .addin files
 BUILTIN_TABS = {
     'Architecture', 'Structure', 'Systems', 'Steel', 'Precast',
@@ -18,7 +16,28 @@ BUILTIN_TABS = {
 
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
+_config_path = os.path.join(_root, 'lookup', 'config.json')
 _overrides_path = os.path.join(_root, 'app', 'user_addin_overrides.json')
+
+
+def _load_config():
+    """Load lookup/config.json. Returns (protected_addins set, exempt_paths list)."""
+    protected = {'pyRevit.addin', 'Kinship.addin'}
+    exempt = []
+    try:
+        with open(_config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+        if 'protected_addins' in cfg:
+            protected = set(cfg['protected_addins'])
+        if 'exempt_paths' in cfg:
+            exempt = [os.path.normpath(os.path.expandvars(p)) for p in cfg['exempt_paths']]
+        log.debug('Config loaded: %d protected, %d exempt paths', len(protected), len(exempt))
+    except (IOError, ValueError) as e:
+        log.warning('Could not load config.json, using defaults: %s', e)
+    return protected, exempt
+
+
+PROTECTED_ADDINS, EXEMPT_PATHS = _load_config()
 
 
 
@@ -61,6 +80,15 @@ def _get_appdata():
     return os.environ.get('APPDATA')
 
 
+def _is_exempt_path(path):
+    """Check if a path is under any exempt directory from config."""
+    path_lower = os.path.normpath(path).lower()
+    for exempt in EXEMPT_PATHS:
+        if path_lower.startswith(exempt.lower()):
+            return True
+    return False
+
+
 def _is_readonly_dir(path):
     """Check if a path is under Program Files or ProgramData (never modify)."""
     path_lower = os.path.normpath(path).lower()
@@ -73,6 +101,11 @@ def _is_readonly_dir(path):
         if path_lower.startswith(os.path.normpath(d).lower()):
             return True
     return False
+
+
+def _is_hands_off(path):
+    """Check if a path should never be modified (read-only, exempt, or protected)."""
+    return _is_readonly_dir(path) or _is_exempt_path(path)
 
 
 def get_addins_dirs(revit_version):
@@ -263,8 +296,8 @@ def apply_hide_rules(hide_rules, revit_version):
         if entry and entry['file'] in addin_files:
             paths = addin_files[entry['file']]
             resolved_filename = entry['file']
-            # Pick first non-Program-Files path
-            fpath = next((p for p in paths if not _is_readonly_dir(p)), None)
+            # Pick first modifiable path
+            fpath = next((p for p in paths if not _is_hands_off(p)), None)
         else:
             resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
 
@@ -277,8 +310,8 @@ def apply_hide_rules(hide_rules, revit_version):
             log.warning('No .addin file found for: %s', tab_name)
             continue
 
-        if _is_readonly_dir(fpath):
-            log.debug('Skipping Program Files addin: %s', fpath)
+        if _is_hands_off(fpath):
+            log.debug('Skipping protected/exempt path: %s', fpath)
             continue
 
         dest = fpath + '.inactive'
@@ -298,9 +331,11 @@ def restore_all_addins(revit_version):
     protected_inactive = set(p + '.inactive' for p in PROTECTED_ADDINS)
 
     for base_dir in search_dirs:
-        if _is_readonly_dir(base_dir):
+        if _is_hands_off(base_dir):
             continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
+            if _is_exempt_path(dirpath):
+                continue
             for f in filenames:
                 if f.endswith('.addin.inactive') and f not in protected_inactive:
                     src = os.path.join(dirpath, f)
@@ -333,9 +368,11 @@ def disable_non_required_addins(required_addins, revit_version):
     keep_files.update(PROTECTED_ADDINS)
 
     for base_dir in search_dirs:
-        if _is_readonly_dir(base_dir):
+        if _is_hands_off(base_dir):
             continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
+            if _is_exempt_path(dirpath):
+                continue
             for f in filenames:
                 if f.endswith('.addin') and f not in keep_files:
                     src = os.path.join(dirpath, f)

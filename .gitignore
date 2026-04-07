@@ -1,6 +1,7 @@
-rester.log
+rst.log
 app/active_profile.json
 app/user_addin_overrides.json
 app/_revit_data.json
+app/_loader_data.json
 __pycache__/
 *.pyc

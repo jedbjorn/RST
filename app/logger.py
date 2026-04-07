@@ -3,10 +3,10 @@ import logging
 import os
 
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_log_path = os.path.join(_root, 'rester.log')
+_log_path = os.path.join(_root, 'rst.log')
 
 # Truncate if over 1 MB
-_MAX_LOG_BYTES = 1 * 1024 * 1024
+_MAX_LOG_BYTES = 512 * 1024
 try:
     if os.path.exists(_log_path) and os.path.getsize(_log_path) > _MAX_LOG_BYTES:
         open(_log_path, 'w').close()
@@ -25,7 +25,7 @@ _handler.setFormatter(logging.Formatter(
 ))
 
 def get_logger(name):
-    logger = logging.getLogger('rester.' + name)
+    logger = logging.getLogger('rst.' + name)
     if not logger.handlers:
         logger.addHandler(_handler)
         logger.setLevel(logging.DEBUG)

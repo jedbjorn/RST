@@ -82,60 +82,6 @@
     white-space: nowrap;
   }
 
-  .revit-dropdown { position: relative; }
-
-  .revit-dropdown-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 5px 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12.5px;
-    color: var(--text);
-    cursor: pointer;
-    transition: border-color 0.15s;
-    min-width: 120px;
-    user-select: none;
-  }
-  .revit-dropdown-btn:hover { border-color: var(--border2); }
-  .revit-dropdown-btn.open { border-color: var(--accent); }
-  .revit-dropdown-btn .chevron { color: var(--text3); font-size: 9px; margin-left: auto; transition: transform 0.15s; }
-  .revit-dropdown-btn.open .chevron { transform: rotate(180deg); }
-
-  .revit-menu {
-    display: none;
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    min-width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-    z-index: 200;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  }
-  .revit-menu.open { display: block; }
-
-  .revit-menu-item {
-    padding: 9px 14px;
-    font-size: 12.5px;
-    color: var(--text2);
-    font-weight: 300;
-    cursor: pointer;
-    transition: background 0.1s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .revit-menu-item:hover { background: var(--surface2); color: var(--text); }
-  .revit-menu-item.current { color: var(--accent); font-weight: 500; }
-  .revit-menu-item.current::before { content: '✓'; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent3); }
-  .revit-menu-item:not(.current)::before { content: ''; width: 10px; display: inline-block; }
-
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
   /* ── SUCCESS OVERLAY ── */
@@ -723,17 +669,11 @@
 <div class="window-header">
   <div class="window-title">Profile Selector</div>
   <div class="header-sep"></div>
+  <button class="load-btn" id="loadBtn" onclick="loadProfile()" style="margin:0">Load Profile →</button>
+  <div class="header-sep"></div>
   <div class="header-field">
-    <label>Revit Install</label>
-    <div class="revit-dropdown">
-      <div class="revit-dropdown-btn" id="revitBtn" onclick="toggleRevitMenu()">
-        <span id="revitSelected">—</span>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="revit-menu" id="revitMenu">
-        <!-- Populated by get_revit_versions() -->
-      </div>
-    </div>
+    <label>Revit</label>
+    <span id="revitVersionDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:0.04em">—</span>
   </div>
   <button class="add-profile-btn" onclick="addProfile()">+ Add Profile</button>
 </div>
@@ -805,7 +745,6 @@
           </label>
         </div>
       </div>
-      <button class="load-btn" id="loadBtn" onclick="loadProfile()">Load Profile →</button>
     </div>
   </div>
 
@@ -829,29 +768,11 @@
 
 <script>
   // ── ADDIN LOOKUP TABLE ───────────────────────────────────────────────────────
-  // Maps ribbon tab name (= sourceTab value from TabCreator) → known .addin filename.
-  // Used by:
-  //   • This UI  — display the resolved file name and flag unknowns
-  //   • PyRevit runtime — actual file-presence scan in the Revit addins directory
-  //   • Fuzzy fallback — for add-ins not in this table, runtime does a contains
-  //     search across all .addin files in the version folder, then community-sources
-  //     the mapping on first successful match.
-  const ADDIN_LOOKUP = {
-    'DiRoots':     { displayName: 'DiRoots Suite',            file: 'DiRoots.addin'                },
-    'Naviate':     { displayName: 'Naviate',                   file: 'Naviate.addin'                },
-    'pyRevit':     { displayName: 'pyRevit',                   file: 'pyRevit.addin'                },
-    'Dynamo':      { displayName: 'Dynamo for Revit',          file: 'DynamoRevitDS.addin'          },
-    'Ideate':      { displayName: 'Ideate BIMLink',            file: 'Ideate.BIMLink.addin'         },
-    'Guardian':    { displayName: 'Guardian',                  file: 'Guardian.addin'               },
-    'Kinship':     { displayName: 'Kinship',                   file: 'Kinship.addin'                },
-    'Pirros':      { displayName: 'Pirros',                    file: 'Pirros.addin'                 },
-    'Avail':       { displayName: 'Avail',                     file: 'Avail.addin'                  },
-    'Orkestra':    { displayName: 'Orkestra',                  file: 'Orkestra.addin'               },
-    'BIM One':     { displayName: 'BIM One Tools',             file: 'BIMone.addin'                 },
-    'COINS':       { displayName: 'COINS Auto-Section View',   file: 'COINSAutoSectionView.addin'   },
-    'Enscape':     { displayName: 'Enscape',                   file: 'Enscape.addin'                },
-    'Twinmotion':  { displayName: 'Twinmotion Direct Link',    file: 'Twinmotion.addin'             },
-  };
+  // Loaded from lookup/addin_lookup.json via pywebview API at init.
+  let ADDIN_LOOKUP = {};
+
+  // ── LOADED ADD-INS (from Revit session) ────────────────────────────────────
+  let LOADED_ADDINS = [];
 
   // ── PROFILE DATA ─────────────────────────────────────────────────────────────
   // Full schema matching TabCreator's exportConfig() output.
@@ -884,6 +805,33 @@
   function hexToRgb(hex) {
     if (!hex || hex.length < 7) return '79,142,247';
     return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+  }
+
+  // ── ADD-IN SESSION CHECK ──────────────────────────────────────────────────────
+  function isAddinLoaded(tabName) {
+    if (!LOADED_ADDINS.length) return false;
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return true;
+      if (stem && name.indexOf(stem) !== -1) return true;
+    }
+    return false;
+  }
+
+  function getLoadedAddinName(tabName) {
+    if (!LOADED_ADDINS.length) return '';
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return LOADED_ADDINS[i].name;
+      if (stem && name.indexOf(stem) !== -1) return LOADED_ADDINS[i].name;
+    }
+    return '';
   }
 
   // ── CARD RENDERING ────────────────────────────────────────────────────────────
@@ -981,9 +929,7 @@
     // Tab preview
     renderTabPreview(profile);
 
-    // Required add-ins — resolved via ADDIN_LOOKUP
-    // Statuses are placeholders: actual file-presence scan runs at load time via PyRevit.
-    // Unknown add-ins fall through to fuzzy / community-sourced matching.
+    // Required add-ins — checked against live Revit session data
     const addinsContainer = document.getElementById('detailAddins');
     if (profile.requiredAddins && profile.requiredAddins.length > 0) {
       addinsContainer.style.display = 'block';
@@ -991,14 +937,16 @@
         <div class="detail-section-label">Required Add-ins</div>
         ${profile.requiredAddins.map(tabName => {
           const known = ADDIN_LOOKUP[tabName];
-          const statusCls   = known ? 'not-checked' : 'unknown-addin';
-          const statusLabel = known ? 'Not Checked' : 'Unknown';
-          const statusTitle = known
-            ? `File: ${known.file} — presence check runs at load time`
-            : 'Not in lookup — runtime will attempt fuzzy match on installed .addin files';
+          const loaded = isAddinLoaded(tabName);
+          const statusCls   = loaded ? 'present' : 'missing';
+          const statusLabel = loaded ? 'Loaded' : 'Not Loaded';
+          const matchedName = loaded ? getLoadedAddinName(tabName) : '';
+          const statusTitle = loaded
+            ? 'Loaded in current Revit session' + (matchedName ? ' (' + matchedName + ')' : '')
+            : 'Not detected in current Revit session';
           return `<div class="addin-row">
-            <span class="addin-row-name">${tabName}</span>
-            <span class="addin-file ${!known ? 'unknown' : ''}">${known ? known.file : '? unknown file'}</span>
+            <span class="addin-row-name">${escHtml(tabName)}</span>
+            <span class="addin-file">${matchedName ? escHtml(matchedName) : (known ? known.file : '')}</span>
             <span class="addin-status ${statusCls}" title="${statusTitle}">${statusLabel}</span>
           </div>`;
         }).join('')}
@@ -1020,25 +968,7 @@
 
   }
 
-  // ── REVIT VERSION DROPDOWN ────────────────────────────────────────────────────
-  function toggleRevitMenu() {
-    document.getElementById('revitBtn').classList.toggle('open');
-    document.getElementById('revitMenu').classList.toggle('open');
-  }
-  function selectRevit(el, name) {
-    document.querySelectorAll('.revit-menu-item').forEach(i => i.classList.remove('current'));
-    el.classList.add('current');
-    document.getElementById('revitSelected').textContent = name;
-    currentRevitVersion = name;
-    document.getElementById('revitBtn').classList.remove('open');
-    document.getElementById('revitMenu').classList.remove('open');
-  }
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.revit-dropdown')) {
-      document.getElementById('revitBtn').classList.remove('open');
-      document.getElementById('revitMenu').classList.remove('open');
-    }
-  });
+  // ── REVIT VERSION DISPLAY ─────────────────────────────────────────────────────
 
   // ── ADD PROFILE ───────────────────────────────────────────────────────────────
   // Production flow:
@@ -1107,11 +1037,12 @@
 
   // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
   function restoreAllAddins() {
-    // Allow restore even while Revit is running — changes take effect after restart
-    if (!currentRevitVersion) { alert('No Revit version selected.'); return; }
-
-    window.pywebview.api.restore_addins(currentRevitVersion).then(function(result) {
-      alert('All add-ins restored successfully.');
+    window.pywebview.api.restore_addins().then(function(result) {
+      if (result && !result.ok) {
+        alert(result.error || 'Failed to restore add-ins.');
+      } else {
+        alert('All add-ins restored successfully.');
+      }
     }).catch(function(err) {
       alert('Error restoring add-ins: ' + (err.message || err));
     });
@@ -1194,23 +1125,22 @@
   }
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
-  function populateRevitVersions(versions) {
-    const menu = document.getElementById('revitMenu');
-    menu.innerHTML = '';
-    versions.forEach(function(ver, i) {
-      const item = document.createElement('div');
-      item.className = 'revit-menu-item' + (i === 0 ? ' current' : '');
-      item.textContent = ver;
-      item.addEventListener('click', function() { selectRevit(item, ver); });
-      menu.appendChild(item);
-    });
-    if (versions.length > 0) {
-      currentRevitVersion = versions[0];
-      document.getElementById('revitSelected').textContent = versions[0];
-    }
-  }
 
   window.addEventListener('pywebviewready', function() {
+    // Fetch addin lookup
+    window.pywebview.api.get_addin_lookup().then(function(lookup) {
+      if (lookup && typeof lookup === 'object') {
+        ADDIN_LOOKUP = lookup;
+      }
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch loaded add-ins from Revit session
+    window.pywebview.api.get_loaded_addins().then(function(addins) {
+      if (Array.isArray(addins)) {
+        LOADED_ADDINS = addins;
+      }
+    }).catch(function(err) { console.error(err); });
+
     // Fetch profiles
     window.pywebview.api.get_profiles().then(function(data) {
       data.forEach(function(p) { profiles.push(p); });
@@ -1228,10 +1158,13 @@
       }).catch(function(err) { console.error(err); });
     }).catch(function(err) { console.error(err); });
 
-    // Fetch Revit versions
-    window.pywebview.api.get_revit_versions().then(function(versions) {
-      if (versions && versions.length > 0) {
-        populateRevitVersions(versions);
+    // Fetch active Revit version
+    window.pywebview.api.get_revit_version().then(function(ver) {
+      if (ver) {
+        currentRevitVersion = ver;
+        document.getElementById('revitVersionDisplay').textContent = 'Revit ' + ver;
+      } else {
+        document.getElementById('revitVersionDisplay').textContent = 'Not detected';
       }
     }).catch(function(err) { console.error(err); });
 

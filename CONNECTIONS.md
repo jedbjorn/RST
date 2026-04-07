@@ -18,7 +18,7 @@ RST is a two-part Revit toolbar profile system built on PyRevit.
 
 ## Logging
 
-All backend activity is logged to `rester.log` at the extension root. Shared logger via `app/logger.py` — modules call `get_logger('module_name')`. Log includes timestamps, severity, module, and message.
+All backend activity is logged to `rst.log` at the extension root. Shared logger via `app/logger.py` — modules call `get_logger('module_name')`. Log includes timestamps, severity, module, and message.
 
 ---
 
@@ -58,7 +58,7 @@ RESTer/                                     ← repo root & install root
 │           └── script.py                   ← Toggles pyRevit MinifyUI
 │
 ├── app/
-│   ├── logger.py                           ← Shared logger → rester.log
+│   ├── logger.py                           ← Shared logger → rst.log
 │   ├── tab_creator.py                      ← TabCreator pywebview backend (TabCreatorAPI)
 │   ├── profile_selector.py                 ← ProfileSelector pywebview backend (ProfileSelectorAPI)
 │   ├── addin_scanner.py                    ← Addin presence check, suppression, restore
@@ -121,7 +121,7 @@ RESTer/                                     ← repo root & install root
 | `script.py` | `app/profiles/*.json`, `icons/` | `app/profiles/`, Desktop copy, `icons/` | pywebview (launches profile_manager.html) |
 | `profile_selector.py` | `app/profiles/*.json`, `app/active_profile.json` | `app/active_profile.json`, `app/profiles/` | pywebview (launches profile_loader.html) |
 | `addin_scanner.py` | `lookup/addin_lookup.json`, `%APPDATA%\...\Addins\{ver}\` | `.addin` ↔ `.addin.inactive` renames | Filesystem |
-| `logger.py` | — | `rester.log` | — |
+| `logger.py` | — | `rst.log` | — |
 
 ### Data Flow
 

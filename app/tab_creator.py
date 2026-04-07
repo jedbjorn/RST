@@ -20,6 +20,7 @@ _html_path = os.path.join(_root, 'ui', 'profile_manager.html')
 _profiles_dir = os.path.join(_root, 'app', 'profiles')
 _icons_dir = os.path.join(_root, 'icons')
 _revit_data_path = os.path.join(_root, 'app', '_revit_data.json')
+_addin_lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 
 os.makedirs(_profiles_dir, exist_ok=True)
 os.makedirs(_icons_dir, exist_ok=True)
@@ -110,6 +111,14 @@ class TabCreatorAPI:
     def set_window(self, window):
         self._window = window
 
+    def get_addin_lookup(self):
+        try:
+            with open(_addin_lookup_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            log.error('Failed to load addin_lookup.json: %s', e)
+            return {}
+
     def get_revit_version(self):
         ver = _revit_data.get('revit_version')
         log.info('Revit version: %s', ver)
@@ -119,6 +128,11 @@ class TabCreatorAPI:
         commands = _revit_data.get('commands', [])
         log.info('Returning %d commands', len(commands))
         return commands
+
+    def get_loaded_addins(self):
+        addins = _revit_data.get('loaded_addins', [])
+        log.info('Returning %d loaded add-ins', len(addins))
+        return addins
 
     def save_export(self, json_str):
         log.info('Exporting profile')

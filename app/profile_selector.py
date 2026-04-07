@@ -13,6 +13,7 @@ _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _profiles_dir = os.path.join(_root, 'app', 'profiles')
 _active_profile_path = os.path.join(_root, 'app', 'active_profile.json')
 _html_path = os.path.join(_root, 'ui', 'profile_loader.html')
+_addin_lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 
 REQUIRED_FIELDS = {'profile', 'tab', 'min_version', 'exportDate', 'requiredAddins', 'hideRules', 'stacks', 'panels'}
 
@@ -23,7 +24,6 @@ def _write_blank_profile():
         'profile': None,
         'profile_file': None,
         'loaded_at': datetime.datetime.now().isoformat(),
-        'last_built': None,
         'disable_non_required': False,
         'blank': True,
     }
@@ -37,12 +37,29 @@ os.makedirs(_profiles_dir, exist_ok=True)
 import sys
 sys.path.insert(0, os.path.join(_root, 'app'))
 from addin_scanner import (
-    check_addins,
+    BUILTIN_TABS,
+    load_addin_lookup,
     apply_hide_rules,
     restore_all_addins,
     disable_non_required_addins,
-    get_installed_revit_versions,
 )
+
+# Load session data written by the IronPython pushbutton
+_loader_data_path = os.path.join(_root, 'app', '_loader_data.json')
+_loader_data = {}
+if os.path.exists(_loader_data_path):
+    try:
+        with open(_loader_data_path, 'r', encoding='utf-8') as f:
+            _loader_data = json.load(f)
+        log.info('Loaded session data: Revit %s, %d add-ins',
+                 _loader_data.get('revit_version'),
+                 len(_loader_data.get('loaded_addins', [])))
+        try:
+            os.remove(_loader_data_path)
+        except OSError:
+            pass
+    except (json.JSONDecodeError, IOError) as e:
+        log.error('Failed to read loader data: %s', e)
 
 # pywebview file dialog constant
 _OPEN_DIALOG = getattr(webview, 'OPEN_DIALOG', None)
@@ -75,11 +92,27 @@ def _find_profile(profile_name):
 
 class ProfileSelectorAPI:
 
-    def __init__(self):
+    def __init__(self, revit_version=None, loaded_addins=None):
         self._window = None
+        self._revit_version = revit_version
+        self._loaded_addins = loaded_addins or []
 
     def set_window(self, window):
         self._window = window
+
+    def get_revit_version(self):
+        return self._revit_version
+
+    def get_loaded_addins(self):
+        return self._loaded_addins
+
+    def get_addin_lookup(self):
+        try:
+            with open(_addin_lookup_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            log.error('Failed to load addin_lookup.json: %s', e)
+            return {}
 
     def get_profiles(self):
         log.info('Loading profiles from %s', _profiles_dir)
@@ -111,10 +144,6 @@ class ProfileSelectorAPI:
         except (json.JSONDecodeError, IOError) as e:
             log.error('Failed to read active_profile.json: %s', e)
             return None
-
-    def get_revit_versions(self):
-        return get_installed_revit_versions()
-
 
     def add_profile(self):
         log.info('Opening file dialog for profile import')
@@ -172,21 +201,30 @@ class ProfileSelectorAPI:
             return {'ok': False, 'warnings': ['Profile not found: ' + profile_name]}
 
         if not revit_version:
-            versions = get_installed_revit_versions()
-            revit_version = versions[0] if versions else None
+            revit_version = self._revit_version
 
         warnings = []
 
         if not revit_version:
-            warnings.append('No Revit version selected - add-in toggling skipped')
+            warnings.append('No Revit version available - add-in toggling skipped')
         else:
-            # Check required addins
-            addin_status = check_addins(profile_data.get('requiredAddins', []), revit_version)
-            for name, status in addin_status.items():
-                if status == 'missing':
-                    warnings.append('Required add-in missing: ' + name)
-                elif status == 'unknown':
-                    warnings.append('Unknown add-in (not in lookup): ' + name)
+            # Check required addins against loaded session data
+            required = profile_data.get('requiredAddins', [])
+            if required and self._loaded_addins:
+                loaded_names = [a.get('name', '').lower() for a in self._loaded_addins]
+                lookup = load_addin_lookup()
+                for tab_name in required:
+                    if tab_name in BUILTIN_TABS:
+                        continue
+                    tab_lower = tab_name.lower()
+                    found = any(tab_lower in n for n in loaded_names)
+                    if not found:
+                        entry = lookup.get(tab_name)
+                        if entry:
+                            stem = entry['file'].replace('.addin', '').lower()
+                            found = any(stem in n for n in loaded_names)
+                    if not found:
+                        warnings.append('Required add-in not loaded: ' + tab_name)
 
             # Apply hide rules and disable non-required (wrapped for safety)
             try:
@@ -204,7 +242,6 @@ class ProfileSelectorAPI:
             'profile': profile_name,
             'profile_file': profile_filename,
             'loaded_at': datetime.datetime.now().isoformat(),
-            'last_built': None,
             'disable_non_required': bool(disable_non_required),
         }
         try:
@@ -245,18 +282,24 @@ class ProfileSelectorAPI:
         _write_blank_profile()
         return {'ok': True}
 
-    def restore_addins(self, revit_version):
-        log.info('Restoring addins for Revit %s', revit_version)
-        restore_all_addins(revit_version)
+    def restore_addins(self, revit_version=None):
+        ver = revit_version or self._revit_version
+        log.info('Restoring addins for Revit %s', ver)
+        if not ver:
+            return {'ok': False, 'error': 'No Revit version available'}
+        restore_all_addins(ver)
         return {'ok': True}
 
 
 if __name__ == '__main__':
-    log.info('=== RST Profile Selector starting ===')
+    _revit_ver = _loader_data.get('revit_version')
+    _addins = _loader_data.get('loaded_addins', [])
+    log.info('=== RST Profile Selector starting (Revit %s, %d add-ins) ===',
+             _revit_ver, len(_addins))
     log.info('HTML path: %s', _html_path)
     log.info('Profiles dir: %s', _profiles_dir)
 
-    api = ProfileSelectorAPI()
+    api = ProfileSelectorAPI(revit_version=_revit_ver, loaded_addins=_addins)
     try:
         import ctypes
         user32 = ctypes.windll.user32

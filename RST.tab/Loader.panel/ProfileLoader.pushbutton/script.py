@@ -28,6 +28,50 @@ if os.path.exists(_active_path):
     except Exception:
         pass
 
+# Collect Revit session data for Profile Selector
+_revit_version = None
+try:
+    _revit_version = str(__revit__.Application.VersionNumber)
+except Exception:
+    pass
+
+_loaded_addins = []
+try:
+    app = __revit__.Application
+    for a in app.LoadedApplications:
+        try:
+            name = str(a.Name) if hasattr(a, 'Name') and a.Name else ''
+            addin_id = ''
+            try:
+                addin_id = str(a.AddInId) if hasattr(a, 'AddInId') else ''
+            except Exception:
+                pass
+            assembly = ''
+            try:
+                if hasattr(a, 'Assembly') and a.Assembly:
+                    assembly = str(a.Assembly.Location) if a.Assembly.Location else ''
+            except Exception:
+                pass
+            _loaded_addins.append({
+                'name': name,
+                'addinId': addin_id,
+                'assembly': assembly,
+            })
+        except Exception:
+            continue
+except Exception as e:
+    log.warning('Could not read LoadedApplications: %s', e)
+
+log.info('Revit %s, %d loaded add-ins', _revit_version, len(_loaded_addins))
+
+# Write session data for CPython to read
+_loader_data_path = os.path.join(_root, 'app', '_loader_data.json')
+with io.open(_loader_data_path, 'w', encoding='utf-8') as f:
+    json.dump({
+        'revit_version': _revit_version,
+        'loaded_addins': _loaded_addins,
+    }, f)
+
 # Launch Profile Selector and wait
 launcher = os.path.join(_root, 'app', 'profile_selector.py')
 log.info('Launching Profile Selector: %s', launcher)
@@ -47,16 +91,7 @@ if os.path.exists(_active_path):
 
 if new_profile != old_profile:
     log.info('Profile changed: %s -> %s, reloading pyRevit...', old_profile, new_profile)
-    try:
-        from pyrevit.loader import sessionmgr
-        if hasattr(sessionmgr, 'reload'):
-            sessionmgr.reload()
-        elif hasattr(sessionmgr, 'load_session'):
-            sessionmgr.load_session()
-        else:
-            raise AttributeError('No reload or load_session found on sessionmgr')
-        log.info('pyRevit reloaded successfully')
-    except Exception as e:
-        log.error('Failed to reload pyRevit: %s', e)
+    from reload_ui import reload_with_message
+    reload_with_message()
 else:
     log.info('Profile unchanged, no reload needed')

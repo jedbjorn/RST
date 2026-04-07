@@ -181,16 +181,50 @@ def get_installed_commands():
     return results
 
 
+def get_loaded_addins():
+    """Collect all add-ins loaded in the current Revit session."""
+    addins = []
+    try:
+        app = __revit__.Application
+        for a in app.LoadedApplications:
+            try:
+                name = str(a.Name) if hasattr(a, 'Name') and a.Name else ''
+                addin_id = ''
+                try:
+                    addin_id = str(a.AddInId) if hasattr(a, 'AddInId') else ''
+                except Exception:
+                    pass
+                assembly = ''
+                try:
+                    if hasattr(a, 'Assembly') and a.Assembly:
+                        assembly = str(a.Assembly.Location) if a.Assembly.Location else ''
+                except Exception:
+                    pass
+                addins.append({
+                    'name': name,
+                    'addinId': addin_id,
+                    'assembly': assembly,
+                })
+            except Exception:
+                continue
+    except Exception as e:
+        log.warning('Could not read LoadedApplications: %s', e)
+    log.info('Found %d loaded add-ins', len(addins))
+    return addins
+
+
 # Collect Revit data while we have access to the API
 log.info('Collecting Revit data...')
 revit_version = get_revit_version()
 commands = get_installed_commands()
-log.info('Revit %s, found %d commands', revit_version, len(commands))
+loaded_addins = get_loaded_addins()
+log.info('Revit %s, %d commands, %d loaded add-ins', revit_version, len(commands), len(loaded_addins))
 
 # Write to temp file for CPython to read
 revit_data = {
     'revit_version': revit_version,
     'commands': commands,
+    'loaded_addins': loaded_addins,
 }
 data_path = os.path.join(_root, 'app', '_revit_data.json')
 with io.open(data_path, 'w', encoding='utf-8') as f:

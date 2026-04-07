@@ -1,0 +1,11 @@
+{
+  "protected_addins": [
+    "pyRevit.addin",
+    "Kinship.addin",
+    "Dynamo.addin",
+    "DynamoForRevit.addin"
+  ],
+  "exempt_paths": [
+    "%APPDATA%\\Dynamo"
+  ]
+}

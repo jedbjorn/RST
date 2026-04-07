@@ -1212,6 +1212,48 @@
     border-color: rgba(245,158,11,0.25);
     color: var(--warn);
   }
+
+  /* ── EXPORT OVERLAY ── */
+  .export-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .export-overlay.visible { opacity: 1; pointer-events: auto; }
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 460px;
+    width: 90%;
+  }
+  .export-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--heading);
+    margin-bottom: 16px;
+  }
+  .export-path-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 3px;
+  }
+  .export-path-label:not(:first-of-type) { margin-top: 10px; }
+  .export-path-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    word-break: break-all;
+    line-height: 1.5;
+  }
 </style>
 </head>
 <body>
@@ -1430,28 +1472,36 @@
   <div class="toast-body"></div>
 </div>
 
+<!-- Export overlay -->
+<div class="export-overlay" id="exportOverlay">
+  <div class="export-card">
+    <div class="export-title" id="exportTitle"></div>
+    <div id="exportPaths"></div>
+  </div>
+</div>
+
 <script>
   // ── ADDIN LOOKUP TABLE ──────────────────────────────────────────────────────
-  // Canonical map: ribbon tab name (sourceTab) → known .addin filename.
-  // Kept in sync with ProfileSelector's copy — both files must match.
+  // Loaded from lookup/addin_lookup.json via pywebview API at init.
   // Unknown sourceTabs (not in this table) are flagged amber in the header chips
   // so the admin knows the end-user side will fall back to fuzzy / community match.
-  const ADDIN_LOOKUP = {
-    'DiRoots':     { displayName: 'DiRoots Suite',            file: 'DiRoots.addin'                },
-    'Naviate':     { displayName: 'Naviate',                   file: 'Naviate.addin'                },
-    'pyRevit':     { displayName: 'pyRevit',                   file: 'pyRevit.addin'                },
-    'Dynamo':      { displayName: 'Dynamo for Revit',          file: 'DynamoRevitDS.addin'          },
-    'Ideate':      { displayName: 'Ideate BIMLink',            file: 'Ideate.BIMLink.addin'         },
-    'Guardian':    { displayName: 'Guardian',                  file: 'Guardian.addin'               },
-    'Kinship':     { displayName: 'Kinship',                   file: 'Kinship.addin'                },
-    'Pirros':      { displayName: 'Pirros',                    file: 'Pirros.addin'                 },
-    'Avail':       { displayName: 'Avail',                     file: 'Avail.addin'                  },
-    'Orkestra':    { displayName: 'Orkestra',                  file: 'Orkestra.addin'               },
-    'BIM One':     { displayName: 'BIM One Tools',             file: 'BIMone.addin'                 },
-    'COINS':       { displayName: 'COINS Auto-Section View',   file: 'COINSAutoSectionView.addin'   },
-    'Enscape':     { displayName: 'Enscape',                   file: 'Enscape.addin'                },
-    'Twinmotion':  { displayName: 'Twinmotion Direct Link',    file: 'Twinmotion.addin'             },
-  };
+  let ADDIN_LOOKUP = {};
+
+  // ── LOADED ADD-INS (from Revit session) ────────────────────────────────────
+  let LOADED_ADDINS = [];
+
+  function isAddinLoaded(tabName) {
+    if (!LOADED_ADDINS.length) return false;
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return true;
+      if (stem && name.indexOf(stem) !== -1) return true;
+    }
+    return false;
+  }
 
   // ── STATE ──────────────────────────────────────────────────────────────────
   const state = {
@@ -1617,11 +1667,21 @@
     } else {
       display.innerHTML = addins.map(name => {
         const known     = ADDIN_LOOKUP[name];
-        const isUnknown = !known || name === 'Unknown';
-        const title     = known
-          ? `${known.displayName} — ${known.file}`
-          : 'Not in lookup — ProfileSelector will attempt fuzzy match on installed .addin files';
-        return `<span class="addin-chip${isUnknown ? ' unknown' : ''}" title="${title}">${name}${isUnknown ? ' ?' : ''}</span>`;
+        const loaded    = isAddinLoaded(name);
+        const isUnknown = !known && !loaded;
+        let title, cls;
+        if (loaded) {
+          title = 'Loaded in current Revit session';
+          cls = '';
+        } else if (known) {
+          title = known.displayName + ' — not loaded in this session';
+          cls = ' unknown';
+        } else {
+          title = 'Not in lookup and not loaded';
+          cls = ' unknown';
+        }
+        const badge = loaded ? ' ✓' : (isUnknown ? ' ?' : '');
+        return `<span class="addin-chip${cls}" title="${title}">${name}${badge}</span>`;
       }).join('');
     }
   }
@@ -1986,9 +2046,9 @@
       `<div class="stack-picker-item" style="display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11px;color:var(--text2);cursor:pointer;border-radius:3px;transition:background 0.1s"
             onmouseover="this.style.background='var(--surface2)'"
             onmouseout="this.style.background='transparent'"
-            onmousedown="addToolToStack('${stackName}','${t.name}')">
+            onmousedown="addToolToStack('${esc(stackName)}','${esc(t.name)}')">
         <span style="font-size:10px;flex-shrink:0">${t.icon}</span>
-        ${t.name}
+        ${escHtml(t.name)}
       </div>`
     ).join('');
   }
@@ -2248,9 +2308,10 @@
     // Use pywebview API if available, otherwise fall back to browser download
     if (window.pywebview && window.pywebview.api && window.pywebview.api.save_export) {
       window.pywebview.api.save_export(JSON.stringify(config, null, 2)).then(result => {
-        if (result && result.path) {
-          showToast('Exported', result.desktop_path || result.path);
-          setTimeout(function() { window.close(); }, 4000);
+        if (result && result.ok) {
+          showExportOverlay(state.currentProfile, result.path || '', result.desktop_path || '');
+        } else if (result && result.error) {
+          showToast('Export failed', result.error);
         }
       }).catch(err => {
         showToast('Export failed', String(err));
@@ -2260,6 +2321,36 @@
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${state.currentProfile}_${date}.json` });
       a.click(); URL.revokeObjectURL(a.href);
     }
+  }
+
+  // ── EXPORT OVERLAY ─────────────────────────────────────────────────────────
+  function showExportOverlay(profileName, installPath, desktopPath) {
+    const overlay = document.getElementById('exportOverlay');
+    const title   = document.getElementById('exportTitle');
+    const paths   = document.getElementById('exportPaths');
+
+    const baseName = 'Creating ' + profileName + ' Profile';
+    title.textContent = baseName + '.';
+
+    let pathsHtml = '<div class="export-path-label">Install</div>' +
+                    '<div class="export-path-value">' + escHtml(installPath) + '</div>';
+    if (desktopPath) {
+      pathsHtml += '<div class="export-path-label">Desktop</div>' +
+                   '<div class="export-path-value">' + escHtml(desktopPath) + '</div>';
+    }
+    paths.innerHTML = pathsHtml;
+    overlay.classList.add('visible');
+
+    let ticks = 0;
+    const dotTimer = setInterval(function() {
+      ticks++;
+      title.textContent = baseName + '.'.repeat((ticks % 3) + 1);
+    }, 1000);
+
+    setTimeout(function() {
+      clearInterval(dotTimer);
+      window.close();
+    }, 4000);
   }
 
   // ── EXPORT GATING ─────────────────────────────────────────────────────────
@@ -2380,8 +2471,8 @@
             ? `<input class="sb-rename-input" id="renameInput_panel_${name}"
                      value="${name}"
                      onclick="event.stopPropagation()"
-                     onblur="commitPanelRename('${name}',this.value)"
-                     onkeydown="handleRenameKey(event,'panel','${name}')">`
+                     onblur="commitPanelRename('${esc(name)}',this.value)"
+                     onkeydown="handleRenameKey(event,'panel','${esc(name)}')">`
             : `<span style="flex:1;pointer-events:none">${escHtml(name)}</span>`
           }
           <button class="sb-edit-btn" title="Rename panel"
@@ -2466,8 +2557,8 @@
             ? `<input class="sb-rename-input" id="renameInput_stack_${name}"
                      value="${name}"
                      onclick="event.stopPropagation()"
-                     onblur="commitStackRename('${name}',this.value)"
-                     onkeydown="handleRenameKey(event,'stack','${name}')">`
+                     onblur="commitStackRename('${esc(name)}',this.value)"
+                     onkeydown="handleRenameKey(event,'stack','${esc(name)}')">`
             : `<span style="flex:1;pointer-events:none">${escHtml(name)}</span>`
           }
           <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:9px;flex-shrink:0;pointer-events:none">· ${toolCount}</span>
@@ -2911,6 +3002,26 @@
 
   // ── PYWEBVIEW READY ──────────────────────────────────────────────────────
   window.addEventListener('pywebviewready', async function() {
+    try {
+      // Fetch addin lookup
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_addin_lookup) {
+        const lookup = await window.pywebview.api.get_addin_lookup();
+        if (lookup && typeof lookup === 'object') {
+          ADDIN_LOOKUP = lookup;
+        }
+      }
+
+      // Fetch loaded add-ins from Revit session
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_loaded_addins) {
+        const addins = await window.pywebview.api.get_loaded_addins();
+        if (Array.isArray(addins)) {
+          LOADED_ADDINS = addins;
+        }
+      }
+
+      renderDetectedAddins();
+    } catch(e) { /* ignore */ }
+
     try {
       // Fetch Revit version
       if (window.pywebview && window.pywebview.api && window.pywebview.api.get_revit_version) {
