@@ -377,7 +377,8 @@ def _create_tool_button(slot):
         clr.AddReference('PresentationFramework')
 
         btn = RibbonButton()
-        btn.Text = display_name
+        # Split long names at first space for two-line display
+        btn.Text = display_name.replace(' ', '\n', 1) if ' ' in display_name else display_name
         btn.Id = 'REST_Btn_' + full_name.replace(' ', '_')
         btn.ShowText = True
         btn.Size = RibbonItemSize.Large
