@@ -599,6 +599,7 @@ def _style_rst_admin_panels():
 
 _idling_style_pending = [False]
 _hidden_tabs_to_apply = []
+_has_active_profile = False
 
 def _schedule_admin_styling():
     """Schedule _style_rst_admin_panels to run on the next Idling event,
@@ -634,6 +635,27 @@ def _apply_hidden_tabs():
         log.warning('Could not hide tabs: %s', e)
 
 
+def _manage_minifyui():
+    """Disable pyRevit MinifyUI when a profile is loaded, re-enable on unload."""
+    try:
+        from pyrevit import script as pyscript
+        from pyrevit.coreutils import ribbon
+
+        if _has_active_profile:
+            # Disable MinifyUI — force all tabs visible first, then set env var off
+            if pyscript.get_envvar('MINIFYUIACTIVE'):
+                for tab in ribbon.get_current_ui():
+                    tab.visible = True
+                pyscript.set_envvar('MINIFYUIACTIVE', False)
+                log.info('Disabled pyRevit MinifyUI (RSTify takes over)')
+        else:
+            # No active profile (blank/unloaded) — re-enable MinifyUI
+            # Just set the env var back; user can click MinifyUI to activate
+            log.debug('No active profile — MinifyUI available')
+    except Exception as e:
+        log.debug('Could not manage MinifyUI: %s', e)
+
+
 def _on_idling_style(sender, args):
     """Runs once on first Idling event, styles admin panels and hides tabs."""
     if not _idling_style_pending[0]:
@@ -647,6 +669,10 @@ def _on_idling_style(sender, args):
         _style_rst_admin_panels()
     except Exception as e:
         log.warning('Idling styling failed: %s', e)
+    try:
+        _manage_minifyui()
+    except Exception as e:
+        log.debug('MinifyUI management failed: %s', e)
     try:
         _apply_hidden_tabs()
     except Exception as e:
@@ -662,6 +688,8 @@ if active and profile:
     log.info('Active profile: %s', active.get('profile'))
     _build_ribbon(profile)
     _hidden_tabs_to_apply.extend(active.get('hidden_tabs', []))
+    if not active.get('blank'):
+        _has_active_profile = True
 else:
     log.info('No active profile — nothing to build')
 _schedule_admin_styling()
