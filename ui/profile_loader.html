@@ -669,13 +669,11 @@
 <div class="window-header">
   <div class="window-title">Profile Selector</div>
   <div class="header-sep"></div>
-  <button class="load-btn" id="loadBtn" onclick="loadProfile()" style="margin:0">Load Profile →</button>
-  <div class="header-sep"></div>
   <div class="header-field">
     <label>Revit</label>
     <span id="revitVersionDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:0.04em">—</span>
   </div>
-  <button class="add-profile-btn" onclick="addProfile()">+ Add Profile</button>
+  <button class="add-profile-btn" onclick="addProfile()" style="margin-left:0">+ Add Profile from Path</button>
 </div>
 
 <div class="body">
@@ -745,6 +743,7 @@
           </label>
         </div>
       </div>
+      <button class="load-btn" id="loadBtn" onclick="loadProfile()">Load Profile →</button>
     </div>
   </div>
 
