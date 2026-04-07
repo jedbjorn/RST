@@ -508,15 +508,6 @@
   }
   .stack-chevron.open { transform: rotate(90deg); }
 
-  .stack-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 14px;
-    cursor: default;
-    font-size: 12px; color: var(--text2); font-weight: 300;
-    transition: background 0.1s;
-  }
-  .stack-item:hover { background: var(--surface2); }
-
   /* Tab canvas drag */
   .tab-panel[draggable=true] { cursor: grab; }
   .tab-panel.drag-over { border-color: var(--accent); background: rgba(79,142,247,0.06); }
@@ -595,13 +586,6 @@
     display: flex; align-items: center; gap: 5px;
     transition: all 0.15s;
   }
-
-  .btn-stack {
-    background: rgba(124,58,237,0.08);
-    border-color: rgba(124,58,237,0.35);
-    color: #a78bfa;
-  }
-  .btn-stack:hover { background: rgba(124,58,237,0.15); border-color: #a78bfa; }
 
   .btn-tool {
     background: rgba(79,142,247,0.08);

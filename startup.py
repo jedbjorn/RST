@@ -197,7 +197,6 @@ def _build_ribbon(profile):
             RibbonPanel as AwRibbonPanel,
             RibbonPanelSource,
             RibbonButton,
-            RibbonSplitButton,
             RibbonItemSize,
         )
     except Exception as e:

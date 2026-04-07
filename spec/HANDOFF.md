@@ -189,9 +189,8 @@ Runs automatically on every Revit launch via PyRevit's startup mechanism.
 5. Build a PyRevit ribbon tab using the profile's `tab` name
 6. For each panel in `panels[]`: create ribbon panel, iterate slots, create buttons
 7. For `type:"tool"` slots: create a `PushButton` mapped to `commandId`. If `iconFile` is set, load the PNG from `icons/`; otherwise use the generic default icon shipped with the extension
-8. For `type:"stack"` slots: look up in `stacks` dict, create a `PulldownButton` or `SplitButton` with the stack's tools as children (same icon logic per child tool)
+8. For `type:"stack"` slots: look up in `stacks` dict, create a `RibbonRowPanel` with up to 3 text-only standard-sized buttons (no icons, matching native Revit stacked items)
 9. Apply `hideRules` after tab is built (see addin suppression spec below)
-10. Write updated `last_built` timestamp to `app/active_profile.json`
 
 **Ribbon button creation — commandId execution:**
 
