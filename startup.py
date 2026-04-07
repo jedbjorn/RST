@@ -637,23 +637,36 @@ log.info('=== RST startup — immediate build ===')
 active, profile = _load_active_profile()
 if active and profile:
     log.info('Active profile: %s', active.get('profile'))
+    # Check if our tab already exists in the ribbon (survives pyRevit reload
+    # but NOT a Revit restart — AdWindows tabs are session-only)
+    tab_exists = False
+    try:
+        import clr
+        clr.AddReference('AdWindows')
+        from Autodesk.Windows import ComponentManager
+        for t in ComponentManager.Ribbon.Tabs:
+            try:
+                if str(t.Id or '').startswith('REST_'):
+                    tab_exists = True
+                    break
+            except Exception:
+                continue
+    except Exception:
+        pass
+
     if active.get('blank'):
         _build_ribbon(profile)
+    elif not tab_exists:
+        # Fresh Revit launch — tab doesn't exist, must build
+        log.info('Tab not in ribbon — building regardless of cache')
+        if _build_ribbon(profile):
+            _update_last_built(active)
     else:
+        # pyRevit reload — tab exists, only rebuild if profile changed
         profile_path = os.path.join(_profiles_dir, active.get('profile_file', ''))
         if _needs_rebuild(active, profile_path):
             if _build_ribbon(profile):
                 _update_last_built(active)
-
-        # Version check
-        revit_version = _get_revit_version()
-        min_version = profile.get('min_version')
-        if revit_version and min_version:
-            try:
-                if int(revit_version) < int(min_version):
-                    log.warning('Revit %s is below min_version %s', revit_version, min_version)
-            except ValueError:
-                pass
 else:
     log.info('No active profile — nothing to build')
 _schedule_admin_styling()
