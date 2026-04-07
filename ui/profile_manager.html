@@ -2360,7 +2360,12 @@
 
     setTimeout(function() {
       clearInterval(dotTimer);
-      window.close();
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+      } else {
+        try { window.close(); } catch(e) {}
+        overlay.classList.remove('visible');
+      }
     }, 4000);
   }
 

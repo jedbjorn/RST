@@ -310,6 +310,12 @@ class TabCreatorAPI:
         subprocess.Popen(['explorer', os.path.normpath(_profiles_dir)])
         return {'ok': True}
 
+    def close_window(self):
+        log.info('Close requested by UI')
+        window = self._window or (webview.windows[0] if webview.windows else None)
+        if window:
+            window.destroy()
+
 
 if __name__ == '__main__':
     log.info('=== TabCreator starting ===')
