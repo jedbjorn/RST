@@ -1769,10 +1769,15 @@
         .filter(([n]) => n !== state.currentPanel)
         .flatMap(([, p]) => p.slots.map(s => s.name))
     );
+    // Tools used in any stack — shown greyed, not addable standalone
+    const inStackNames = new Set(
+      Object.values(state.stacks).flatMap(s => s.tools)
+    );
 
     list.innerHTML = filtered.map((tool, filteredIdx) => {
-      const isInCurrent  = currentPanelNames.has(tool.name);
-      const isElsewhere  = !isInCurrent && otherPanelNames.has(tool.name);
+      const isInStack    = inStackNames.has(tool.name);
+      const isInCurrent  = !isInStack && currentPanelNames.has(tool.name);
+      const isElsewhere  = !isInStack && !isInCurrent && otherPanelNames.has(tool.name);
       const hasAddin     = !!tool.sourceTab;
       const addinBadge   = hasAddin
         ? `<span class="source-tab-badge">${tool.sourceTab}</span>`
@@ -1787,10 +1792,11 @@
       return `
         <div class="sb-row" data-name="${tool.name}">
           <div class="sb-stripe" style="background:transparent"></div>
-          <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isElsewhere ? 'elsewhere' : ''}">
-            <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : isElsewhere ? '–' : ''}</div>
+          <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isElsewhere || isInStack ? 'elsewhere' : ''}">
+            <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : (isElsewhere || isInStack) ? '–' : ''}</div>
             <span style="flex:1">${escHtml(tool.name)}</span>
             ${customIcons}
+            ${isInStack ? '<span class="source-tab-badge" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.25);color:#a78bfa">in stack</span>' : ''}
             ${addinBadge}
           </div>
         </div>`;
@@ -1817,6 +1823,10 @@
         return;
       }
     }
+    // Block if tool is already in a stack
+    const inAnyStack = Object.values(state.stacks).some(s => s.tools.includes(name));
+    if (inAnyStack) return;
+
     const slots = state.panels[state.currentPanel].slots;
     const idx   = slots.findIndex(s => s.type === 'tool' && s.name === name);
     if (idx !== -1) {
@@ -2042,7 +2052,10 @@
     const stack = state.stacks[stackName];
     if (!stack || stack.tools.length >= 3) return;
     const query = input.value.toLowerCase();
-    const available = state.allTools.filter(t => !stack.tools.includes(t.name));
+    const placedStandalone = new Set(
+      Object.values(state.panels).flatMap(p => p.slots.filter(s => s.type === 'tool').map(s => s.name))
+    );
+    const available = state.allTools.filter(t => !stack.tools.includes(t.name) && !placedStandalone.has(t.name));
     const filtered = available.filter(t => !query || t.name.toLowerCase().includes(query));
     const container = document.getElementById('stackPickerResults_' + stackName);
     if (!container) return;
