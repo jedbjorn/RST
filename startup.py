@@ -598,6 +598,7 @@ def _style_rst_admin_panels():
 
 
 _idling_style_pending = [False]
+_hidden_tabs_to_apply = []
 
 def _schedule_admin_styling():
     """Schedule _style_rst_admin_panels to run on the next Idling event,
@@ -610,8 +611,31 @@ def _schedule_admin_styling():
         log.warning('Could not schedule Idling: %s — styling now', e)
         _style_rst_admin_panels()
 
+def _apply_hidden_tabs():
+    """Hide tabs listed in active_profile.json's hidden_tabs."""
+    if not _hidden_tabs_to_apply:
+        return
+    try:
+        import clr
+        clr.AddReference('AdWindows')
+        from Autodesk.Windows import ComponentManager
+        ribbon = ComponentManager.Ribbon
+        count = 0
+        for tab in ribbon.Tabs:
+            try:
+                title = str(tab.Title) if tab.Title else ''
+                if title in _hidden_tabs_to_apply:
+                    tab.IsVisible = False
+                    count += 1
+            except Exception:
+                continue
+        log.info('RSTify: hidden %d tabs on startup', count)
+    except Exception as e:
+        log.warning('Could not hide tabs: %s', e)
+
+
 def _on_idling_style(sender, args):
-    """Runs once on first Idling event, styles admin panels."""
+    """Runs once on first Idling event, styles admin panels and hides tabs."""
     if not _idling_style_pending[0]:
         return
     _idling_style_pending[0] = False
@@ -623,6 +647,10 @@ def _on_idling_style(sender, args):
         _style_rst_admin_panels()
     except Exception as e:
         log.warning('Idling styling failed: %s', e)
+    try:
+        _apply_hidden_tabs()
+    except Exception as e:
+        log.warning('Tab hiding failed: %s', e)
 
 
 # Always build immediately — ApplicationInitialized only fires on initial
@@ -633,6 +661,7 @@ active, profile = _load_active_profile()
 if active and profile:
     log.info('Active profile: %s', active.get('profile'))
     _build_ribbon(profile)
+    _hidden_tabs_to_apply.extend(active.get('hidden_tabs', []))
 else:
     log.info('No active profile — nothing to build')
 _schedule_admin_styling()

@@ -534,6 +534,49 @@
   .load-btn:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
 
 
+  /* ── TAB TOGGLES (RSTify) ── */
+  .tab-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text2);
+  }
+  .tab-toggle-row.locked {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .tab-toggle-name { flex: 1; }
+  .tab-toggle-reason {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+  .tab-toggle-switch { position: relative; width: 30px; height: 17px; flex-shrink: 0; }
+  .tab-toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .tab-toggle-track {
+    position: absolute; inset: 0; border-radius: 9px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    transition: background 0.2s, border-color 0.2s; cursor: pointer;
+  }
+  .tab-toggle-thumb {
+    position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+  .tab-toggle-switch input:checked + .tab-toggle-track {
+    background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45);
+  }
+  .tab-toggle-switch input:checked + .tab-toggle-track .tab-toggle-thumb {
+    transform: translateX(13px); background: var(--warn);
+  }
+
   /* ── LOADING OVERLAY ── */
   .loading-overlay {
     position: fixed; inset: 0;
@@ -622,6 +665,11 @@
       <!-- Required Add-ins -->
       <div id="detailAddins" style="display:none"></div>
 
+      <!-- RSTify Tab Toggles -->
+      <div id="tabTogglesSection" style="display:none">
+        <div class="detail-section-label">RSTify — Hide Tabs</div>
+        <div id="tabTogglesList"></div>
+      </div>
 
     </div>
 
@@ -651,6 +699,8 @@
 
   // ── LOADED ADD-INS (from Revit session) ────────────────────────────────────
   let LOADED_ADDINS = [];
+  let ALL_TABS = [];
+  let previousHiddenTabs = [];
 
   // ── PROFILE DATA ─────────────────────────────────────────────────────────────
   // Full schema matching TabCreator's exportConfig() output.
@@ -723,6 +773,64 @@
     return '';
   }
 
+  // ── RSTIFY TAB TOGGLES ───────────────────────────────────────────────────────
+  var CORE_TABS = new Set(['Modify', 'Manage', 'View', 'Annotate', 'Add-Ins']);
+
+  function getSourceTabs(profile) {
+    var tabs = new Set();
+    if (!profile || !profile.panels) return tabs;
+    profile.panels.forEach(function(panel) {
+      (panel.slots || []).forEach(function(slot) {
+        if (slot.sourceTab && slot.sourceTab !== 'Custom') tabs.add(slot.sourceTab);
+        if (slot.type === 'stack' && profile.stacks && profile.stacks[slot.name]) {
+          (profile.stacks[slot.name].tools || []).forEach(function(t) {
+            if (t.sourceTab && t.sourceTab !== 'Custom') tabs.add(t.sourceTab);
+          });
+        }
+      });
+    });
+    return tabs;
+  }
+
+  function renderTabToggles(profile) {
+    var section = document.getElementById('tabTogglesSection');
+    var list = document.getElementById('tabTogglesList');
+    if (!profile || !ALL_TABS.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    var sourceTabs = getSourceTabs(profile);
+    // Also protect the profile's own tab name
+    sourceTabs.add(profile.tab || '');
+
+    list.innerHTML = ALL_TABS.map(function(tabName) {
+      var isCore = CORE_TABS.has(tabName);
+      var isSource = sourceTabs.has(tabName);
+      var locked = isCore || isSource;
+      var reason = isCore ? 'Core' : (isSource ? 'In use' : '');
+      var wasHidden = previousHiddenTabs.indexOf(tabName) !== -1;
+      var checked = !locked && wasHidden ? 'checked' : '';
+
+      return '<div class="tab-toggle-row' + (locked ? ' locked' : '') + '">' +
+        '<span class="tab-toggle-name">' + escHtml(tabName) + '</span>' +
+        (reason ? '<span class="tab-toggle-reason">' + reason + '</span>' : '') +
+        '<label class="tab-toggle-switch">' +
+        '<input type="checkbox" data-tab="' + escHtml(tabName) + '" ' + checked + (locked ? ' disabled' : '') + '>' +
+        '<div class="tab-toggle-track"><div class="tab-toggle-thumb"></div></div>' +
+        '</label>' +
+        '</div>';
+    }).join('');
+  }
+
+  function getSelectedHiddenTabs() {
+    var hidden = [];
+    document.querySelectorAll('#tabTogglesList input[type=checkbox]:checked').forEach(function(cb) {
+      hidden.push(cb.dataset.tab);
+    });
+    return hidden;
+  }
+
   // ── CARD RENDERING ────────────────────────────────────────────────────────────
   function renderCards() {
     const scroll = document.getElementById('profileScroll');
@@ -793,6 +901,7 @@
     document.getElementById('detailMeta').innerHTML = '';
     document.getElementById('tabCanvas').innerHTML = '';
     document.getElementById('detailAddins').style.display = 'none';
+    document.getElementById('tabTogglesSection').style.display = 'none';
   }
 
   function selectCard(el, idx) {
@@ -845,6 +954,8 @@
       addinsContainer.style.display = 'none';
     }
 
+    // RSTify tab toggles
+    renderTabToggles(profile);
 
   }
 
@@ -900,7 +1011,8 @@
   function loadProfile() {
     if (!selectedProfile) return;
 
-    window.pywebview.api.load_profile(selectedProfile.profile, false, currentRevitVersion).then(function(result) {
+    var hiddenTabs = getSelectedHiddenTabs();
+    window.pywebview.api.load_profile(selectedProfile.profile, false, currentRevitVersion, hiddenTabs).then(function(result) {
       if (!result.ok) {
         alert('Failed to load profile.');
         return;
@@ -1018,16 +1130,24 @@
       data.forEach(function(p) { profiles.push(p); });
       renderCards();
 
-      // Highlight the active profile after cards are rendered
-      window.pywebview.api.get_active_profile().then(function(name) {
-        if (name) {
-          activeProfileName = name;
+      // Highlight the active profile and load previous hidden tabs
+      window.pywebview.api.get_active_profile().then(function(result) {
+        if (result && result.name) {
+          activeProfileName = result.name;
+          previousHiddenTabs = result.hidden_tabs || [];
           renderCards();
-          const idx = profiles.findIndex(function(p) { return p.profile === name; });
-          const cards = document.querySelectorAll('.profile-card');
+          var idx = profiles.findIndex(function(p) { return p.profile === result.name; });
+          var cards = document.querySelectorAll('.profile-card');
           if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
         }
       }).catch(function(err) { console.error(err); });
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch all ribbon tabs for RSTify toggles
+    window.pywebview.api.get_all_tabs().then(function(tabs) {
+      if (Array.isArray(tabs)) {
+        ALL_TABS = tabs;
+      }
     }).catch(function(err) { console.error(err); });
 
     // Fetch active Revit version

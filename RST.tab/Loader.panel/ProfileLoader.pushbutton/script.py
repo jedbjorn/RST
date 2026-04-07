@@ -35,12 +35,14 @@ try:
 except Exception:
     pass
 
-# Collect loaded add-ins by scanning ribbon tabs via AdWindows
+# Collect all ribbon tabs and loaded add-ins via AdWindows
 _loaded_addins = []
+_all_tabs = []
+_SKIP_TABS = {'RST'}
 _BUILTIN_TABS = {
     'Architecture', 'Structure', 'Systems', 'Steel', 'Precast',
     'Insert', 'Annotate', 'Analyze', 'Massing & Site', 'Collaborate',
-    'View', 'Manage', 'Modify', 'Add-Ins', 'RST',
+    'View', 'Manage', 'Modify', 'Add-Ins',
 }
 try:
     import clr
@@ -52,7 +54,7 @@ try:
         for tab in ribbon.Tabs:
             try:
                 title = str(tab.Title) if tab.Title else ''
-                if not title or title in _BUILTIN_TABS or title in seen:
+                if not title or title in _SKIP_TABS or title in seen:
                     continue
                 is_ctx = False
                 try:
@@ -62,13 +64,15 @@ try:
                 if is_ctx:
                     continue
                 seen.add(title)
-                _loaded_addins.append({'name': title})
+                _all_tabs.append(title)
+                if title not in _BUILTIN_TABS:
+                    _loaded_addins.append({'name': title})
             except Exception:
                 continue
 except Exception as e:
-    log.warning('Could not scan ribbon for add-ins: %s', e)
+    log.warning('Could not scan ribbon for tabs: %s', e)
 
-log.info('Revit %s, %d loaded add-ins', _revit_version, len(_loaded_addins))
+log.info('Revit %s, %d tabs, %d loaded add-ins', _revit_version, len(_all_tabs), len(_loaded_addins))
 
 # Write session data for CPython to read
 _loader_data_path = os.path.join(_root, 'app', '_loader_data.json')
@@ -76,6 +80,7 @@ with io.open(_loader_data_path, 'w', encoding='utf-8') as f:
     json.dump({
         'revit_version': _revit_version,
         'loaded_addins': _loaded_addins,
+        'all_tabs': _all_tabs,
     }, f)
 
 # Launch Profile Selector and wait

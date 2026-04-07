@@ -89,10 +89,11 @@ def _find_profile(profile_name):
 
 class ProfileSelectorAPI:
 
-    def __init__(self, revit_version=None, loaded_addins=None):
+    def __init__(self, revit_version=None, loaded_addins=None, all_tabs=None):
         self._window = None
         self._revit_version = revit_version
         self._loaded_addins = loaded_addins or []
+        self._all_tabs = all_tabs or []
 
     def set_window(self, window):
         self._window = window
@@ -102,6 +103,9 @@ class ProfileSelectorAPI:
 
     def get_loaded_addins(self):
         return self._loaded_addins
+
+    def get_all_tabs(self):
+        return self._all_tabs
 
     def get_addin_lookup(self):
         try:
@@ -131,16 +135,17 @@ class ProfileSelectorAPI:
     def get_active_profile(self):
         if not os.path.exists(_active_profile_path):
             log.debug('No active_profile.json found')
-            return None
+            return {'name': None, 'hidden_tabs': []}
         try:
             with open(_active_profile_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             name = data.get('profile')
-            log.info('Active profile: %s', name)
-            return name
+            hidden = data.get('hidden_tabs', [])
+            log.info('Active profile: %s (hidden: %d tabs)', name, len(hidden))
+            return {'name': name, 'hidden_tabs': hidden}
         except (json.JSONDecodeError, IOError) as e:
             log.error('Failed to read active_profile.json: %s', e)
-            return None
+            return {'name': None, 'hidden_tabs': []}
 
     def add_profile(self):
         log.info('Opening file dialog for profile import')
@@ -188,9 +193,9 @@ class ProfileSelectorAPI:
         profile['_filename'] = dest_name
         return {'ok': True, 'profile': profile}
 
-    def load_profile(self, profile_name, disable_non_required, revit_version=None):
-        log.info('Loading profile: %s (disable_non_required=%s, revit=%s)',
-                 profile_name, disable_non_required, revit_version)
+    def load_profile(self, profile_name, disable_non_required, revit_version=None, hidden_tabs=None):
+        log.info('Loading profile: %s (hidden_tabs=%s, revit=%s)',
+                 profile_name, hidden_tabs, revit_version)
 
         profile_filename, profile_data = _find_profile(profile_name)
         if not profile_data:
@@ -229,7 +234,7 @@ class ProfileSelectorAPI:
             'profile': profile_name,
             'profile_file': profile_filename,
             'loaded_at': datetime.datetime.now().isoformat(),
-            'disable_non_required': bool(disable_non_required),
+            'hidden_tabs': hidden_tabs or [],
         }
         try:
             with open(_active_profile_path, 'w', encoding='utf-8') as f:
@@ -279,12 +284,13 @@ class ProfileSelectorAPI:
 if __name__ == '__main__':
     _revit_ver = _loader_data.get('revit_version')
     _addins = _loader_data.get('loaded_addins', [])
-    log.info('=== RST Profile Selector starting (Revit %s, %d add-ins) ===',
-             _revit_ver, len(_addins))
+    _tabs = _loader_data.get('all_tabs', [])
+    log.info('=== RST Profile Selector starting (Revit %s, %d tabs, %d add-ins) ===',
+             _revit_ver, len(_tabs), len(_addins))
     log.info('HTML path: %s', _html_path)
     log.info('Profiles dir: %s', _profiles_dir)
 
-    api = ProfileSelectorAPI(revit_version=_revit_ver, loaded_addins=_addins)
+    api = ProfileSelectorAPI(revit_version=_revit_ver, loaded_addins=_addins, all_tabs=_tabs)
     try:
         import ctypes
         user32 = ctypes.windll.user32
