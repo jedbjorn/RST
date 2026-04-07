@@ -371,8 +371,8 @@
   /* Tool rows dim when the tool is already placed in the current panel */
   .sb-row-body.placed { color: var(--text3); }
   .sb-row-body.inactive { opacity: 0.38; }
-  /* Tool placed in a different panel — greyed out, non-interactive */
-  .sb-row-body.elsewhere { opacity: 0.35; cursor: default; pointer-events: none; }
+  /* Tool placed in a different panel or stack — greyed out, clickable to navigate */
+  .sb-row-body.elsewhere { opacity: 0.35; cursor: pointer; }
 
   /* Shared checkbox */
   .sb-cb {
@@ -1789,11 +1789,19 @@
           `<span onclick="event.stopPropagation();deleteCustomTool(${allToolsIdx})" style="cursor:pointer;font-size:11px;color:var(--text3);margin-left:2px;transition:color 0.15s" onmouseenter="this.style.color='var(--danger)'" onmouseleave="this.style.color='var(--text3)'" title="Delete">✕</span>`
         : '';
 
+      const isGreyed = isElsewhere || isInStack;
+      let goToLabel = '';
+      if (isGreyed) {
+        const loc = findToolLocation(tool.name);
+        if (loc) goToLabel = 'Go to ' + loc.name;
+      }
+
       return `
         <div class="sb-row" data-name="${tool.name}">
           <div class="sb-stripe" style="background:transparent"></div>
-          <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isElsewhere || isInStack ? 'elsewhere' : ''}">
-            <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : (isElsewhere || isInStack) ? '–' : ''}</div>
+          <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isGreyed ? 'elsewhere' : ''}"
+               ${isGreyed ? 'style="pointer-events:auto;cursor:pointer" title="' + escHtml(goToLabel) + '"' : ''}>
+            <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : isGreyed ? '–' : ''}</div>
             <span style="flex:1">${escHtml(tool.name)}</span>
             ${customIcons}
             ${isInStack ? '<span class="source-tab-badge" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.25);color:#a78bfa">in stack</span>' : ''}
@@ -1803,12 +1811,41 @@
     }).join('') +
     '<div class="add-url-btn" onclick="promptAddUrl()" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;margin:6px;border:1px dashed var(--border2);border-radius:4px;cursor:pointer;color:var(--accent3);font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:0.06em;transition:all 0.15s" onmouseenter="this.style.borderColor=\'var(--accent3)\';this.style.background=\'rgba(16,185,129,0.06)\'" onmouseleave="this.style.borderColor=\'var(--border2)\';this.style.background=\'transparent\'">+ Add URL</div>';
 
-    // Click sb-row-body → toggle in current panel
+    // Click sb-row-body → toggle in current panel, or navigate to location if greyed
     list.querySelectorAll('.sb-row').forEach(row => {
       row.querySelector('.sb-row-body').addEventListener('click', e => {
-        toggleToolInPanel(row.dataset.name);
+        const name = row.dataset.name;
+        if (row.querySelector('.sb-row-body').classList.contains('elsewhere')) {
+          goToToolLocation(name);
+        } else {
+          toggleToolInPanel(name);
+        }
       });
     });
+  }
+
+  // ── FIND TOOL LOCATION ─────────────────────────────────────────────────────
+  function findToolLocation(name) {
+    // Check stacks first
+    for (const [stackName, stack] of Object.entries(state.stacks)) {
+      if (stack.tools.includes(name)) return { type: 'stack', name: stackName };
+    }
+    // Check panels
+    for (const [panelName, panel] of Object.entries(state.panels)) {
+      if (panel.slots.some(s => s.type === 'tool' && s.name === name)) return { type: 'panel', name: panelName, color: panel.color };
+    }
+    return null;
+  }
+
+  function goToToolLocation(name) {
+    const loc = findToolLocation(name);
+    if (!loc) return;
+    if (loc.type === 'panel') {
+      selectPanel(loc.name, loc.color);
+    } else if (loc.type === 'stack') {
+      state.expandedStack = loc.name;
+      renderStackList();
+    }
   }
 
   // ── TOGGLE TOOL IN PANEL ───────────────────────────────────────────────────
