@@ -84,82 +84,6 @@
 
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-  /* ── SUCCESS OVERLAY ── */
-  .success-overlay {
-    position: fixed; inset: 0;
-    background: rgba(15,17,23,0.85);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
-    opacity: 0; transition: opacity 0.2s;
-    pointer-events: none;
-  }
-  .success-overlay.visible { opacity: 1; pointer-events: auto; }
-  .success-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 10px;
-    padding: 32px 36px;
-    max-width: 400px;
-    width: 90%;
-    text-align: center;
-  }
-  .success-icon {
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    background: rgba(16,185,129,0.12);
-    border: 1px solid rgba(16,185,129,0.35);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
-    font-size: 22px; color: var(--accent3);
-  }
-  .success-title {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 15px;
-    color: var(--heading);
-    margin-bottom: 10px;
-  }
-  .success-detail {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    line-height: 1.7;
-    color: var(--text2);
-    margin-bottom: 20px;
-    text-align: left;
-  }
-  .success-hint {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    line-height: 1.6;
-    color: var(--text3);
-    background: rgba(79,142,247,0.06);
-    border: 1px solid rgba(79,142,247,0.15);
-    border-radius: 5px;
-    padding: 10px 14px;
-    margin-bottom: 18px;
-    text-align: left;
-  }
-  .success-hint strong {
-    color: var(--accent);
-    font-weight: 500;
-  }
-  .success-actions {
-    display: flex; gap: 10px; justify-content: center;
-  }
-  .btn-dismiss {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 8px 22px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: rgba(16,185,129,0.1);
-    border: 1px solid rgba(16,185,129,0.4);
-    color: var(--accent3);
-  }
-  .btn-dismiss:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
 
   .add-profile-btn {
     margin-left: auto;
@@ -661,6 +585,38 @@
     color: var(--text3); cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
   .restore-btn:hover { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.06); }
+
+  /* ── LOADING OVERLAY ── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .loading-overlay.visible { opacity: 1; pointer-events: auto; }
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 460px;
+    width: 90%;
+  }
+  .loading-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--heading);
+    margin-bottom: 12px;
+  }
+  .loading-detail {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    line-height: 1.7;
+    color: var(--text2);
+  }
 </style>
 </head>
 <body>
@@ -749,19 +705,11 @@
 
 </div>
 
-<!-- Success Overlay -->
-<div class="success-overlay" id="successOverlay">
-  <div class="success-card">
-    <div class="success-icon">&#10003;</div>
-    <div class="success-title" id="successTitle">Profile Loaded</div>
-    <div class="success-detail" id="successDetail"></div>
-    <div class="success-hint">
-      <strong>If Revit is open</strong> — reload pyRevit to apply:<br>
-      pyRevit tab &#8594; About &#8594; Reload
-    </div>
-    <div class="success-actions">
-      <button class="btn-dismiss" onclick="dismissSuccess()">Done</button>
-    </div>
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-card">
+    <div class="loading-title" id="loadingTitle"></div>
+    <div class="loading-detail" id="loadingDetail"></div>
   </div>
 </div>
 
@@ -989,9 +937,36 @@
   }
 
   // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
+  function showLoadingOverlay(profileName, detail) {
+    var overlay = document.getElementById('loadingOverlay');
+    var title   = document.getElementById('loadingTitle');
+    var detailEl = document.getElementById('loadingDetail');
+
+    var baseName = 'Loading ' + profileName + ' Profile';
+    title.textContent = baseName + '.';
+    detailEl.innerHTML = detail || '';
+    overlay.classList.add('visible');
+
+    var ticks = 0;
+    var dotTimer = setInterval(function() {
+      ticks++;
+      title.textContent = baseName + '.'.repeat((ticks % 3) + 1);
+    }, 1000);
+
+    setTimeout(function() {
+      clearInterval(dotTimer);
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+      } else {
+        try { window.close(); } catch(e) {}
+        overlay.classList.remove('visible');
+      }
+    }, 4000);
+  }
+
   function loadProfile() {
     if (!selectedProfile) return;
-    const disableNonRequired = document.getElementById('disableAddinsCheck').checked;
+    var disableNonRequired = document.getElementById('disableAddinsCheck').checked;
 
     window.pywebview.api.load_profile(selectedProfile.profile, disableNonRequired, currentRevitVersion).then(function(result) {
       if (!result.ok) {
@@ -999,39 +974,19 @@
         return;
       }
       activeProfileName = selectedProfile.profile;
-      renderCards();
-      const idx  = profiles.findIndex(p => p.profile === activeProfileName);
-      const cards = document.querySelectorAll('.profile-card');
-      if (cards[idx]) selectCard(cards[idx], idx);
 
-      const lines = [];
-      if (disableNonRequired) lines.push('Non-required add-ins disabled (.addin \u2192 .addin.inactive).');
+      var lines = [];
+      lines.push('Tab \u201c' + selectedProfile.tab + '\u201d will build on next pyRevit reload.');
+      if (disableNonRequired) lines.push('Non-required add-ins disabled.');
       if (selectedProfile.hideRules && selectedProfile.hideRules.length) lines.push('Suppressed tabs: ' + selectedProfile.hideRules.join(', '));
-      lines.push('Tab \u201c' + selectedProfile.tab + '\u201d will build on next Revit launch.');
       if (result.warnings && result.warnings.length > 0) {
         result.warnings.forEach(function(w) { lines.push(w); });
       }
-
-      document.getElementById('successTitle').textContent = 'Profile Loaded \u2014 ' + activeProfileName;
-      document.getElementById('successDetail').innerHTML = lines.map(function(l) { return '\u2022 ' + l; }).join('<br>');
-      document.getElementById('successOverlay').classList.add('visible');
-      autoCloseTimer = setTimeout(function() { window.close(); }, 4000);
+      var detail = lines.map(function(l) { return '\u2022 ' + l; }).join('<br>');
+      showLoadingOverlay(selectedProfile.profile, detail);
     }).catch(function(err) {
       alert('Error loading profile: ' + (err.message || err));
     });
-  }
-
-  var autoCloseTimer = null;
-
-  function dismissSuccess() {
-    if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
-    document.getElementById('successOverlay').classList.remove('visible');
-  }
-
-  function showReloadPrompt(title, details) {
-    document.getElementById('successTitle').textContent = title;
-    document.getElementById('successDetail').innerHTML = details.map(function(l) { return '\u2022 ' + l; }).join('<br>');
-    document.getElementById('successOverlay').classList.add('visible');
   }
 
   // ── RESTORE ADD-INS ───────────────────────────────────────────────────────────
@@ -1063,7 +1018,7 @@
       renderCards();
       var firstCard = document.querySelector('.profile-card');
       if (firstCard) firstCard.click();
-      showReloadPrompt('Profile Unloaded', ['A blank RST tab will replace the current one.']);
+      showLoadingOverlay('Blank', '\u2022 A blank RST tab will replace the current one.');
     }).catch(function(err) {
       alert('Error unloading profile: ' + (err.message || err));
     });
@@ -1100,7 +1055,7 @@
           clearDetailPane();
         }
         if (isLoaded) {
-          showReloadPrompt('Profile Deleted', ['A blank RST tab will replace the current one.']);
+          showLoadingOverlay('Blank', '\u2022 A blank RST tab will replace the current one.');
         }
       }).catch(function(err) {
         alert('Error deleting profile: ' + (err.message || err));

@@ -282,6 +282,12 @@ class ProfileSelectorAPI:
         _write_blank_profile()
         return {'ok': True}
 
+    def close_window(self):
+        log.info('Close requested by UI')
+        window = self._window or (webview.windows[0] if webview.windows else None)
+        if window:
+            window.destroy()
+
     def restore_addins(self, revit_version=None):
         ver = revit_version or self._revit_version
         log.info('Restoring addins for Revit %s', ver)
