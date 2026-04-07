@@ -30,13 +30,39 @@ Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curate
 ### 1. Dependencies
 
 - [pyRevit](https://github.com/pyrevitlabs/pyRevit) 4.8+
-- [Python 3.12](https://www.python.org/downloads/) — **check "Add Python to PATH" during install** (3.14 is too new)
-- pywebview:
-  ```powershell
-  python -m pip install pywebview
-  ```
+- **Python 3.12** (two versions back from the bleeding edge — 3.14 is too new for pywebview)
 
-Verify: `python --version` in PowerShell should show `Python 3.12.x`.
+#### Install Python via the Python Install Manager
+
+The Python Install Manager (`py`) is the recommended way to install and manage Python on Windows.
+
+1. **Install the manager** — open PowerShell and run:
+   ```powershell
+   winget install 9NQ7512CXL7T
+   ```
+   > winget comes pre-installed on Windows 11 and modern Windows 10. If `winget` is not found, install [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1) from the Microsoft Store.
+
+2. **Run first-launch configuration:**
+   ```powershell
+   py install --configure
+   ```
+   When prompted, allow Python to manage installations and ensure the global shortcuts directory is on your PATH.
+
+3. **Install Python 3.12:**
+   ```powershell
+   py install 3.12
+   ```
+
+4. **Install pywebview:**
+   ```powershell
+   py -3.12 -m pip install pywebview
+   ```
+
+5. **Verify:**
+   ```powershell
+   py -3.12 --version
+   ```
+   Should show `Python 3.12.x`.
 
 ### 2. Add Extension
 
@@ -75,7 +101,7 @@ One IronPython process inside Revit, one CPython process for UIs, temp JSON file
 4. Creates colored panels with rounded-corner backgrounds
 5. Adds large tool buttons with PostCommand handlers
 6. Adds small tool groups (standard-sized text-only buttons)
-7. Disables pyRevit's MinifyUI (replaces with stub to avoid conflicts)
+7. Deletes pyRevit's MinifyUI smartbutton folder (if it exists) to avoid conflicts
 8. On Idling event: styles RST admin panels grey, hides tabs configured in RSTify, sets RSTify icon to orange
 
 ### Profiler Flow (Admin)
@@ -185,7 +211,7 @@ When you open the Loader, your previous hidden tab selections are remembered. Ta
 
 ### pyRevit MinifyUI
 
-RST automatically disables pyRevit's MinifyUI when a profile is loaded to avoid conflicts. The MinifyUI button is replaced with a "MNF - Disabled" stub.
+RST automatically deletes pyRevit's MinifyUI smartbutton folder when a profile is loaded to avoid conflicts.
 
 **To restore MinifyUI:** Unload your RST profile (blank tab), then reinstall pyRevit from [pyrevitlabs.github.io/pyRevit](https://pyrevitlabs.github.io/pyRevit/).
 
@@ -223,7 +249,7 @@ Profiles are self-contained JSON files:
   "profile": "Design_2025",
   "tab": "Design",
   "min_version": "2024",
-  "exportDate": "2025-04-07",
+  "exportDate": "2026-04-07",
   "panelOpacity": 80,
   "requiredAddins": ["DiRootsOne", "pyRevit"],
   "hideRules": [],
@@ -295,7 +321,7 @@ Both files are preserved across updates.
 - **Locked files during update** — icons loaded by Revit are skipped and overwritten on next restart
 - **Tab persistence** — custom tabs don't survive Revit restart; `startup.py` rebuilds on every launch
 - **Hidden tabs break tools** — tools from hidden tabs may not execute. RSTify protects source tabs from being hidden, but manually hiding a tab with pyRevit's MinifyUI (if restored) can break tools
-- **MinifyUI disabled** — RST replaces MinifyUI with RSTify. Reinstall pyRevit to restore MinifyUI after removing RST
+- **MinifyUI deleted** — RST deletes the MinifyUI smartbutton folder on profile load. Reinstall pyRevit to restore MinifyUI after removing RST
 - **Add-in disabling** — feature deferred; code exists but is not active
 
 ---
