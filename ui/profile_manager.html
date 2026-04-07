@@ -1309,10 +1309,10 @@
       </div>
     </div>
 
-    <!-- Stacks — 25% -->
+    <!-- Small Tools — 25% -->
     <div class="sb-section stacks">
       <div class="sb-section-head">
-        <span class="sb-label">Stacks</span>
+        <span class="sb-label">Small Tools</span>
         <button class="sb-add" onclick="createNewStack()">New +</button>
       </div>
       <div class="sb-rule"></div>
@@ -1621,7 +1621,7 @@
              <span class="drag-h">⠿</span>
              <div class="slot-icon" style="background:rgba(124,58,237,0.15);border-color:rgba(124,58,237,0.3);color:#a78bfa">≡</div>
              ${slot.name}
-             <div class="slot-badge stack-badge">stack · ${count}</div>
+             <div class="slot-badge stack-badge">small · ${count}</div>
            </div>`);
       }
     });
@@ -1803,7 +1803,7 @@
             <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : isGreyed ? '–' : ''}</div>
             <span style="flex:1">${escHtml(tool.name)}</span>
             ${customIcons}
-            ${isInStack ? '<span class="source-tab-badge" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.25);color:#a78bfa">in stack</span>' : ''}
+            ${isInStack ? '<span class="source-tab-badge" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.25);color:#a78bfa">small tool</span>' : ''}
             ${addinBadge}
           </div>
         </div>`;
@@ -2603,7 +2603,7 @@
           <div class="stack-add-row" style="flex-direction:column;gap:4px">
             <div style="display:flex;align-items:center;gap:6px;width:100%">
               <input type="text" class="stack-tool-picker" ${atMax ? 'disabled' : ''}
-                     placeholder="${atMax ? 'Max 3 tools' : 'Search tools to add...'}"
+                     placeholder="${atMax ? 'Max 3 small tools' : 'Search tools to add...'}"
                      oninput="filterStackPicker(this, '${name}')"
                      onfocus="filterStackPicker(this, '${name}')">
               <span class="stack-count ${atMax ? 'at-max' : ''}">${toolCount}/3</span>

@@ -376,13 +376,26 @@ def _create_tool_button(slot):
             btn.Image = icon
 
         # Bind click to PostCommand (or URL handler for custom URL tools)
+        is_url = command_id.startswith('URL:') if command_id else False
         if command_id:
-            if command_id.startswith('URL:'):
+            if is_url:
                 handler = _make_url_handler(command_id[4:])
             else:
                 handler = _make_command_handler(command_id)
             if handler:
                 btn.CommandHandler = handler
+
+        # Style URL tools with underline and link color
+        if is_url:
+            btn.Text = u'\u0332'.join(display_name) + u'\u0332'
+            try:
+                import clr
+                clr.AddReference('PresentationCore')
+                from System.Windows.Media import SolidColorBrush, Color
+                link_blue = Color.FromRgb(79, 142, 247)
+                btn.Foreground = SolidColorBrush(link_blue)
+            except Exception:
+                pass
 
         log.debug('Created tool button: %s -> %s', display_name, command_id)
         return btn
@@ -408,7 +421,7 @@ def _create_stack_buttons(stack_name, stack_def):
             command_id = tool.get('commandId', '')
 
             btn = RibbonButton()
-            btn.Text = tool_name
+            btn.Text = tool_name + ' '
             btn.Id = 'REST_StackBtn_' + full_name.replace(' ', '_')
             btn.ShowText = True
             btn.ShowImage = False
@@ -427,13 +440,25 @@ def _create_stack_buttons(stack_name, stack_def):
             except Exception:
                 pass
 
+            is_url = command_id.startswith('URL:') if command_id else False
             if command_id:
-                if command_id.startswith('URL:'):
+                if is_url:
                     handler = _make_url_handler(command_id[4:])
                 else:
                     handler = _make_command_handler(command_id)
                 if handler:
                     btn.CommandHandler = handler
+
+            # Style URL tools with underline and link color
+            if is_url:
+                btn.Text = u'\u0332'.join(tool_name + ' ') + u'\u0332'
+                try:
+                    import clr
+                    clr.AddReference('PresentationCore')
+                    from System.Windows.Media import SolidColorBrush, Color
+                    btn.Foreground = SolidColorBrush(Color.FromRgb(79, 142, 247))
+                except Exception:
+                    pass
 
             buttons.append(btn)
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
