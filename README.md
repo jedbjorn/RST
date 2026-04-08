@@ -2,7 +2,7 @@
 
 Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curated toolbar profiles from any installed Revit tool or add-in. Users load profiles to get a clean, purpose-built ribbon — no digging through tabs. Supports custom URL buttons, company branding, colored panels with rounded corners, opacity control, tool stacks, and one-click updates.
 
-> **DISCLAIMER: THIS IS AN ALPHA RELEASE. USE AT YOUR OWN RISK.**
+> **v0.5.0-beta** — functional but still in active development. Use at your own risk.
 
 ---
 
