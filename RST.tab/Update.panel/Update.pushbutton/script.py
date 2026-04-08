@@ -72,7 +72,7 @@ if not pulled:
         # 1. Preserve user data
         _preserve = ['app/active_profile.json', 'app/profiles', 'rst.log',
                       'icons/branding.png', 'lookup/config.json',
-                      'app/custom_tools.json']
+                      'app/custom_tools.json', 'app/panel_colors.json']
         preserve_dir = os.path.join(staging_dir, 'preserve')
         for rel in _preserve:
             src = os.path.join(_root, rel)

@@ -729,8 +729,9 @@
     transition: all 0.15s;
     flex-shrink: 0;
   }
-  .hex-apply:hover { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.08); }
-  .hex-save:hover  { border-color: var(--accent);  color: var(--accent);  background: rgba(79,142,247,0.08); }
+  .hex-apply:hover   { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .hex-reset:hover   { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.08); }
+  .hex-save:hover    { border-color: var(--accent);  color: var(--accent);  background: rgba(79,142,247,0.08); }
 
   /* Editor split */
   .editor-body { flex: 1; display: flex; overflow: hidden; }
@@ -1353,22 +1354,21 @@
           <div class="fp-color">
             <div class="f-label" style="margin-bottom:8px">Panel Color</div>
             <div class="swatch-row" id="swatchRow">
-              <div class="swatch on" style="background:#4f8ef7" onclick="pickColor(this,'#4f8ef7')"></div>
-              <div class="swatch" style="background:#10b981" onclick="pickColor(this,'#10b981')"></div>
-              <div class="swatch" style="background:#a78bfa" onclick="pickColor(this,'#a78bfa')"></div>
-              <div class="swatch" style="background:#f59e0b" onclick="pickColor(this,'#f59e0b')"></div>
-              <div class="swatch" style="background:#ef4444" onclick="pickColor(this,'#ef4444')"></div>
-              <div class="swatch" style="background:#06b6d4" onclick="pickColor(this,'#06b6d4')"></div>
-              <div class="swatch" style="background:#f97316" onclick="pickColor(this,'#f97316')"></div>
-              <div class="swatch" style="background:#84cc16" onclick="pickColor(this,'#84cc16')"></div>
+              <!-- swatches populated from panel_colors.json -->
               <!-- hex inline -->
               <div class="hex-inline">
                 <span class="hex-hash">hex:</span>
                 <input class="hex-input-inline" id="hexInput" type="text" maxlength="6" placeholder="4f8ef7"
                   onkeydown="handleHexKey(event)" oninput="this.classList.remove('err')">
-                <button class="hex-action-btn hex-apply" title="Apply to panel">✓</button>
-                <button class="hex-action-btn hex-save"  title="Save as favorite">+</button>
+                <button class="hex-action-btn hex-apply" title="Apply to selected swatch">✓</button>
+                <button class="hex-action-btn hex-reset" title="Restore default color">✕</button>
+                <button class="hex-action-btn hex-save"  title="Add as new swatch">+</button>
               </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;">
+              <span style="font-size:11px;flex-shrink:0">🎨</span>
+              <a href="https://imagecolorpicker.com/" target="_blank" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">imagecolorpicker.com</a>
+              <button onclick="navigator.clipboard.writeText('https://imagecolorpicker.com/');this.textContent='copied';setTimeout(()=>this.textContent='copy',1500)" style="margin-left:auto;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:3px;padding:1px 6px;cursor:pointer;flex-shrink:0;transition:all 0.15s" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">copy</button>
             </div>
             <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
               <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);flex-shrink:0">Opacity</span>
@@ -1513,6 +1513,8 @@
     allTools: [],
     currentPanel:   null,
     profileList: [],       // list of profile name strings from get_profiles()
+    panelColors: [],       // [{hex, name}] loaded from panel_colors.json
+    selectedSwatchIdx: 0,  // index of the currently selected swatch
   };
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
@@ -2062,7 +2064,7 @@
     let idx = Object.keys(state.panels).length + 1;
     let name = 'Panel ' + idx;
     while (state.panels[name]) { idx++; name = 'Panel ' + idx; }
-    const color = '#4f8ef7';
+    const color = (state.panelColors.length > 0) ? state.panelColors[0].hex : '#4f8ef7';
     state.panels[name] = { color: color, active: true, slots: [] };
     selectPanel(name, color);
     renderAll();
@@ -2153,8 +2155,12 @@
     document.getElementById('mockTitle').textContent = name;
     applyColorToMock(color);
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
-    const match = [...document.querySelectorAll('.swatch:not(.custom)')].find(s => rgbToHex(s.style.background) === color);
-    if (match) match.classList.add('on');
+    const matchIdx = state.panelColors.findIndex(function(c) { return c.hex.toLowerCase() === color.toLowerCase(); });
+    if (matchIdx >= 0) {
+      state.selectedSwatchIdx = matchIdx;
+      const swatches = document.querySelectorAll('#swatchRow .swatch');
+      if (swatches[matchIdx]) swatches[matchIdx].classList.add('on');
+    }
     renderPanelList();
     renderStackList();
     renderPanelSlotList();
@@ -2168,10 +2174,34 @@
   }
 
   // ── COLOR PICKING ──────────────────────────────────────────────────────────
-  function pickColor(el, color) {
+  function renderSwatches() {
+    const row = document.getElementById('swatchRow');
+    const hexInline = row.querySelector('.hex-inline');
+    // Remove existing swatches (keep hex-inline)
+    [...row.querySelectorAll('.swatch')].forEach(s => s.remove());
+    state.panelColors.forEach(function(c, i) {
+      const el = document.createElement('div');
+      el.className = 'swatch' + (i === state.selectedSwatchIdx ? ' on' : '');
+      el.style.background = c.hex;
+      el.title = c.name;
+      el.addEventListener('click', function() { pickColor(i); });
+      row.insertBefore(el, hexInline);
+    });
+  }
+
+  function persistColors() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_panel_colors) {
+      window.pywebview.api.save_panel_colors(JSON.stringify(state.panelColors)).catch(function() {});
+    }
+  }
+
+  function pickColor(idx) {
     if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    state.selectedSwatchIdx = idx;
+    const color = state.panelColors[idx].hex;
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
-    el.classList.add('on');
+    const swatches = document.querySelectorAll('#swatchRow .swatch');
+    if (swatches[idx]) swatches[idx].classList.add('on');
     state.panels[state.currentPanel].color = color;
     applyColorToMock(color);
     renderMockPreview();
@@ -2191,7 +2221,12 @@
     if (!state.currentPanel) return;
     const color = validateHex();
     if (!color) return;
-    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+    // Update the currently selected swatch's color in config
+    if (state.selectedSwatchIdx >= 0 && state.selectedSwatchIdx < state.panelColors.length) {
+      state.panelColors[state.selectedSwatchIdx].hex = color;
+      persistColors();
+      renderSwatches();
+    }
     state.panels[state.currentPanel].color = color;
     applyColorToMock(color);
     renderMockPreview();
@@ -2200,21 +2235,57 @@
     document.getElementById('hexInput').value = '';
   }
 
+  var DEFAULT_PANEL_COLORS = [
+    { hex: '#4f8ef7', name: 'Blue' },  { hex: '#10b981', name: 'Green' },
+    { hex: '#a78bfa', name: 'Purple' }, { hex: '#f59e0b', name: 'Amber' },
+    { hex: '#ef4444', name: 'Red' },    { hex: '#06b6d4', name: 'Cyan' },
+    { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' }
+  ];
+
+  function resetSwatch() {
+    var idx = state.selectedSwatchIdx;
+    if (idx < 0 || idx >= state.panelColors.length) return;
+    if (idx < DEFAULT_PANEL_COLORS.length) {
+      // Restore to factory default
+      state.panelColors[idx].hex = DEFAULT_PANEL_COLORS[idx].hex;
+      state.panelColors[idx].name = DEFAULT_PANEL_COLORS[idx].name;
+    } else {
+      // Remove custom swatch
+      state.panelColors.splice(idx, 1);
+      state.selectedSwatchIdx = Math.min(idx, state.panelColors.length - 1);
+    }
+    persistColors();
+    renderSwatches();
+    // Apply restored color to current panel
+    if (state.currentPanel && state.panels[state.currentPanel]) {
+      var color = state.panelColors[state.selectedSwatchIdx].hex;
+      state.panels[state.currentPanel].color = color;
+      applyColorToMock(color);
+      renderMockPreview();
+      renderTabCanvas();
+      renderPanelList();
+    }
+    document.getElementById('hexInput').value = '';
+  }
+
   function saveHexFavorite() {
     if (!state.currentPanel) return;
     const color = validateHex();
     if (!color) return;
-    const row = document.getElementById('swatchRow');
-    const exists = [...row.querySelectorAll('.swatch')].some(s => rgbToHex(s.style.background) === color);
-    if (exists) { applyHex(); return; }
-    const hexInline = row.querySelector('.hex-inline');
-    const el = document.createElement('div');
-    el.className = 'swatch';
-    el.style.background = color;
-    el.addEventListener('click', () => pickColor(el, color));
-    row.insertBefore(el, hexInline);
-    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
-    el.classList.add('on');
+    // Check if color already exists
+    const existingIdx = state.panelColors.findIndex(function(c) { return c.hex.toLowerCase() === color.toLowerCase(); });
+    if (existingIdx >= 0) {
+      state.selectedSwatchIdx = existingIdx;
+      pickColor(existingIdx);
+      document.getElementById('hexInput').value = '';
+      return;
+    }
+    // Add new swatch
+    const newIdx = state.panelColors.length;
+    state.panelColors.push({ hex: color, name: 'Custom ' + (newIdx + 1) });
+    state.selectedSwatchIdx = newIdx;
+    persistColors();
+    renderSwatches();
     state.panels[state.currentPanel].color = color;
     applyColorToMock(color);
     renderMockPreview();
@@ -3126,15 +3197,39 @@
       }
     } catch(e) { /* ignore */ }
 
+    try {
+      // Load panel color swatches from config
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_panel_colors) {
+        const colors = await window.pywebview.api.get_panel_colors();
+        if (Array.isArray(colors) && colors.length > 0) {
+          state.panelColors = colors;
+          state.selectedSwatchIdx = 0;
+          renderSwatches();
+        }
+      }
+    } catch(e) { /* ignore */ }
+
   });
 
   // ── INIT ──────────────────────────────────────────────────────────────────
   // Wire hex action buttons
   var hexApplyBtn = document.querySelector('.hex-apply');
   if (hexApplyBtn) hexApplyBtn.addEventListener('click', applyHex);
+  var hexResetBtn = document.querySelector('.hex-reset');
+  if (hexResetBtn) hexResetBtn.addEventListener('click', resetSwatch);
   var hexSaveBtn = document.querySelector('.hex-save');
   if (hexSaveBtn) hexSaveBtn.addEventListener('click', saveHexFavorite);
 
+  // Fallback defaults if pywebview hasn't loaded colors yet
+  if (state.panelColors.length === 0) {
+    state.panelColors = [
+      { hex: '#4f8ef7', name: 'Blue' },  { hex: '#10b981', name: 'Green' },
+      { hex: '#a78bfa', name: 'Purple' }, { hex: '#f59e0b', name: 'Amber' },
+      { hex: '#ef4444', name: 'Red' },    { hex: '#06b6d4', name: 'Cyan' },
+      { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' }
+    ];
+  }
+  renderSwatches();
   renderAll();
 
   // Initialize profile dropdown with empty state (pywebviewready will populate)

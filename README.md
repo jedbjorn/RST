@@ -233,10 +233,16 @@ Every profile tab includes a branding panel (always leftmost) with a logo.
 
 ## Panel Styling
 
-- **Colors** — custom hex color per panel with opacity control (10%–100%)
+- **Colors** — 8 preset swatches (Blue, Green, Purple, Amber, Red, Cyan, Orange, Lime) plus custom hex input
+- **Persistent color config** — swatch colors are stored in `app/panel_colors.json` and persist across sessions. Enter a hex code and click **✓** to update the selected swatch, **✕** to restore its default, or **+** to add a new swatch.
+- **Opacity** — per-profile opacity slider (10%–100%) applied to all panel backgrounds
 - **Rounded corners** — WPF DrawingBrush with RectangleGeometry
 - **RST admin panels** — light grey rounded backgrounds, applied after pyRevit finishes loading
 - **Two-line names** — tool names with spaces split at the first space
+
+### Finding Colors
+
+Need hex codes for your brand colors? The Profiler includes a link to [imagecolorpicker.com](https://imagecolorpicker.com/) — a free web tool that lets you upload an image (logo, brand guide, screenshot) and click any pixel to get the hex code. Useful for pulling exact colors from company branding or matching existing UI themes.
 
 ---
 

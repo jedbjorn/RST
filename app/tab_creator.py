@@ -22,6 +22,7 @@ _icons_dir = os.path.join(_root, 'icons')
 _revit_data_path = os.path.join(_root, 'app', '_revit_data.json')
 _addin_lookup_path = os.path.join(_root, 'lookup', 'addin_lookup.json')
 _custom_tools_path = os.path.join(_root, 'app', 'custom_tools.json')
+_panel_colors_path = os.path.join(_root, 'app', 'panel_colors.json')
 
 os.makedirs(_profiles_dir, exist_ok=True)
 os.makedirs(_icons_dir, exist_ok=True)
@@ -156,6 +157,25 @@ class TabCreatorAPI:
             return {'ok': True}
         except Exception as e:
             log.error('Failed to save custom tools: %s', e)
+            return {'ok': False, 'error': str(e)}
+
+    def get_panel_colors(self):
+        try:
+            with open(_panel_colors_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            log.error('Failed to load panel_colors.json: %s', e)
+            return []
+
+    def save_panel_colors(self, json_str):
+        try:
+            colors = json.loads(json_str)
+            with open(_panel_colors_path, 'w', encoding='utf-8') as f:
+                json.dump(colors, f, indent=2)
+            log.info('Saved %d panel colors', len(colors))
+            return {'ok': True}
+        except Exception as e:
+            log.error('Failed to save panel colors: %s', e)
             return {'ok': False, 'error': str(e)}
 
     def save_export(self, json_str):
