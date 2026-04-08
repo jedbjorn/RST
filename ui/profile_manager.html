@@ -682,7 +682,8 @@
   .f-input:focus { border-color: var(--accent); }
 
   /* Color swatches */
-  .swatch-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .swatch-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; max-width: 240px; }
+  .swatch-row .hex-inline { flex-basis: 100%; margin-top: 2px; }
 
   .swatch {
     width: 22px; height: 22px;
@@ -693,6 +694,8 @@
     flex-shrink: 0;
   }
   .swatch:hover, .swatch.on { border-color: white; transform: scale(1.1); box-shadow: 0 0 0 1px rgba(255,255,255,0.2); }
+  .swatch.blank { background: transparent !important; border: 2px dashed var(--border); }
+  .swatch.blank:hover, .swatch.blank.on { border-color: var(--text3); border-style: dashed; }
 
   .hex-inline {
     display: flex; align-items: center; gap: 3px;
@@ -2179,9 +2182,10 @@
     [...row.querySelectorAll('.swatch')].forEach(s => s.remove());
     state.panelColors.forEach(function(c, i) {
       const el = document.createElement('div');
-      el.className = 'swatch' + (i === state.selectedSwatchIdx ? ' on' : '');
-      el.style.background = c.hex;
-      el.title = c.name;
+      const isBlank = !c.hex;
+      el.className = 'swatch' + (i === state.selectedSwatchIdx ? ' on' : '') + (isBlank ? ' blank' : '');
+      if (!isBlank) el.style.background = c.hex;
+      el.title = isBlank ? c.name + ' (empty)' : c.name;
       el.addEventListener('click', function() { pickColor(i); });
       row.insertBefore(el, hexInline);
     });
@@ -2205,11 +2209,15 @@
       return;
     }
     state.selectedSwatchIdx = idx;
-    const color = state.panelColors[idx].hex;
-    console.log('[pickColor] applying color=' + color + ' to panel=' + state.currentPanel);
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
     const swatches = document.querySelectorAll('#swatchRow .swatch');
     if (swatches[idx]) swatches[idx].classList.add('on');
+    const color = state.panelColors[idx].hex;
+    if (!color) {
+      console.log('[pickColor] blank swatch selected — waiting for hex input');
+      return;
+    }
+    console.log('[pickColor] applying color=' + color + ' to panel=' + state.currentPanel);
     state.panels[state.currentPanel].color = color;
     applyColorToMock(color);
     renderMockPreview();
@@ -2235,7 +2243,11 @@
     { hex: '#4f8ef7', name: 'Blue' },  { hex: '#10b981', name: 'Green' },
     { hex: '#a78bfa', name: 'Purple' }, { hex: '#f59e0b', name: 'Amber' },
     { hex: '#ef4444', name: 'Red' },    { hex: '#06b6d4', name: 'Cyan' },
-    { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' }
+    { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' },
+    { hex: '', name: 'Custom 1' }, { hex: '', name: 'Custom 2' },
+    { hex: '', name: 'Custom 3' }, { hex: '', name: 'Custom 4' },
+    { hex: '', name: 'Custom 5' }, { hex: '', name: 'Custom 6' },
+    { hex: '', name: 'Custom 7' }, { hex: '', name: 'Custom 8' }
   ];
 
   function resetSwatch() {
@@ -2245,15 +2257,9 @@
       console.warn('[resetSwatch] BLOCKED — invalid idx=' + idx);
       return;
     }
-    if (idx < DEFAULT_PANEL_COLORS.length) {
-      // Restore to factory default
-      state.panelColors[idx].hex = DEFAULT_PANEL_COLORS[idx].hex;
-      state.panelColors[idx].name = DEFAULT_PANEL_COLORS[idx].name;
-    } else {
-      // Remove custom swatch
-      state.panelColors.splice(idx, 1);
-      state.selectedSwatchIdx = Math.min(idx, state.panelColors.length - 1);
-    }
+    // Restore to factory default (built-in color or blank for custom slots)
+    state.panelColors[idx].hex = DEFAULT_PANEL_COLORS[idx].hex;
+    state.panelColors[idx].name = DEFAULT_PANEL_COLORS[idx].name;
     persistColors();
     renderSwatches();
     // Apply restored color to current panel
@@ -3200,6 +3206,10 @@
       if (window.pywebview && window.pywebview.api && window.pywebview.api.get_panel_colors) {
         const colors = await window.pywebview.api.get_panel_colors();
         if (Array.isArray(colors) && colors.length > 0) {
+          // Pad to 16 if user has old 8-color config
+          while (colors.length < 16) {
+            colors.push({ hex: '', name: 'Custom ' + (colors.length - 7) });
+          }
           state.panelColors = colors;
           state.selectedSwatchIdx = 0;
           renderSwatches();
@@ -3218,12 +3228,7 @@
 
   // Fallback defaults if pywebview hasn't loaded colors yet
   if (state.panelColors.length === 0) {
-    state.panelColors = [
-      { hex: '#4f8ef7', name: 'Blue' },  { hex: '#10b981', name: 'Green' },
-      { hex: '#a78bfa', name: 'Purple' }, { hex: '#f59e0b', name: 'Amber' },
-      { hex: '#ef4444', name: 'Red' },    { hex: '#06b6d4', name: 'Cyan' },
-      { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' }
-    ];
+    state.panelColors = DEFAULT_PANEL_COLORS.map(function(c) { return { hex: c.hex, name: c.name }; });
   }
   renderSwatches();
   renderAll();
