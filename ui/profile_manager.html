@@ -2188,15 +2188,25 @@
   }
 
   function persistColors() {
+    console.log('[persistColors] saving ' + state.panelColors.length + ' colors', JSON.stringify(state.panelColors));
     if (window.pywebview && window.pywebview.api && window.pywebview.api.save_panel_colors) {
-      window.pywebview.api.save_panel_colors(JSON.stringify(state.panelColors)).catch(function() {});
+      window.pywebview.api.save_panel_colors(JSON.stringify(state.panelColors)).catch(function(err) {
+        console.error('[persistColors] save failed:', err);
+      });
+    } else {
+      console.warn('[persistColors] pywebview API not available');
     }
   }
 
   function pickColor(idx) {
-    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    console.log('[pickColor] idx=' + idx + ', currentPanel=' + state.currentPanel);
+    if (!state.currentPanel || !state.panels[state.currentPanel]) {
+      console.warn('[pickColor] BLOCKED — no panel selected');
+      return;
+    }
     state.selectedSwatchIdx = idx;
     const color = state.panelColors[idx].hex;
+    console.log('[pickColor] applying color=' + color + ' to panel=' + state.currentPanel);
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
     const swatches = document.querySelectorAll('#swatchRow .swatch');
     if (swatches[idx]) swatches[idx].classList.add('on');
@@ -2210,8 +2220,14 @@
   function validateHex() {
     const input = document.getElementById('hexInput');
     const raw   = input.value.replace('#','').trim();
-    if (!/^[0-9a-fA-F]{6}$/.test(raw)) { input.classList.add('err'); return null; }
+    console.log('[validateHex] raw="' + raw + '" (length=' + raw.length + ')');
+    if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+      console.warn('[validateHex] FAILED — not a valid 6-char hex');
+      input.classList.add('err');
+      return null;
+    }
     input.classList.remove('err');
+    console.log('[validateHex] OK → #' + raw);
     return '#' + raw;
   }
 
@@ -2223,8 +2239,12 @@
   ];
 
   function resetSwatch() {
+    console.log('[resetSwatch] called, selectedSwatchIdx=' + state.selectedSwatchIdx);
     var idx = state.selectedSwatchIdx;
-    if (idx < 0 || idx >= state.panelColors.length) return;
+    if (idx < 0 || idx >= state.panelColors.length) {
+      console.warn('[resetSwatch] BLOCKED — invalid idx=' + idx);
+      return;
+    }
     if (idx < DEFAULT_PANEL_COLORS.length) {
       // Restore to factory default
       state.panelColors[idx].hex = DEFAULT_PANEL_COLORS[idx].hex;
@@ -2249,12 +2269,17 @@
   }
 
   function saveHexFavorite() {
-    if (!state.currentPanel) return;
+    console.log('[saveHexFavorite] called, currentPanel=' + state.currentPanel);
+    if (!state.currentPanel) {
+      console.warn('[saveHexFavorite] BLOCKED — no panel selected');
+      return;
+    }
     const color = validateHex();
     if (!color) return;
     // Check if color already exists
     const existingIdx = state.panelColors.findIndex(function(c) { return c.hex.toLowerCase() === color.toLowerCase(); });
     if (existingIdx >= 0) {
+      console.log('[saveHexFavorite] color exists at idx=' + existingIdx + ', selecting it');
       state.selectedSwatchIdx = existingIdx;
       pickColor(existingIdx);
       document.getElementById('hexInput').value = '';
@@ -2262,6 +2287,7 @@
     }
     // Add new swatch
     const newIdx = state.panelColors.length;
+    console.log('[saveHexFavorite] adding new swatch at idx=' + newIdx + ' color=' + color);
     state.panelColors.push({ hex: color, name: 'Custom ' + (newIdx + 1) });
     state.selectedSwatchIdx = newIdx;
     persistColors();
@@ -2276,6 +2302,7 @@
 
 
   function handleHexKey(e) {
+    console.log('[handleHexKey] key=' + e.key);
     if (e.key === 'Enter') saveHexFavorite();
     if (e.key === 'Escape') {
       document.getElementById('hexInput').value = '';
