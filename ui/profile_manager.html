@@ -2268,30 +2268,21 @@
     document.getElementById('hexInput').value = '';
   }
 
-  function saveHexFavorite() {
-    console.log('[saveHexFavorite] called, currentPanel=' + state.currentPanel);
+  function applyHex() {
+    console.log('[applyHex] called, currentPanel=' + state.currentPanel + ', selectedSwatchIdx=' + state.selectedSwatchIdx);
     if (!state.currentPanel) {
-      console.warn('[saveHexFavorite] BLOCKED — no panel selected');
+      console.warn('[applyHex] BLOCKED — no panel selected');
       return;
     }
     const color = validateHex();
     if (!color) return;
-    // Check if color already exists
-    const existingIdx = state.panelColors.findIndex(function(c) { return c.hex.toLowerCase() === color.toLowerCase(); });
-    if (existingIdx >= 0) {
-      console.log('[saveHexFavorite] color exists at idx=' + existingIdx + ', selecting it');
-      state.selectedSwatchIdx = existingIdx;
-      pickColor(existingIdx);
-      document.getElementById('hexInput').value = '';
-      return;
+    // Replace the selected swatch's color
+    if (state.selectedSwatchIdx >= 0 && state.selectedSwatchIdx < state.panelColors.length) {
+      console.log('[applyHex] replacing swatch ' + state.selectedSwatchIdx + ' with ' + color);
+      state.panelColors[state.selectedSwatchIdx].hex = color;
+      persistColors();
+      renderSwatches();
     }
-    // Add new swatch
-    const newIdx = state.panelColors.length;
-    console.log('[saveHexFavorite] adding new swatch at idx=' + newIdx + ' color=' + color);
-    state.panelColors.push({ hex: color, name: 'Custom ' + (newIdx + 1) });
-    state.selectedSwatchIdx = newIdx;
-    persistColors();
-    renderSwatches();
     state.panels[state.currentPanel].color = color;
     applyColorToMock(color);
     renderMockPreview();
@@ -2303,7 +2294,7 @@
 
   function handleHexKey(e) {
     console.log('[handleHexKey] key=' + e.key);
-    if (e.key === 'Enter') saveHexFavorite();
+    if (e.key === 'Enter') applyHex();
     if (e.key === 'Escape') {
       document.getElementById('hexInput').value = '';
       document.getElementById('hexInput').classList.remove('err');
@@ -3221,7 +3212,7 @@
   // ── INIT ──────────────────────────────────────────────────────────────────
   // Wire hex action buttons
   var hexApplyBtn = document.querySelector('.hex-apply');
-  if (hexApplyBtn) hexApplyBtn.addEventListener('click', saveHexFavorite);
+  if (hexApplyBtn) hexApplyBtn.addEventListener('click', applyHex);
   var hexResetBtn = document.querySelector('.hex-reset');
   if (hexResetBtn) hexResetBtn.addEventListener('click', resetSwatch);
 
