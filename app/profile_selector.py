@@ -185,28 +185,27 @@ class ProfileSelectorAPI:
 
         staying = []
         disabling = []
+        skipped = []
 
         for name, info in config.get('addins', {}).items():
             if not info.get('enabled', True):
                 continue  # already disabled, skip
-            if info.get('elevated', False):
-                continue  # machine-scope, can't touch
-            if info.get('scope') != 'user':
-                continue  # only user-scope add-ins
 
             addin_file = (info.get('addinFile') or '').lower()
-
             tab_name = info.get('tabName', '')
-
             is_required = tab_name in required or name in required
             is_protected = info.get('protected', False) or addin_file in set(p.lower() for p in PROTECTED_ADDINS)
 
             if is_required or is_protected:
                 staying.append(info)
+            elif info.get('elevated', False) or info.get('scope') != 'user':
+                entry = dict(info)
+                entry['skipReason'] = 'Installed in a protected system directory (requires manual removal)'
+                skipped.append(entry)
             else:
                 disabling.append(info)
 
-        return {'staying': staying, 'disabling': disabling}
+        return {'staying': staying, 'disabling': disabling, 'skipped': skipped}
 
     def restore_addins(self):
         """Restore all disabled add-ins and update user config."""
