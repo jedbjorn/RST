@@ -930,7 +930,7 @@
   // ── HELPERS ───────────────────────────────────────────────────────────────────
 
   // Normalize requiredAddins — handles both old format (string[]) and new format (object[])
-  // Always returns [{tabName, addinFile, url}]
+  // Always returns [{tabName, addinFile, url, native?}]
   function normalizeRequiredAddins(profile) {
     var raw = profile.requiredAddins || [];
     return raw.map(function(entry) {
@@ -939,8 +939,10 @@
         var lookup = ADDIN_LOOKUP[entry] || {};
         return { tabName: entry, addinFile: lookup.file || null, url: lookup.url || '' };
       }
-      // New format: already an object
-      return { tabName: entry.tabName || '', addinFile: entry.addinFile || null, url: entry.url || '' };
+      // New format: already an object — preserve native flag
+      var result = { tabName: entry.tabName || '', addinFile: entry.addinFile || null, url: entry.url || '' };
+      if (entry.native) result.native = true;
+      return result;
     });
   }
 
@@ -1160,9 +1162,9 @@
         <div class="detail-section-label">Required Add-ins for this profile</div>
         ${normalizedAddins.map(addin => {
           const tabName = addin.tabName;
-          const native = isNativeTab(tabName);
+          const native = isNativeTab(tabName) || addin.native === true;
           const known = ADDIN_LOOKUP[tabName];
-          const loaded = isAddinLoaded(tabName);
+          const loaded = !native && isAddinLoaded(tabName);
           const matchedName = !native && loaded ? getLoadedAddinName(tabName) : '';
           const fileCol     = native ? 'Revit Built-in'
             : addin.addinFile ? escHtml(addin.addinFile)
@@ -1177,7 +1179,7 @@
           if (native) {
             statusCls = 'present';
             statusLabel = 'Native';
-            statusTitle = 'Built-in Revit tab \u2014 always available';
+            statusTitle = 'Built-in Revit feature \u2014 always available';
           } else if (loaded) {
             statusCls = 'present';
             statusLabel = 'Loaded';
@@ -1253,7 +1255,7 @@
   function getDisabledAddins(profile) {
     // Required add-ins that are on disk but disabled (.addin.RSTdisabled)
     return normalizeRequiredAddins(profile).filter(function(addin) {
-      if (isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
+      if (addin.native || isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
       var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[addin.tabName] : null;
       return configEntry && configEntry.enabled === false;
     });
@@ -1262,7 +1264,7 @@
   function getTrulyMissingAddins(profile) {
     // Required add-ins that are not installed at all (not on disk, not disabled)
     return normalizeRequiredAddins(profile).filter(function(addin) {
-      if (isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
+      if (addin.native || isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
       var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[addin.tabName] : null;
       // If tracked in config at all (enabled or disabled), it's on disk — not truly missing
       if (configEntry) return false;

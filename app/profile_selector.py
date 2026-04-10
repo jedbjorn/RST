@@ -347,11 +347,19 @@ class ProfileSelectorAPI:
             warnings.append('No Revit version available - add-in toggling skipped')
         else:
             # Check required addins against loaded session data
-            required = _get_required_tab_names(profile_data)
+            required = profile_data.get('requiredAddins', [])
             if required and self._loaded_addins:
                 loaded_names = [a.get('name', '').lower() for a in self._loaded_addins]
                 lookup = load_addin_lookup()
-                for tab_name in required:
+                for entry in required:
+                    if isinstance(entry, dict):
+                        tab_name = entry.get('tabName', '')
+                        if not tab_name or entry.get('native'):
+                            continue
+                    elif isinstance(entry, str):
+                        tab_name = entry
+                    else:
+                        continue
                     if tab_name in BUILTIN_TABS:
                         continue
                     tab_lower = tab_name.lower()

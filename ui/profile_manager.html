@@ -1680,40 +1680,43 @@
   // No manual entry — auto-populated from recording, "Unknown" if detection failed.
   function getDetectedAddins() {
     const tabs = new Set();
+    const nativePanels = new Set();
+
+    function classifyTool(tool) {
+      if (!tool?.sourceTab || tool.sourceTab === 'Custom' || tool.sourceTab.startsWith('CustomCtrl_')) return;
+      if (BUILTIN_TABS.has(tool.sourceTab)) {
+        // Tool lives on a built-in tab — check if the panel is a known add-in
+        if (tool.sourcePanel && !BUILTIN_TABS.has(tool.sourcePanel)) {
+          if (ADDIN_LOOKUP[tool.sourcePanel] || RESOLVED_ADDINS[tool.sourcePanel]) {
+            tabs.add(tool.sourcePanel);
+          } else {
+            nativePanels.add(tool.sourcePanel);
+          }
+        }
+      } else {
+        tabs.add(tool.sourceTab);
+      }
+    }
+
     Object.entries(state.panels)
       .filter(([, p]) => p.active !== false)
       .forEach(([, panel]) => {
         panel.slots.forEach(slot => {
           if (slot.type === 'tool') {
-            const tool = state.allTools.find(t => t.name === slot.name);
-            if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) {
-              if (BUILTIN_TABS.has(tool.sourceTab)) {
-                // Tool lives on a built-in tab — use panel name as the add-in identity
-                if (tool.sourcePanel && !BUILTIN_TABS.has(tool.sourcePanel)) tabs.add(tool.sourcePanel);
-              } else {
-                tabs.add(tool.sourceTab);
-              }
-            }
+            classifyTool(state.allTools.find(t => t.name === slot.name));
           } else if (slot.type === 'stack') {
             const stack = state.stacks[slot.name];
             if (stack) {
               stack.tools.forEach(toolName => {
-                const tool = state.allTools.find(t => t.name === toolName);
-                if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) {
-                  if (BUILTIN_TABS.has(tool.sourceTab)) {
-                    if (tool.sourcePanel && !BUILTIN_TABS.has(tool.sourcePanel)) tabs.add(tool.sourcePanel);
-                  } else {
-                    tabs.add(tool.sourceTab);
-                  }
-                }
+                classifyTool(state.allTools.find(t => t.name === toolName));
               });
             }
           }
         });
       });
 
-    // Return enriched objects using resolved assembly data
-    return [...tabs].map(tabName => {
+    // Return enriched objects — third-party add-ins with resolved data, native panels tagged
+    const addinEntries = [...tabs].map(tabName => {
       const resolved = RESOLVED_ADDINS[tabName] || {};
       const lookup = ADDIN_LOOKUP[tabName] || {};
       return {
@@ -1722,6 +1725,13 @@
         url: resolved.url || lookup.url || '',
       };
     });
+    const nativeEntries = [...nativePanels].map(panelName => ({
+      tabName: panelName,
+      addinFile: null,
+      url: '',
+      native: true,
+    }));
+    return addinEntries.concat(nativeEntries);
   }
 
   function dismissDisabledBanner() {
@@ -1736,7 +1746,7 @@
     } else {
       display.innerHTML = addins.map(addin => {
         const name      = addin.tabName;
-        const native    = isNativeTab(name);
+        const native    = isNativeTab(name) || addin.native === true;
         const known     = ADDIN_LOOKUP[name];
         const loaded    = isAddinLoaded(name);
         const resolved  = addin.addinFile != null;
