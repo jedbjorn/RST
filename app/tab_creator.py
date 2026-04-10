@@ -25,7 +25,6 @@ from addin_scanner import (
     resolve_tab_to_addin, restore_all_addins,
 )
 from user_config import (
-    get_current_username,
     load_user_config,
     save_user_config,
     build_user_config,
@@ -94,7 +93,10 @@ class TabCreatorAPI:
         return addins
 
     def _get_username(self):
-        return _revit_data.get('revit_username') or get_current_username()
+        username = _revit_data.get('revit_username')
+        if not username:
+            log.error('Revit username not available in session data')
+        return username
 
     def get_user_config(self):
         """Return user add-in config. Builds on first call."""
