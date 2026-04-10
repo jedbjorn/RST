@@ -362,7 +362,8 @@ class ProfileSelectorAPI:
                             stem = entry.get('file', '').replace('.addin', '').lower()
                             found = any(stem in n for n in loaded_names)
                     if not found:
-                        warnings.append('Required add-in not loaded: ' + tab_name)
+                        ver = revit_version or 'your version'
+                        warnings.append(tab_name + ' not found. If you experience issues with using tools from this add-in please install for Revit ' + str(ver) + ' and retry.')
 
 
         # Re-enable disabled required add-ins

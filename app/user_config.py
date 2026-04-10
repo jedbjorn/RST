@@ -259,6 +259,11 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
 
+        # Skip panels with no resolved addin file and no lookup entry —
+        # these are native Revit ribbon panels, not third-party add-ins
+        if not addin_file and not lookup_entry:
+            continue
+
         addin_path = None
         enabled = True
         if addin_file:
@@ -439,6 +444,11 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 if panel_lower in fname_lower and fname_lower.endswith('.addin'):
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
+
+        # Skip panels with no resolved addin file and no lookup entry —
+        # these are native Revit ribbon panels, not third-party add-ins
+        if not addin_file and not lookup_entry:
+            continue
 
         addin_path = None
         enabled = True
