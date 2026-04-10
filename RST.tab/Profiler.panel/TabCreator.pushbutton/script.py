@@ -27,8 +27,10 @@ def get_revit_version():
 
 def _scan_items(items, source_tab, source_panel, results, depth=0):
     """Recursively scan ribbon items, descending into containers."""
-    # Item types that are layout containers, not actionable commands
-    _CONTAINER_TYPES = ('Panel', 'Row', 'Stack', 'Slide', 'Popup')
+    # Item type substrings that indicate layout containers, not actionable commands.
+    # Matched with endswith() to avoid false positives on button types.
+    _CONTAINER_SUFFIXES = ('Panel', 'RowPanel', 'FlowPanel', 'StackedPanel',
+                           'SlideOut', 'PopupPanel')
     item_count = 0
     for item in items:
         item_count += 1
@@ -50,7 +52,7 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
             # Skip containers — already recursed into children above
             if 'ListButton' in item_type:
                 continue
-            if any(c in item_type for c in _CONTAINER_TYPES):
+            if any(item_type.endswith(s) for s in _CONTAINER_SUFFIXES):
                 continue
 
             # Try every possible way to get a command identifier
@@ -182,14 +184,16 @@ def get_installed_commands():
         log.error(traceback.format_exc())
 
     # Deduplicate by commandId — same command can appear at multiple
-    # nesting levels (container + child) in the ribbon
-    seen = set()
-    deduped = []
-    for cmd in results:
+    # nesting levels (container + child) in the ribbon.
+    # Keep the LAST occurrence: recursion collects children before parents,
+    # so later entries are closer to the panel surface and more likely to
+    # be the directly-postable button the user sees.
+    seen = {}
+    for idx, cmd in enumerate(results):
         cid = cmd.get('commandId', '')
-        if cid and cid not in seen:
-            seen.add(cid)
-            deduped.append(cmd)
+        if cid:
+            seen[cid] = idx  # last one wins
+    deduped = [results[i] for i in sorted(seen.values())]
 
     log.info('Scan complete: %d commands found (%d after dedup)', len(results), len(deduped))
     return deduped
