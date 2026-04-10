@@ -136,12 +136,20 @@ def _load_active_profile():
 
 
 def _get_icon_path(slot, small=False):
-    """Resolve icon path for a tool slot. small=True returns 16x16 icon."""
+    """Resolve icon path for a tool slot.
+    iconFile stores a stem (e.g. 'MyTool') → looks for MyTool_32.png / MyTool_64.png.
+    Falls back to legacy format (MyTool.png) and then default icon."""
     icon_file = slot.get('iconFile')
     if icon_file:
-        custom_path = os.path.join(ICONS_DIR, icon_file)
-        if os.path.exists(custom_path):
-            return custom_path
+        stem = icon_file.replace('.png', '')  # strip extension if legacy
+        suffix = '_32.png' if small else '_64.png'
+        sized_path = os.path.join(ICONS_DIR, stem + suffix)
+        if os.path.exists(sized_path):
+            return sized_path
+        # Fallback: legacy single-file format
+        legacy_path = os.path.join(ICONS_DIR, stem + '.png')
+        if os.path.exists(legacy_path):
+            return legacy_path
         log.warning('Custom icon not found: %s - using default', icon_file)
     return _default_icon_16 if small else _default_icon_32
 
@@ -441,11 +449,15 @@ def _create_tool_button(slot):
         except Exception:
             pass
 
-        # 32x32 icon
-        icon = _load_icon(_get_icon_path(slot, small=False))
-        if icon:
-            btn.LargeImage = icon
-            btn.Image = icon
+        # Icons: 64px for LargeImage, 32px for Image
+        large_icon = _load_icon(_get_icon_path(slot, small=False))
+        small_icon = _load_icon(_get_icon_path(slot, small=True))
+        if large_icon:
+            btn.LargeImage = large_icon
+        if small_icon:
+            btn.Image = small_icon
+        elif large_icon:
+            btn.Image = large_icon
 
         # Bind click to PostCommand (or URL handler for custom URL tools)
         is_url = command_id.startswith('URL:') if command_id else False

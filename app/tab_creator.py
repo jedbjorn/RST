@@ -234,7 +234,7 @@ class TabCreatorAPI:
 
         result = window.create_file_dialog(
             _OPEN_DIALOG,
-            file_types=('PNG Images (*.png)',)
+            file_types=('Image Files (*.png;*.jpg;*.jpeg)',)
         )
         if not result:
             log.debug('Icon pick cancelled')
@@ -242,19 +242,33 @@ class TabCreatorAPI:
 
         src_path = result[0] if isinstance(result, (list, tuple)) else result
 
-        # Sanitize and handle collisions
-        safe_name = safe_filename(os.path.basename(tool_name))
-        base_name = safe_name + '.png'
-        dest_path = os.path.join(ICONS_DIR, base_name)
-        counter = 1
-        while os.path.exists(dest_path):
-            base_name = '%s(%d).png' % (safe_name, counter)
-            dest_path = os.path.join(ICONS_DIR, base_name)
-            counter += 1
+        # Sanitize stem and handle collisions
+        stem = safe_filename(os.path.basename(tool_name))
+        while os.path.exists(os.path.join(ICONS_DIR, stem + '_64.png')):
+            counter = 1
+            while os.path.exists(os.path.join(ICONS_DIR, '%s(%d)_64.png' % (stem, counter))):
+                counter += 1
+            stem = '%s(%d)' % (stem, counter)
 
-        shutil.copy2(src_path, dest_path)
-        log.info('Icon saved: %s', base_name)
-        return {'ok': True, 'filename': base_name}
+        path_64 = os.path.join(ICONS_DIR, stem + '_64.png')
+        path_32 = os.path.join(ICONS_DIR, stem + '_32.png')
+
+        try:
+            from PIL import Image
+            img = Image.open(src_path).convert('RGBA')
+            img.resize((64, 64), Image.LANCZOS).save(path_64, 'PNG')
+            img.resize((32, 32), Image.LANCZOS).save(path_32, 'PNG')
+            log.info('Icon saved (resized): %s_64.png, %s_32.png', stem, stem)
+        except ImportError:
+            log.warning('PIL not available — saving raw copy as 64px only')
+            shutil.copy2(src_path, path_64)
+            shutil.copy2(src_path, path_32)
+        except Exception as e:
+            log.warning('PIL resize failed — saving raw copy: %s', e)
+            shutil.copy2(src_path, path_64)
+            shutil.copy2(src_path, path_32)
+
+        return {'ok': True, 'filename': stem}
 
     def get_profiles(self):
         profiles = []
