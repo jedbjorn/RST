@@ -1979,6 +1979,9 @@
       const tool = state.allTools.find(t => t.name === name);
       if (!tool) {
         console.warn('[RST] toggleToolInPanel: tool not found in allTools:', JSON.stringify(name));
+        // Find close matches for diagnosis
+        var close = state.allTools.filter(t => t.name.indexOf(name.split(' (')[0]) !== -1).map(t => t.name).slice(0, 3);
+        showToast('Tool not found', 'Name: "' + name.substring(0, 40) + '"' + (close.length ? ' — similar: ' + close.join(', ') : ''));
         return;
       }
       slots.push({ type: 'tool', name: tool.name, baseName: tool.baseName || tool.name, icon: tool.icon, commandId: tool.commandId, sourceTab: tool.sourceTab, sourcePanel: tool.sourcePanel });
