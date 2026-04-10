@@ -1273,14 +1273,9 @@
         RSTmsgInform('Restore Failed', 'Failed to restore add-ins: ' + (result.error || 'Unknown error'));
         return;
       }
-      // Refresh user config cache and re-render badges (don't touch tab toggles)
+      // Refresh user config cache and re-render addin badges only (not tab toggles)
       window.pywebview.api.get_user_config().then(function(cfg) {
         USER_CONFIG = cfg;
-        if (selectedProfile) {
-          var idx = profiles.indexOf(selectedProfile);
-          var cards = document.querySelectorAll('.profile-card');
-          if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
-        }
       });
       RSTmsgInform('Add-ins Restored', 'All add-ins restored. Restart Revit for changes to take effect.');
     }).catch(function(err) {
