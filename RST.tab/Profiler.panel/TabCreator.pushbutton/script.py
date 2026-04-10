@@ -80,19 +80,21 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
             if not cmd_str or 'RibbonListButton' in cmd_str:
                 continue
 
-            # Get display name — items without one are usually non-actionable
+            # Get display name — items without one are usually non-actionable.
+            # Normalize newlines to spaces: Revit uses \n for two-line ribbon
+            # labels (e.g. "Floor\nPlan") which breaks HTML attribute round-trips.
             name = ''
             try:
                 txt = getattr(item, 'Text', None)
                 if txt:
-                    name = str(txt).strip()
+                    name = str(txt).replace('\n', ' ').strip()
             except Exception:
                 pass
             if not name:
                 try:
                     nm = getattr(item, 'Name', None)
                     if nm:
-                        name = str(nm).strip()
+                        name = str(nm).replace('\n', ' ').strip()
                 except Exception:
                     pass
             if not name:
