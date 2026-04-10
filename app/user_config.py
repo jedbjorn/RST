@@ -240,7 +240,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             'url': url,
         }
 
-    # Step 4b: process third-party panels on built-in tabs (e.g. Kinship on Add-Ins)
+    # Step 5: process third-party panels on built-in tabs (e.g. Kinship on Add-Ins)
     for panel_info in (addin_panels or []):
         panel_name = panel_info.get('name', '')
         if not panel_name or panel_name in addins or panel_name in BUILTIN_TABS:
@@ -296,7 +296,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             'url': url,
         }
 
-    # Step 5: catch any .addin files in the directory not matched to a loaded tab
+    # Step 6: catch any .addin files in the directory not matched to a loaded tab
     matched_files = set()
     for info in addins.values():
         if info['addinFile']:

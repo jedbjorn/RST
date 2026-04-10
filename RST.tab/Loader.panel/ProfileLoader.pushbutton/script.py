@@ -45,6 +45,8 @@ _BUILTIN_TABS = {
     'Insert', 'Annotate', 'Analyze', 'Massing & Site', 'Collaborate',
     'View', 'Manage', 'Modify', 'Add-Ins', 'Create', 'RST',
     'FormIt', 'FormIt Converter', 'eTransmit',
+    'Modify | Walls', 'Modify | Floors', 'Modify | Roofs',
+    'Modify | Structural Framing', 'Modify | Generic Models',
 }
 # Panels on built-in tabs that are Revit-native (not third-party)
 _BUILTIN_PANELS = {

@@ -436,8 +436,6 @@
     color: var(--text3);
     flex-shrink: 0;
   }
-  .addin-file.unknown { color: rgba(245,158,11,0.45); }
-
   .addin-status {
     font-family: 'DM Mono', monospace;
     font-size: 9px;
@@ -451,16 +449,6 @@
     color: var(--accent3);
   }
   .addin-status.not-found {
-    background: rgba(245,158,11,0.08);
-    border: 1px solid rgba(245,158,11,0.25);
-    color: var(--warn);
-  }
-  .addin-status.not-checked {
-    background: rgba(100,116,139,0.08);
-    border: 1px solid rgba(100,116,139,0.2);
-    color: var(--text3);
-  }
-  .addin-status.unknown-addin {
     background: rgba(245,158,11,0.08);
     border: 1px solid rgba(245,158,11,0.25);
     color: var(--warn);
@@ -514,7 +502,7 @@
     font-family: 'DM Mono', monospace;
     font-size: 13px;
     font-weight: 600;
-    color: var(--text1);
+    color: var(--heading);
     margin-bottom: 4px;
   }
   .confirm-subtitle {
@@ -569,8 +557,6 @@
     gap: 10px;
     justify-content: flex-end;
   }
-
-  /* ── HIDE RULES ── */
 
   /* ── FOOTER ── */
   .detail-footer {
@@ -671,84 +657,7 @@
     transform: translateX(13px); background: var(--warn);
   }
 
-  /* ── LOADING OVERLAY ── */
-  /* Dependency overlay */
-  .dep-overlay {
-    position: fixed; inset: 0;
-    background: rgba(15,17,23,0.88);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 999;
-    opacity: 0; transition: opacity 0.2s;
-    pointer-events: none;
-  }
-  .dep-overlay.visible { opacity: 1; pointer-events: auto; }
-  .dep-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 10px;
-    padding: 24px 28px;
-    max-width: 500px;
-    width: 90%;
-  }
-  .dep-title {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--heading);
-    margin-bottom: 6px;
-  }
-  .dep-subtitle {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--text3);
-    margin-bottom: 16px;
-    letter-spacing: 0.04em;
-  }
-  .dep-list {
-    display: flex; flex-direction: column; gap: 8px;
-    margin-bottom: 20px;
-    max-height: 260px;
-    overflow-y: auto;
-  }
-  .dep-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-  }
-  .dep-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #ef4444;
-    flex-shrink: 0;
-  }
-  .dep-name {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--heading);
-    flex: 1;
-  }
-  .dep-url {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--accent);
-    text-decoration: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 180px;
-  }
-  .dep-url:hover { text-decoration: underline; }
-  .dep-no-url {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text3);
-    font-style: italic;
-  }
-  .dep-actions {
-    display: flex; gap: 10px; justify-content: flex-end;
-  }
+  /* ── OVERLAY BUTTONS ── */
   .dep-btn {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
@@ -865,20 +774,6 @@
 
 </div>
 
-<!-- Dependency Overlay -->
-<div class="dep-overlay" id="depOverlay">
-  <div class="dep-card">
-    <div class="dep-title">Add-ins Not Found</div>
-    <div class="dep-subtitle">The following add-ins are required by this profile but were not found on this machine. Install them for your Revit version and retry if you experience issues.</div>
-    <div class="dep-list" id="depList"></div>
-    <div class="dep-actions">
-      <button class="dep-btn dep-btn-secondary" onclick="closeDep()">Cancel</button>
-      <button class="dep-btn dep-btn-secondary" onclick="proceedWithoutDeps()">Continue Anyway</button>
-      <button class="dep-btn dep-btn-primary" onclick="openDepHtml()">Open as HTML</button>
-    </div>
-  </div>
-</div>
-
 <!-- Confirm Disable Overlay -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-card">
@@ -963,11 +858,6 @@
     var d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
-  }
-
-  function hexToRgb(hex) {
-    if (!hex || hex.length < 7) return '79,142,247';
-    return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
   }
 
   // ── ADD-IN SESSION CHECK ──────────────────────────────────────────────────────
@@ -1262,17 +1152,7 @@
     }, 3000);
   }
 
-  // ── DEPENDENCY CHECK ──────────────────────────────────────────────────────────
-  var pendingNotFoundAddins = [];
-
-  function getDisabledAddins(profile) {
-    // Required add-ins that are on disk but disabled (.addin.RSTdisabled)
-    return normalizeRequiredAddins(profile).filter(function(addin) {
-      if (addin.native || isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
-      var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[addin.tabName] : null;
-      return configEntry && configEntry.enabled === false;
-    });
-  }
+  // ── NOT-FOUND CHECK ─────────────────────────────────────────────────────────
 
   function getNotFoundAddins(profile) {
     // Required add-ins not found on disk — no config entry, not loaded, not native
@@ -1282,88 +1162,6 @@
       if (configEntry) return false;
       return true;
     });
-  }
-
-  function showDepOverlay(notFound) {
-    pendingNotFoundAddins = notFound;
-    var list = document.getElementById('depList');
-    list.innerHTML = notFound.map(function(addin) {
-      var entry = ADDIN_LOOKUP[addin.tabName];
-      var displayName = entry ? entry.displayName : addin.tabName;
-      var url = addin.url || (entry ? entry.url : '');
-      var urlHtml = url
-        ? '<a class="dep-url" href="' + url + '" target="_blank">' + url + '</a>'
-        : '<span class="dep-no-url">URL not available</span>';
-      return '<div class="dep-item">' +
-        '<div class="dep-dot"></div>' +
-        '<span class="dep-name">' + escHtml(displayName) + '</span>' +
-        urlHtml +
-      '</div>';
-    }).join('');
-    document.getElementById('depOverlay').classList.add('visible');
-  }
-
-  function closeDep() {
-    document.getElementById('depOverlay').classList.remove('visible');
-    pendingNotFoundAddins = [];
-  }
-
-  function proceedWithoutDeps() {
-    document.getElementById('depOverlay').classList.remove('visible');
-    doLoadProfile();
-  }
-
-  function openDepHtml() {
-    var profileName = selectedProfile ? selectedProfile.profile : 'Profile';
-    var rows = pendingNotFoundAddins.map(function(addin) {
-      var entry = ADDIN_LOOKUP[addin.tabName];
-      var displayName = entry ? entry.displayName : addin.tabName;
-      var url = addin.url || (entry ? entry.url : '');
-      var urlHtml = url
-        ? '<a href="' + url + '" target="_blank" style="color:#4f8ef7">' + url + '</a>'
-        : '<span style="color:#888;font-style:italic">URL not available</span>';
-      return '<tr>' +
-        '<td style="padding:10px 14px;border-bottom:1px solid #eee">' +
-          '<input type="checkbox" style="width:16px;height:16px;cursor:pointer">' +
-        '</td>' +
-        '<td style="padding:10px 14px;border-bottom:1px solid #eee;font-weight:600">' + displayName + '</td>' +
-        '<td style="padding:10px 14px;border-bottom:1px solid #eee">' + urlHtml + '</td>' +
-      '</tr>';
-    }).join('');
-
-    var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-      '<title>Add-ins Not Found - ' + profileName + '</title>' +
-      '<style>' +
-        'body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 20px;color:#1a1a2e;background:#fafafa}' +
-        'h1{font-size:22px;margin-bottom:4px}' +
-        'p{color:#666;font-size:14px;margin-bottom:24px}' +
-        'table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)}' +
-        'th{text-align:left;padding:12px 14px;background:#f5f5f7;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#666;border-bottom:2px solid #eee}' +
-        'tr:hover td{background:#f8f9ff}' +
-        'input[type=checkbox]:checked+td~td,input[type=checkbox]:checked{opacity:0.5}' +
-        '.footer{margin-top:24px;font-size:12px;color:#999;text-align:center}' +
-      '</style>' +
-      '</head><body>' +
-      '<h1>Add-ins Not Found</h1>' +
-      '<p>The following add-ins are required by the <strong>' + profileName + '</strong> profile but were not found. Install each one for your Revit version and check it off.</p>' +
-      '<table>' +
-        '<tr><th style="width:40px"></th><th>Add-in</th><th>Download</th></tr>' +
-        rows +
-      '</table>' +
-      '<div class="footer">Generated by RST Profile Loader</div>' +
-      '</body></html>';
-
-    var blob = new Blob([html], { type: 'text/html' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'RST_Not_Found_Addins_' + profileName.replace(/[^a-zA-Z0-9]/g, '_') + '.html';
-    a.click();
-    URL.revokeObjectURL(url);
-
-    // Close dep overlay and proceed to loading
-    document.getElementById('depOverlay').classList.remove('visible');
-    doLoadProfile();
   }
 
   // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
@@ -1420,9 +1218,7 @@
       });
     }
 
-    // Check 2: disabled add-ins (on disk but .addin.RSTdisabled) — backend re-enables on load
-
-    // Check if disable toggle is on — show confirmation overlay
+    // Check 2: disable toggle — show confirmation overlay if on
     var disableToggle = document.getElementById('disableToggle');
     if (disableToggle && disableToggle.checked) {
       window.pywebview.api.get_disable_preview(selectedProfile.profile).then(function(preview) {

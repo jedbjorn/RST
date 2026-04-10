@@ -189,6 +189,7 @@ class ProfileSelectorAPI:
         staying = []
         disabling = []
         skipped = []
+        protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
 
         for name, info in config.get('addins', {}).items():
             if not info.get('enabled', True):
@@ -202,11 +203,11 @@ class ProfileSelectorAPI:
                 continue
 
             is_required = tab_name in required or name in required
-            is_protected = info.get('protected', False) or addin_file in set(p.lower() for p in PROTECTED_ADDINS)
+            is_protected = info.get('protected', False) or addin_file in protected_lower
 
             if is_required or is_protected:
                 staying.append(info)
-            elif info.get('elevated', False) or info.get('scope') != 'user':
+            elif info.get('scope') != 'user':
                 entry = dict(info)
                 entry['skipReason'] = 'Installed in a protected system directory (requires manual removal)'
                 skipped.append(entry)
@@ -351,7 +352,7 @@ class ProfileSelectorAPI:
         warnings = []
 
         if not revit_version:
-            warnings.append('No Revit version available - add-in toggling skipped')
+            warnings.append('No Revit version detected — add-in checks will be skipped')
         else:
             # Check required addins against loaded session data
             required = profile_data.get('requiredAddins', [])
