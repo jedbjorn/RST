@@ -132,7 +132,7 @@ class TabCreatorAPI:
         if not version:
             return {'ok': False, 'error': 'No Revit version'}
         try:
-            username = get_current_username()
+            username = self._get_username()
             write_intent_log(username, version, 'restore_all', None, [])
             restored_names = restore_all_addins(version)
             config = build_user_config(
