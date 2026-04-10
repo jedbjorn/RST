@@ -27,6 +27,8 @@ def get_revit_version():
 
 def _scan_items(items, source_tab, source_panel, results, depth=0):
     """Recursively scan ribbon items, descending into containers."""
+    # Item types that are layout containers, not actionable commands
+    _CONTAINER_TYPES = ('Panel', 'Row', 'Stack', 'Slide', 'Popup')
     item_count = 0
     for item in items:
         item_count += 1
@@ -45,8 +47,10 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
             except Exception:
                 pass
 
-            # Skip list buttons (already recursed into children above)
+            # Skip containers — already recursed into children above
             if 'ListButton' in item_type:
+                continue
+            if any(c in item_type for c in _CONTAINER_TYPES):
                 continue
 
             # Try every possible way to get a command identifier
@@ -74,23 +78,23 @@ def _scan_items(items, source_tab, source_panel, results, depth=0):
             if not cmd_str or 'RibbonListButton' in cmd_str:
                 continue
 
-            # Get display name
+            # Get display name — items without one are usually non-actionable
             name = ''
             try:
                 txt = getattr(item, 'Text', None)
                 if txt:
-                    name = str(txt)
+                    name = str(txt).strip()
             except Exception:
                 pass
             if not name:
                 try:
                     nm = getattr(item, 'Name', None)
                     if nm:
-                        name = str(nm)
+                        name = str(nm).strip()
                 except Exception:
                     pass
             if not name:
-                name = cmd_str
+                continue  # no display name — not a user-facing command
 
             # Build display name with source for browser disambiguation
             display_name = name
