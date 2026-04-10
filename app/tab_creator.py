@@ -22,13 +22,15 @@ from rst_lib import (
 )
 from addin_scanner import (
     load_addin_lookup, get_addins_dirs, _find_all_addin_files,
-    resolve_tab_to_addin,
+    resolve_tab_to_addin, restore_all_addins,
 )
 from user_config import (
     get_current_username,
     load_user_config,
     save_user_config,
     build_user_config,
+    write_intent_log,
+    clear_intent_log,
 )
 
 _html_path = os.path.join(UI_DIR, 'profile_manager.html')
@@ -123,6 +125,30 @@ class TabCreatorAPI:
                 disabled.append(info)
         log.info('Found %d disabled add-ins in admin config', len(disabled))
         return disabled
+
+    def restore_addins(self):
+        """Restore all disabled add-ins. Same behavior as Loader's restore."""
+        version = _revit_data.get('revit_version')
+        if not version:
+            return {'ok': False, 'error': 'No Revit version'}
+        try:
+            username = get_current_username()
+            write_intent_log(username, version, 'restore_all', None, [])
+            restored_names = restore_all_addins(version)
+            config = build_user_config(
+                username, version,
+                _revit_data.get('loaded_addins', []),
+                _revit_data.get('all_tabs', []),
+                load_addin_lookup(),
+                _revit_data.get('addin_panels', []),
+            )
+            save_user_config(config)
+            clear_intent_log(username, version)
+            return {'ok': True, 'restored': restored_names}
+        except Exception as e:
+            import traceback
+            log.error('Error in restore_addins:\n%s', traceback.format_exc())
+            return {'ok': False, 'error': str(e)}
 
     def get_resolved_addins(self):
         """Cross-reference LoadedApplications against .addin XML files on disk.

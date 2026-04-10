@@ -1325,7 +1325,8 @@
     Tools from disabled add-ins will not appear in the ribbon.
     <span class="disabled-banner-list" id="disabledBannerList"></span>
   </div>
-  <button class="disabled-banner-dismiss" onclick="dismissDisabledBanner()">Dismiss</button>
+  <button class="disabled-banner-dismiss" onclick="restoreAddinsFromProfiler()">Restore All</button>
+  <button class="disabled-banner-dismiss" onclick="dismissDisabledBanner()" style="opacity:0.6">Dismiss</button>
 </div>
 
 <div class="body">
@@ -1749,6 +1750,25 @@
 
   function dismissDisabledBanner() {
     document.getElementById('disabledBanner').classList.remove('visible');
+  }
+
+  function restoreAddinsFromProfiler() {
+    if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.restore_addins) return;
+    window.pywebview.api.restore_addins().then(function(result) {
+      if (!result.ok) {
+        showToast('Restore Failed', result.error || 'Unknown error');
+        return;
+      }
+      var names = result.restored || [];
+      if (names.length > 0) {
+        showToast('Please Restart Revit', 'After restart, the following add-ins will be restored: ' + names.join(', '));
+      } else {
+        showToast('No Changes', 'No disabled add-ins found to restore.');
+      }
+      document.getElementById('disabledBanner').classList.remove('visible');
+    }).catch(function(err) {
+      showToast('Error', 'Restore failed: ' + (err.message || err));
+    });
   }
 
   function renderDetectedAddins() {
