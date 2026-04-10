@@ -89,8 +89,8 @@ def _wrap_button_text(name):
     No spaces: split at first CamelCase boundary."""
     if ' ' in name:
         parts = name.split(' ')
-        if len(parts) <= 3:
-            return parts[0] + '\n' + ' '.join(parts[1:])
+        if len(parts) == 2:
+            return parts[0] + '\n' + parts[1]
         else:
             return ' '.join(parts[:2]) + '\n' + ' '.join(parts[2:])
     # Find first CamelCase boundary (lowercase followed by uppercase)
