@@ -1203,13 +1203,6 @@
   function loadProfile() {
     if (!selectedProfile) return;
 
-    // Check 0: restore toggle — restore all add-ins before loading
-    var restoreToggle = document.getElementById('restoreToggle');
-    if (restoreToggle && restoreToggle.checked) {
-      restoreAddins();
-      return;
-    }
-
     // Check 1: not-found add-ins — warn but don't block
     pendingNotFoundWarnings = [];
     var notFound = getNotFoundAddins(selectedProfile);
@@ -1283,6 +1276,8 @@
     if (el.checked) {
       // Turning restore on disables the disable toggle
       document.getElementById('disableToggle').checked = false;
+      // Restore immediately — user sees result without needing to click Load
+      restoreAddins();
     }
   }
 
@@ -1310,6 +1305,7 @@
           if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
         }
       });
+      document.getElementById('restoreToggle').checked = false;
       RSTmsgInform('Add-ins Restored', 'All add-ins restored. Restart Revit for changes to take effect.');
     }).catch(function(err) {
       RSTmsgInform('Error', 'Error restoring add-ins: ' + (err.message || err));
