@@ -183,20 +183,55 @@ def get_installed_commands():
         import traceback
         log.error(traceback.format_exc())
 
-    # Deduplicate by commandId — same command can appear at multiple
-    # nesting levels (container + child) in the ribbon.
-    # Keep the LAST occurrence: recursion collects children before parents,
-    # so later entries are closer to the panel surface and more likely to
-    # be the directly-postable button the user sees.
-    seen = {}
-    for idx, cmd in enumerate(results):
-        cid = cmd.get('commandId', '')
-        if cid:
-            seen[cid] = idx  # last one wins
-    deduped = [results[i] for i in sorted(seen.values())]
+    # Validate: only keep commands that are actually postable.
+    # Add-in commands (CustomCtrl_ prefix) use a separate invocation path
+    # and don't need LookupCommandId validation.
+    validated = []
+    seen_ids = set()
+    try:
+        from Autodesk.Revit.UI import RevitCommandId, PostableCommand
+    except Exception:
+        RevitCommandId = None
+        PostableCommand = None
 
-    log.info('Scan complete: %d commands found (%d after dedup)', len(results), len(deduped))
-    return deduped
+    for cmd in results:
+        cid = cmd.get('commandId', '')
+        if not cid or cid in seen_ids:
+            continue
+        seen_ids.add(cid)
+
+        # Add-in commands — always keep (they invoke via ExternalCommand)
+        if 'CustomCtrl_' in cid:
+            validated.append(cmd)
+            continue
+
+        # Revit built-in commands — verify postability via API
+        if RevitCommandId is not None:
+            try:
+                rcmd = RevitCommandId.LookupCommandId(cid)
+                if rcmd:
+                    validated.append(cmd)
+                    continue
+            except Exception:
+                pass
+
+            # Try PostableCommand enum for ID_ style commands
+            if cid.startswith('ID_') and PostableCommand is not None:
+                try:
+                    postable = getattr(PostableCommand, cid, None)
+                    if postable is not None:
+                        validated.append(cmd)
+                        continue
+                except Exception:
+                    pass
+
+            log.debug('Skipping non-postable command: %s', cid)
+        else:
+            # API unavailable — keep everything as fallback
+            validated.append(cmd)
+
+    log.info('Scan complete: %d raw, %d validated postable', len(results), len(validated))
+    return validated
 
 
 _BUILTIN_TABS = {
