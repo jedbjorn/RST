@@ -176,6 +176,9 @@ class ProfileSelectorAPI:
         required = set(_get_required_tab_names(profile_data))
         lookup = load_addin_lookup()
 
+        # The profile's own tab is RST-built — never disable it
+        profile_tab = profile_data.get('tab', '')
+
         # Also resolve required add-in filenames for protected check
         required_files = set()
         for tab_name in required:
@@ -193,6 +196,11 @@ class ProfileSelectorAPI:
 
             addin_file = (info.get('addinFile') or '').lower()
             tab_name = info.get('tabName', '')
+
+            # Skip the profile's own RST-built tab entirely
+            if profile_tab and (tab_name == profile_tab or name == profile_tab):
+                continue
+
             is_required = tab_name in required or name in required
             is_protected = info.get('protected', False) or addin_file in set(p.lower() for p in PROTECTED_ADDINS)
 

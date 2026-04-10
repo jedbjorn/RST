@@ -542,11 +542,6 @@
   .confirm-col-label.staying { color: var(--accent3); }
   .confirm-col-label.disabling { color: var(--warn); }
   .confirm-col-label.skipped { color: var(--text3); }
-  .confirm-skipped {
-    margin-bottom: 18px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
   .confirm-skipped-note {
     font-family: 'DM Mono', monospace;
     font-size: 9px;
@@ -898,11 +893,11 @@
         <div class="confirm-col-label disabling">Will Be Disabled</div>
         <div class="confirm-list" id="confirmDisabling"></div>
       </div>
-    </div>
-    <div class="confirm-skipped" id="confirmSkippedWrap" style="display:none">
-      <div class="confirm-col-label skipped">Cannot Be Disabled</div>
-      <div class="confirm-skipped-note">These add-ins are installed in a protected system directory and cannot be disabled by RST. To remove them, uninstall via their installer or manually delete the .addin file.</div>
-      <div class="confirm-list" id="confirmSkipped"></div>
+      <div class="confirm-col" id="confirmSkippedWrap" style="display:none">
+        <div class="confirm-col-label skipped">Not Disabled</div>
+        <div class="confirm-skipped-note">Program Files / Program Data</div>
+        <div class="confirm-list" id="confirmSkipped"></div>
+      </div>
     </div>
     <div class="confirm-restart">Revit must restart for changes to take effect.</div>
     <div class="confirm-actions">
