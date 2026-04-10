@@ -325,7 +325,7 @@ def _fuzzy_find(tab_name, search_dirs, overrides=None, addin_files=None):
 
 
 def check_addins(required_addins, revit_version):
-    """Returns dict: { tabName: 'present' | 'missing' | 'unknown' }"""
+    """Returns dict: { tabName: 'present' | 'not_found' | 'unknown' }"""
     log.info('Checking addins for Revit %s: %s', revit_version, required_addins)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
@@ -355,7 +355,7 @@ def check_addins(required_addins, revit_version):
             if fname:
                 results[tab_name] = 'present'
             elif entry:
-                results[tab_name] = 'missing'
+                results[tab_name] = 'not_found'
             else:
                 results[tab_name] = 'unknown'
 

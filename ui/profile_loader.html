@@ -450,7 +450,7 @@
     border: 1px solid rgba(16,185,129,0.25);
     color: var(--accent3);
   }
-  .addin-status.missing {
+  .addin-status.not-found {
     background: rgba(245,158,11,0.08);
     border: 1px solid rgba(245,158,11,0.25);
     color: var(--warn);
@@ -1206,7 +1206,7 @@
             statusLabel = 'Disabled';
             statusTitle = 'Add-in is disabled (.addin.RSTdisabled) \u2014 enable via Restore All Add-ins';
           } else {
-            statusCls = 'missing';
+            statusCls = 'not-found';
             statusLabel = 'Not Found';
             var url = addin.url || (known ? known.url : '');
             statusTitle = url ? 'Not found \u2014 download: ' + url : 'Not found on this machine';
@@ -1263,7 +1263,7 @@
   }
 
   // ── DEPENDENCY CHECK ──────────────────────────────────────────────────────────
-  var pendingMissingAddins = [];
+  var pendingNotFoundAddins = [];
 
   function getDisabledAddins(profile) {
     // Required add-ins that are on disk but disabled (.addin.RSTdisabled)
@@ -1274,21 +1274,20 @@
     });
   }
 
-  function getTrulyMissingAddins(profile) {
-    // Required add-ins that are not installed at all (not on disk, not disabled)
+  function getNotFoundAddins(profile) {
+    // Required add-ins not found on disk — no config entry, not loaded, not native
     return normalizeRequiredAddins(profile).filter(function(addin) {
       if (addin.native || isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
       var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[addin.tabName] : null;
-      // If tracked in config at all (enabled or disabled), it's on disk — not truly missing
       if (configEntry) return false;
       return true;
     });
   }
 
-  function showDepOverlay(missing) {
-    pendingMissingAddins = missing;
+  function showDepOverlay(notFound) {
+    pendingNotFoundAddins = notFound;
     var list = document.getElementById('depList');
-    list.innerHTML = missing.map(function(addin) {
+    list.innerHTML = notFound.map(function(addin) {
       var entry = ADDIN_LOOKUP[addin.tabName];
       var displayName = entry ? entry.displayName : addin.tabName;
       var url = addin.url || (entry ? entry.url : '');
@@ -1306,7 +1305,7 @@
 
   function closeDep() {
     document.getElementById('depOverlay').classList.remove('visible');
-    pendingMissingAddins = [];
+    pendingNotFoundAddins = [];
   }
 
   function proceedWithoutDeps() {
@@ -1316,7 +1315,7 @@
 
   function openDepHtml() {
     var profileName = selectedProfile ? selectedProfile.profile : 'Profile';
-    var rows = pendingMissingAddins.map(function(addin) {
+    var rows = pendingNotFoundAddins.map(function(addin) {
       var entry = ADDIN_LOOKUP[addin.tabName];
       var displayName = entry ? entry.displayName : addin.tabName;
       var url = addin.url || (entry ? entry.url : '');
@@ -1410,11 +1409,11 @@
       return;
     }
 
-    // Check 1: truly missing add-ins — warn but don't block
+    // Check 1: not-found add-ins — warn but don't block
     pendingNotFoundWarnings = [];
-    var missing = getTrulyMissingAddins(selectedProfile);
-    if (missing.length > 0) {
-      missing.forEach(function(addin) {
+    var notFound = getNotFoundAddins(selectedProfile);
+    if (notFound.length > 0) {
+      notFound.forEach(function(addin) {
         var ver = currentRevitVersion || 'your version';
         var msg = addin.tabName + ' not found. If you experience issues with using tools from this add-in please install for Revit ' + ver + ' and retry.';
         pendingNotFoundWarnings.push(msg);

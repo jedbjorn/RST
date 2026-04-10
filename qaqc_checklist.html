@@ -375,11 +375,12 @@
     <div class="check-item"><input type="checkbox"><label>Stack items shown as grouped mini-buttons</label><span class="tag tag-core">core</span></div>
     <div class="check-item"><input type="checkbox"><label>Panel opacity matches exported value</label><span class="tag tag-edge">edge</span></div>
 
-    <div class="group-label">Required Add-ins (4-State Badges)</div>
-    <div class="check-item"><input type="checkbox"><label>Present (green) &mdash; native tab OR loaded in session OR installed .addin on disk</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Missing (red) &mdash; known in lookup but .addin file not found on disk</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Disabled (amber) &mdash; .addin.RSTdisabled on disk, can be restored</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Unknown (amber) &mdash; not in lookup, not loaded in session</label><span class="tag tag-edge">edge</span></div>
+    <div class="group-label">Required Add-ins (5-State Badges)</div>
+    <div class="check-item"><input type="checkbox"><label>Native (green) &mdash; built-in Revit tab or native panel (tagged native:true)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Loaded (green) &mdash; third-party add-in running in current Revit session</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Installed (green) &mdash; .addin file on disk and enabled, but not loaded this session</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Disabled (orange) &mdash; .addin.RSTdisabled on disk, can be restored</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Not Found (orange) &mdash; no .addin file found, non-blocking warning at load</label><span class="tag tag-core">core</span></div>
 
     <div class="group-label">RSTify Tab Toggles</div>
     <div class="check-item"><input type="checkbox"><label>Toggles shown per non-core ribbon tab</label><span class="tag tag-core">core</span></div>
@@ -400,16 +401,16 @@
     <div class="check-item"><input type="checkbox"><label>Hidden tabs list saved to active_profile.json</label><span class="tag tag-core">core</span></div>
     <div class="check-item"><input type="checkbox"><label>pyRevit reload triggered after load</label><span class="tag tag-core">core</span></div>
 
-    <div class="group-label">Dependency Check (Missing Add-ins)</div>
-    <div class="check-item"><input type="checkbox"><label>Missing add-ins detected &mdash; dependency overlay shown</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Download URLs shown for each missing add-in</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>&ldquo;Continue Anyway&rdquo; bypasses check and loads</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>&ldquo;Open as HTML&rdquo; downloads checklist file with URLs</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Cancel closes overlay without loading</label><span class="tag tag-core">core</span></div>
+    <div class="group-label">Not Found Add-ins (Non-blocking Warning)</div>
+    <div class="check-item"><input type="checkbox"><label>Not-found add-ins generate warning at load &mdash; do not block</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Warning format: &ldquo;{name} not found. If you experience issues&hellip; install for Revit {ver} and retry.&rdquo;</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Warnings shown in load toast alongside other messages</label><span class="tag tag-core">core</span></div>
 
     <div class="group-label">Disable Unused Add-ins</div>
     <div class="check-item"><input type="checkbox"><label>Toggle ON &mdash; fetches disable preview from API</label><span class="tag tag-core">core</span></div>
-    <div class="check-item"><input type="checkbox"><label>Confirm overlay shows &ldquo;staying active&rdquo; vs &ldquo;will be disabled&rdquo; columns</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Confirm overlay shows &ldquo;Staying Active&rdquo;, &ldquo;Will Be Disabled&rdquo;, and &ldquo;Not Disabled&rdquo; columns</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>&ldquo;Not Disabled&rdquo; column shows machine-scope add-ins in Program Files / Program Data</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Profile&rsquo;s own RST-built tab excluded from all disable columns</label><span class="tag tag-core">core</span></div>
     <div class="check-item"><input type="checkbox"><label>&ldquo;Confirm &amp; Load&rdquo; renames .addin to .addin.RSTdisabled</label><span class="tag tag-core">core</span></div>
     <div class="check-item"><input type="checkbox"><label>Intent log written before any renames</label><span class="tag tag-core">core</span></div>
     <div class="check-item"><input type="checkbox"><label>Intent log cleared after successful completion</label><span class="tag tag-core">core</span></div>
