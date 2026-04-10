@@ -1898,7 +1898,7 @@
       }
 
       return `
-        <div class="sb-row" data-name="${escHtml(tool.name)}">
+        <div class="sb-row" data-name="${escHtml(tool.name)}" data-idx="${allToolsIdx}">
           <div class="sb-stripe" style="background:transparent"></div>
           <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isGreyed ? 'elsewhere' : ''}"
                ${isGreyed ? 'style="pointer-events:auto;cursor:pointer" title="' + escHtml(goToLabel) + '"' : ''}>
@@ -1916,10 +1916,11 @@
     list.querySelectorAll('.sb-row').forEach(row => {
       row.querySelector('.sb-row-body').addEventListener('click', e => {
         const name = row.dataset.name;
+        const idx = parseInt(row.dataset.idx, 10);
         if (row.querySelector('.sb-row-body').classList.contains('elsewhere')) {
           goToToolLocation(name);
         } else {
-          toggleToolInPanel(name);
+          toggleToolInPanel(name, idx);
         }
       });
     });
@@ -1951,7 +1952,7 @@
 
   // ── TOGGLE TOOL IN PANEL ───────────────────────────────────────────────────
   // Called when user clicks a tool row in the Available Tools list.
-  function toggleToolInPanel(name) {
+  function toggleToolInPanel(name, allToolsIdx) {
     if (!state.currentPanel || !state.panels[state.currentPanel]) {
       // Auto-create a panel if none exist, otherwise prompt user to select one
       if (Object.keys(state.panels).length === 0) {
@@ -1976,12 +1977,13 @@
         showToast('Limit reached', 'Maximum ' + MAX_TOOLS_PER_TAB + ' tools per tab.');
         return;
       }
-      const tool = state.allTools.find(t => t.name === name);
+      // Lookup by index first (reliable), fall back to name match
+      var tool = (allToolsIdx >= 0 && allToolsIdx < state.allTools.length) ? state.allTools[allToolsIdx] : null;
+      if (!tool || tool.name !== name) {
+        tool = state.allTools.find(t => t.name === name);
+      }
       if (!tool) {
-        console.warn('[RST] toggleToolInPanel: tool not found in allTools:', JSON.stringify(name));
-        // Find close matches for diagnosis
-        var close = state.allTools.filter(t => t.name.indexOf(name.split(' (')[0]) !== -1).map(t => t.name).slice(0, 3);
-        showToast('Tool not found', 'Name: "' + name.substring(0, 40) + '"' + (close.length ? ' — similar: ' + close.join(', ') : ''));
+        showToast('Tool not found', name.substring(0, 40));
         return;
       }
       slots.push({ type: 'tool', name: tool.name, baseName: tool.baseName || tool.name, icon: tool.icon, commandId: tool.commandId, sourceTab: tool.sourceTab, sourcePanel: tool.sourcePanel });
