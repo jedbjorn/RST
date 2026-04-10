@@ -23,7 +23,7 @@ _overrides_path = os.path.join(EXT_ROOT, 'app', 'user_addin_overrides.json')
 
 def _load_config():
     """Load lookup/config.json. Returns (protected set, autodesk set, exempt_paths list)."""
-    protected = {'pyRevit.addin', 'Kinship.addin'}
+    protected = {'pyRevit.addin'}
     autodesk = set()
     exempt = []
     try:
