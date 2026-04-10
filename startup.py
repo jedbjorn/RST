@@ -85,9 +85,14 @@ def _reconcile_intent_log():
 
 def _wrap_button_text(name):
     """Split button text for two-line display.
-    Breaks at first space, or at first CamelCase boundary if no spaces."""
+    2-3 words: split after first word. 4+ words: split after second word.
+    No spaces: split at first CamelCase boundary."""
     if ' ' in name:
-        return name.replace(' ', '\n', 1)
+        parts = name.split(' ')
+        if len(parts) <= 3:
+            return parts[0] + '\n' + ' '.join(parts[1:])
+        else:
+            return ' '.join(parts[:2]) + '\n' + ' '.join(parts[2:])
     # Find first CamelCase boundary (lowercase followed by uppercase)
     for i in range(1, len(name)):
         if name[i - 1].islower() and name[i].isupper():
