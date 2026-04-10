@@ -1,0 +1,3340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tab Creator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2536;
+    --surface3: #242d42;
+    --border: #2a3347;
+    --border2: #3a4560;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --heading: #f8fafc;
+    --sidebar-w: 380px;
+    --header-h: 54px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── WINDOW HEADER ── */
+  .window-header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .window-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--heading);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .header-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .header-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .header-field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  .header-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--text);
+    outline: none;
+    width: 150px;
+    transition: border-color 0.15s;
+  }
+
+  .header-input:focus { border-color: var(--accent); }
+  .header-input::placeholder { color: var(--text3); }
+
+  .profile-switcher {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .profile-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    min-width: 140px;
+    user-select: none;
+  }
+  .profile-dropdown-btn:hover { border-color: var(--border2); }
+  .profile-dropdown-btn.open { border-color: var(--accent); }
+  .profile-dropdown-btn .profile-name { flex: 1; }
+  .profile-dropdown-btn .chevron {
+    color: var(--text3);
+    font-size: 9px;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  .profile-dropdown-btn.open .chevron { transform: rotate(180deg); }
+
+  .profile-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .profile-menu.open { display: block; }
+
+  .profile-menu-item {
+    padding: 9px 14px;
+    font-size: 12.5px;
+    color: var(--text2);
+    font-weight: 300;
+    cursor: pointer;
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .profile-menu-item:hover { background: var(--surface2); color: var(--text); }
+  .profile-menu-item.current { color: var(--accent); font-weight: 500; }
+  .profile-menu-item.current::before {
+    content: '✓';
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent3);
+  }
+  .profile-menu-item:not(.current)::before { content: ''; width: 10px; display: inline-block; }
+  .profile-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .profile-menu-item.new-item {
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .profile-menu-item.new-item:hover { background: rgba(79,142,247,0.06); }
+
+  .pencil-btn {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .pencil-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+
+  .pencil-edit-input {
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--heading);
+    outline: none;
+    min-width: 140px;
+  }
+
+  .header-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text3);
+  }
+  .btn-ghost:hover { border-color: var(--text3); color: var(--text2); }
+
+  .btn-primary {
+    background: rgba(16,185,129,0.1);
+    border-color: rgba(16,185,129,0.4);
+    color: var(--accent3);
+  }
+  .btn-primary:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
+  .btn-primary.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ── BODY ── */
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sb-section {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .sb-section.tools { flex: 3; }
+  .sb-section.panels { display: none; }
+  .sb-section.stacks { flex: 2; }
+
+  .sb-items {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+  }
+
+  .tool-filters {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px 2px;
+    flex-shrink: 0;
+  }
+  .tool-filters input,
+  .tool-filters select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .tool-filters input { flex: 1; min-width: 0; }
+  .tool-filters select { flex-shrink: 0; max-width: 50%; }
+  .tool-filters input:focus,
+  .tool-filters select:focus { border-color: var(--accent); }
+  .tool-filters input::placeholder { color: var(--text3); }
+  .sb-items::-webkit-scrollbar { width: 3px; }
+  .sb-items::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sb-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 6px;
+  }
+
+  .sb-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .sb-add {
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 3px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .detect-btn {
+    border-color: #f59e0b;
+    color: #f59e0b;
+  }
+  .detect-btn:hover {
+    background: rgba(245,158,11,0.15);
+    border-color: #f59e0b;
+    color: #f59e0b;
+  }
+  .source-tab-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 8.5px;
+    letter-spacing: 0.05em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.25);
+    color: #a78bfa;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+
+  .sb-rule { height: 1px; background: var(--border); margin: 0 14px 6px; }
+
+  /* Tool items */
+  /* ── SHARED SIDEBAR ROW ── */
+  .sb-row { display: flex; flex-direction: column; }
+
+  .sb-stripe { height: 2px; width: 90%; align-self: center; flex-shrink: 0; border-radius: 1px; }
+
+  .sb-row-body {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 15px;
+    font-size: 12px; color: var(--text2); font-weight: 300;
+    min-width: 0;
+    border-left: 2px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+    cursor: pointer;
+  }
+  .sb-row-body:hover { background: var(--surface2); color: var(--text); }
+  .sb-row-body.editing {
+    border-left-color: var(--accent);
+    background: rgba(79,142,247,0.05);
+    color: var(--accent);
+  }
+  /* Tool rows dim when the tool is already placed in the current panel */
+  .sb-row-body.placed { color: var(--text3); }
+  .sb-row-body.inactive { opacity: 0.38; }
+  /* Tool placed in a different panel or stack — greyed out, clickable to navigate */
+  .sb-row-body.elsewhere { opacity: 0.35; cursor: pointer; }
+
+  /* Shared checkbox */
+  .sb-cb {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sb-cb:hover { border-color: var(--accent3); }
+  .sb-cb.checked {
+    background: rgba(16,185,129,0.15);
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+  /* Stack cb uses purple */
+  .sb-cb.stack-cb.checked {
+    background: rgba(124,58,237,0.12);
+    border-color: #a78bfa;
+    color: #a78bfa;
+  }
+
+  /* Edit (rename) icon button — fades in on row hover */
+  .sb-edit-btn {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    flex-shrink: 0;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .sb-row-body:hover .sb-edit-btn { opacity: 1; }
+  .sb-edit-btn:hover { color: var(--accent); }
+
+  /* Trash icon — used on tool, stack, and panel rows */
+  .item-trash {
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+    padding: 0;
+    opacity: 0;
+  }
+  .sb-row-body:hover .item-trash { opacity: 1; }
+  .stack-expansion .item-trash { opacity: 1; } /* always visible inside expanded editor */
+  .item-trash:hover { color: var(--danger); background: rgba(239,68,68,0.08); }
+  .item-trash svg { pointer-events: none; }
+
+  /* Stack expansion */
+  .stack-expansion {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px 8px 38px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .stack-tool-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 0;
+    font-size: 11.5px; color: var(--text2); font-weight: 300;
+  }
+  .stack-tool-icon {
+    width: 16px; height: 16px;
+    border-radius: 2px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; flex-shrink: 0;
+  }
+  .stack-add-row {
+    display: flex; align-items: center; gap: 6px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  .stack-tool-picker {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .stack-tool-picker:focus { border-color: var(--accent); }
+  .stack-tool-picker:disabled { opacity: 0.35; cursor: default; }
+  .stack-picker-results {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 0;
+  }
+  .stack-picker-results::-webkit-scrollbar { width: 3px; }
+  .stack-picker-results::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .stack-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .stack-count.at-max { color: var(--warn); }
+
+  /* Stack item expand chevron */
+  .stack-chevron {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+    user-select: none;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+  .stack-chevron.open { transform: rotate(90deg); }
+
+  /* Tab canvas drag */
+  .tab-panel[draggable=true] { cursor: grab; }
+  .tab-panel.drag-over { border-color: var(--accent); background: rgba(79,142,247,0.06); }
+
+  /* Record button */
+  .sidebar-bottom {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+
+  /* Inline rename input */
+  .sb-rename-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--heading);
+    outline: none;
+    min-width: 0;
+  }
+
+  /* Clickable name span */
+  .sb-name {
+    flex: 1;
+    cursor: text;
+  }
+
+  /* ── MAIN ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  /* ── EDITOR ── */
+  .editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border); }
+
+  .editor-bar {
+    height: 46px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 18px; gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .editor-bar-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text3);
+    flex: 1;
+  }
+
+  .ctx-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 10px;
+  }
+
+  .btn-sm {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    padding: 5px 11px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+    transition: all 0.15s;
+  }
+
+  .btn-tool {
+    background: rgba(79,142,247,0.08);
+    border-color: rgba(79,142,247,0.35);
+    color: var(--accent);
+  }
+  .btn-tool:hover { background: rgba(79,142,247,0.15); border-color: var(--accent); }
+
+  /* Fields pane — split into color header + two equal flex halves */
+  .fields-pane {
+    width: 270px; min-width: 270px;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Color picker sits at the top, natural height */
+  .fp-color {
+    padding: 14px 18px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Each half-section stretches to fill available vertical space */
+  .fp-section {
+    flex: 3;
+    display: flex; flex-direction: column;
+    min-height: 180px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .fp-section:last-child { border-bottom: none; }
+
+  /* Pinned button at bottom of fp-section */
+  .fp-section-footer {
+    flex-shrink: 0;
+    padding: 6px 10px 8px;
+    border-top: 1px solid var(--border);
+  }
+  .fp-section-footer .btn-add-panel {
+    width: 100%;
+    padding: 7px;
+    background: rgba(79,142,247,0.08);
+    border: 1px solid rgba(79,142,247,0.35);
+    border-radius: 4px;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .fp-section-footer .btn-add-panel:hover {
+    background: rgba(79,142,247,0.15);
+    border-color: var(--accent);
+  }
+
+  .fp-section-head {
+    padding: 8px 14px 6px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .fp-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+  }
+
+  .f-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .f-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 11px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .f-input:focus { border-color: var(--accent); }
+
+  /* Color swatches */
+  .swatch-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; max-width: 240px; }
+
+  .swatch {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .swatch:hover, .swatch.on { border-color: white; transform: scale(1.1); box-shadow: 0 0 0 1px rgba(255,255,255,0.2); }
+  .swatch.blank { background: transparent !important; border: 2px dashed var(--border); }
+  .swatch.blank:hover, .swatch.blank.on { border-color: var(--text3); border-style: dashed; }
+
+  .hex-inline {
+    display: flex; align-items: center; gap: 3px;
+    flex-shrink: 0;
+  }
+  .hex-hash {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; color: var(--text3);
+    user-select: none;
+  }
+  .hex-input-inline {
+    width: 58px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--heading);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .hex-input-inline:focus { border-color: var(--accent); }
+  .hex-input-inline.err   { border-color: var(--danger); }
+
+  .hex-action-btn {
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    font-size: 12px; line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .hex-apply:hover   { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .hex-reset:hover   { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.08); }
+
+  /* Editor split */
+  .editor-body { flex: 1; display: flex; overflow: hidden; }
+
+  .f-group { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Tool slots — fills the fp-section */
+  .slot-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    padding: 4px 10px 8px;
+    min-height: 0;
+  }
+  .slot-list::-webkit-scrollbar { width: 3px; }
+  .slot-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Panel slot list — fills its fp-section */
+  .panel-slot-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow-y: auto;
+    padding: 4px 10px 8px;
+    min-height: 0;
+  }
+  .panel-slot-list::-webkit-scrollbar { width: 3px; }
+  .panel-slot-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .panel-slot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12px; color: var(--text2); font-weight: 300;
+    cursor: grab;
+    transition: all 0.15s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .panel-slot:hover { border-color: var(--border2); color: var(--text); }
+  .panel-slot.selected { border-color: var(--accent); background: rgba(79,142,247,0.05); color: var(--text); }
+
+  /* Icon picker button on slot cards */
+  .slot-icon-pick {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px; height: 20px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text3);
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+    z-index: 2;
+  }
+  .slot:hover .slot-icon-pick { opacity: 1; }
+  .slot-icon-pick:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+
+  .slot-icon-badge {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent3);
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .slot { position: relative; }
+
+  /* Open folder button */
+  .open-folder-btn {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .open-folder-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent3);
+    border-radius: 6px;
+    padding: 12px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.25s, transform 0.25s;
+    max-width: 380px;
+    pointer-events: none;
+  }
+  .toast.visible { opacity: 1; transform: translateY(0); }
+  .toast .toast-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 4px;
+  }
+  .toast .toast-body {
+    font-size: 11.5px;
+    color: var(--text2);
+    word-break: break-all;
+  }
+  /* Insertion line — appears between items during drag */
+  .drop-line {
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    flex-shrink: 0;
+    pointer-events: none;
+    position: relative;
+  }
+  .drop-line::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .panel-slot-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .panel-slot-count {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .slot {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12.5px; color: var(--text2); font-weight: 300;
+    cursor: grab;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .slot:hover { border-color: var(--border2); color: var(--text); }
+  .slot.drag-over { opacity: 0.4; }
+  .slot.is-stack {
+    border-color: rgba(124,58,237,0.3);
+    background: rgba(124,58,237,0.05);
+  }
+
+  .drag-h { color: var(--text3); font-size: 10px; cursor: grab; }
+
+  .slot-icon {
+    width: 20px; height: 20px;
+    border-radius: 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; flex-shrink: 0;
+  }
+
+  .slot-badge {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .slot-badge.addin {
+    background: rgba(79,142,247,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(79,142,247,0.25);
+  }
+  .slot-badge.stack-badge {
+    background: rgba(124,58,237,0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.25);
+  }
+
+  /* Addin field row */
+  .addin-row { display: flex; gap: 8px; align-items: center; }
+  .addin-row .f-input { font-size: 11px; padding: 5px 9px; }
+
+  /* Preview pane */
+  .preview-pane {
+    flex: 1;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  .pane-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .panel-mock {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    flex: 1;
+    display: flex; flex-direction: column;
+    max-height: 260px;
+  }
+
+  .panel-mock-head {
+    padding: 8px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .panel-mock-tools {
+    flex: 1;
+    padding: 14px;
+    display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
+    background: var(--surface);
+  }
+
+  .rib-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    width: 58px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .rib-btn:hover { border-color: var(--border2); background: var(--surface3); }
+
+  .rib-icon {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    background: var(--surface3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+
+  .rib-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 9px;
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.3;
+    font-weight: 300;
+  }
+
+  .rib-stack { display: flex; flex-direction: column; gap: 2px; width: 58px; flex-shrink: 0; }
+
+  .rib-stack-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 7px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rib-stack-item:hover { border-color: var(--border2); }
+
+  .rib-stack-icon {
+    width: 15px; height: 15px;
+    border-radius: 3px;
+    background: var(--surface3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; flex-shrink: 0;
+  }
+
+  .rib-stack-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 9px; color: var(--text2); font-weight: 300;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── TAB PREVIEW ── */
+  .tab-preview {
+    height: 176px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+
+  .tab-preview-bar {
+    height: 40px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 18px; gap: 14px;
+    flex-shrink: 0;
+  }
+
+  .tab-name-pill {
+    display: flex; align-items: center; gap: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--text3);
+  }
+  .tab-name-pill .name { color: var(--text2); }
+
+  .tab-preview-lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--text3);
+    margin-left: auto;
+  }
+
+  .export-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 5px 13px;
+    border-radius: 4px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.35);
+    color: var(--accent3);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .export-btn:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
+  .export-btn:disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  .tab-canvas {
+    flex: 1;
+    padding: 10px 18px;
+    display: flex; gap: 4px; align-items: flex-start;
+    overflow-x: auto;
+    background: #ffffff;
+  }
+  .tab-canvas::-webkit-scrollbar { height: 3px; }
+  .tab-canvas::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .tab-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden;
+    display: flex; flex-direction: column;
+    min-width: 120px; flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .tab-panel:hover { border-color: var(--border2); }
+  .tab-panel.sel { border-color: var(--accent); }
+
+  .confirm-rename-btn {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    background: var(--accent3);
+    border: none;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .confirm-rename-btn:hover { background: #0ea572; }
+
+  .tab-panel-stripe { height: 4px; }
+  .tab-panel-inner { padding: 8px 10px; display: flex; gap: 6px; min-height: 88px; }
+  .tab-panel-name {
+    padding: 4px 10px;
+    background: rgba(0,0,0,0.2);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text3);
+    text-align: center;
+  }
+
+  .drop-zone {
+    min-width: 90px; flex-shrink: 0;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 5px;
+    padding: 10px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .drop-zone:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.04); }
+
+  /* Read-only detected add-ins display */
+  .addin-chips-display {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    min-height: 28px;
+    min-width: 80px;
+  }
+
+  .addin-chip-empty {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 0.06em;
+  }
+
+  .addin-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(79,142,247,0.10);
+    border: 1px solid rgba(79,142,247,0.28);
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .addin-chip.unknown {
+    background: rgba(245,158,11,0.08);
+    border-color: rgba(245,158,11,0.25);
+    color: var(--warn);
+  }
+
+  /* ── DISABLED ADD-INS BANNER ── */
+  .disabled-banner {
+    display: none;
+    background: rgba(245,158,11,0.08);
+    border-bottom: 1px solid rgba(245,158,11,0.25);
+    padding: 8px 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    align-items: center;
+    gap: 12px;
+  }
+  .disabled-banner.visible { display: flex; }
+  .disabled-banner-icon { color: var(--warn); font-size: 13px; flex-shrink: 0; }
+  .disabled-banner-text { flex: 1; line-height: 1.5; }
+  .disabled-banner-text strong { color: var(--warn); }
+  .disabled-banner-dismiss {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    background: none;
+    border: 1px solid rgba(245,158,11,0.3);
+    color: var(--warn);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .disabled-banner-dismiss:hover { background: rgba(245,158,11,0.1); }
+
+  /* ── EXPORT OVERLAY ── */
+  .export-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .export-overlay.visible { opacity: 1; pointer-events: auto; }
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 460px;
+    width: 90%;
+  }
+  .export-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--heading);
+    margin-bottom: 16px;
+  }
+  .export-path-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 3px;
+  }
+  .export-path-label:not(:first-of-type) { margin-top: 10px; }
+  .export-path-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- Window Header -->
+<div class="window-header">
+  <div class="window-title">Tab Creator</div>
+  <div class="header-sep"></div>
+  <div class="header-field">
+    <label>Profile Name</label>
+    <div class="profile-switcher">
+      <div class="profile-dropdown-btn" id="profileBtn" onclick="toggleProfileMenu()">
+        <span class="profile-name" id="profileNameDisplay">New Profile</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <!-- populated by populateProfileDropdown() -->
+        <div class="profile-menu-divider"></div>
+        <div class="profile-menu-item new-item" onclick="newProfile()">+ New</div>
+      </div>
+      <button class="pencil-btn" title="Rename profile" onclick="editProfileName()">✎</button>
+      <button class="open-folder-btn" title="Open profiles folder" onclick="openProfilesFolder()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="header-field">
+    <label>Required Add-ins</label>
+    <div class="addin-chips-display" id="addinChipsDisplay">
+      <!-- populated by renderDetectedAddins() from placed tool sourceTabs -->
+    </div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:7px;flex-shrink:0">
+    <button onclick="pickBrandingLogo()" title="Square logo recommended (48x48)"
+      style="font-family:'DM Mono',monospace;font-size:10px;padding:3px 10px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.06);color:var(--accent3);border-radius:4px;cursor:pointer;white-space:nowrap;transition:all 0.15s"
+      onmouseenter="this.style.background='var(--accent3)';this.style.color='#0f1117';this.style.borderColor='var(--accent3)'"
+      onmouseleave="this.style.background='rgba(16,185,129,0.06)';this.style.color='var(--accent3)';this.style.borderColor='rgba(16,185,129,0.4)'"
+      >Add Logo</button>
+    <div style="width:6px;height:6px;border-radius:50%;background:var(--accent3);flex-shrink:0"></div>
+    <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);white-space:nowrap;letter-spacing:0.06em">
+      detected &nbsp;<span id="rvtVersionDisplay" style="color:var(--text2);letter-spacing:0">Revit 2024</span>
+    </span>
+  </div>
+</div>
+
+<!-- Disabled Add-ins Warning Banner -->
+<div class="disabled-banner" id="disabledBanner">
+  <span class="disabled-banner-icon">&#9888;</span>
+  <div class="disabled-banner-text">
+    <strong>Some add-ins are disabled.</strong>
+    Tools from disabled add-ins will not appear in the ribbon.
+    <span class="disabled-banner-list" id="disabledBannerList"></span>
+  </div>
+  <button class="disabled-banner-dismiss" onclick="dismissDisabledBanner()">Dismiss</button>
+</div>
+
+<div class="body">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <!-- Available Tools — 50% -->
+    <div class="sb-section tools">
+      <div class="sb-section-head">
+        <span class="sb-label">Available Tools</span>
+        <button class="sb-add detect-btn" onclick="detectTools()">Detect</button>
+      </div>
+      <div class="sb-rule"></div>
+      <div class="tool-filters">
+        <input type="text" id="toolSearchInput" placeholder="Search tools..." oninput="renderToolList()">
+        <select id="toolTabFilter" onchange="renderToolList()">
+          <option value="">All</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div class="sb-items" id="toolList">
+        <!-- Rendered by renderToolList() -->
+      </div>
+    </div>
+
+    <!-- Small Tools — 25% -->
+    <div class="sb-section stacks">
+      <div class="sb-section-head">
+        <span class="sb-label">Small Tools</span>
+        <button class="sb-add" onclick="createNewStack()">New +</button>
+      </div>
+      <div class="sb-rule"></div>
+      <div class="sb-items" id="stackList">
+        <!-- rendered by renderStackList() -->
+      </div>
+    </div>
+
+    <!-- Panels — 25% -->
+    <div class="sb-section panels">
+      <div class="sb-section-head">
+        <span class="sb-label">Panels</span>
+        <button class="sb-add" onclick="createNewPanel()">New +</button>
+      </div>
+      <div class="sb-rule"></div>
+      <div class="sb-items" id="panelList">
+        <!-- rendered by renderPanelList() -->
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- Editor -->
+    <div class="editor">
+      <div class="editor-bar">
+        <span class="editor-bar-title">Panel / Tab Editor</span>
+      </div>
+
+      <div class="editor-body">
+
+        <!-- Fields Pane -->
+        <div class="fields-pane">
+
+          <!-- Color picker — fixed height at top -->
+          <div class="fp-color">
+            <div class="f-label" style="margin-bottom:8px">Panel Color</div>
+            <div class="swatch-row" id="swatchRow">
+              <!-- swatches populated from panel_colors.json -->
+            </div>
+            <div class="hex-inline" style="margin-top:8px;">
+              <span class="hex-hash">hex:</span>
+              <input class="hex-input-inline" id="hexInput" type="text" maxlength="7" placeholder="4f8ef7"
+                onkeydown="handleHexKey(event)" oninput="this.classList.remove('err')">
+              <button class="hex-action-btn hex-apply" title="Add color swatch">✓</button>
+              <button class="hex-action-btn hex-reset" title="Delete swatch">✕</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+              <span style="font-size:11px;flex-shrink:0">🎨</span>
+              <a href="https://imagecolorpicker.com/" target="_blank" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">imagecolorpicker.com</a>
+              <button onclick="navigator.clipboard.writeText('https://imagecolorpicker.com/');this.textContent='✓';setTimeout(()=>this.textContent='⧉',1500)" style="margin-left:auto;font-size:13px;background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:0;line-height:1;opacity:0.6;transition:opacity 0.15s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.6'" title="Copy URL">⧉</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+              <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);flex-shrink:0">Opacity</span>
+              <input type="range" id="opacitySlider" min="10" max="100" value="100" step="5"
+                style="flex:1;accent-color:var(--accent);height:3px;cursor:pointer"
+                oninput="setOpacity(this.value)">
+              <span id="opacityVal" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);min-width:28px;text-align:right">100%</span>
+            </div>
+          </div>
+
+          <!-- Tools in Panel — half of remaining height -->
+          <div class="fp-section">
+            <div class="fp-section-head">
+              <span class="f-label">Tools in Panel</span>
+              <span class="fp-hint">drag to reorder</span>
+            </div>
+            <div class="slot-list" id="slotList" ondragleave="onSlotListDragLeave(event)"></div>
+            <div class="fp-section-footer">
+              <button class="btn-add-panel" onclick="createNewPanel()">+ Add Panel</button>
+            </div>
+          </div>
+
+          <!-- Panels in Tab — other half -->
+          <div class="fp-section">
+            <div class="fp-section-head">
+              <span class="f-label">Panels in Tab</span>
+              <span class="fp-hint">drag to reorder</span>
+            </div>
+            <div class="panel-slot-list" id="panelSlotList" ondragleave="onPanelSlotListDragLeave(event)"></div>
+          </div>
+
+        </div>
+
+        <!-- Preview Pane -->
+        <div class="preview-pane">
+
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:var(--text3);flex-shrink:0">Name</span>
+            <input id="panelNameInput" type="text" value="Modify" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--heading);outline:none;width:130px;transition:border-color 0.15s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="document.getElementById('mockTitle').textContent=this.value">
+            <button class="confirm-rename-btn" onclick="confirmPanelRename()" title="Confirm rename">&#x2713;</button>
+          </div>
+
+          <div class="pane-label">Panel Preview</div>
+
+          <div class="panel-mock">
+            <div class="panel-mock-head" id="mockHead" style="background:rgba(79,142,247,0.1);color:#4f8ef7;border-bottom-color:rgba(79,142,247,0.2)">
+              <span id="mockTitle">Modify</span>
+              <span style="font-size:9px;color:var(--text3);font-weight:300">live preview</span>
+            </div>
+            <div class="panel-mock-tools" id="panelMockTools"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── TAB PREVIEW ── -->
+    <div class="tab-preview">
+      <div class="tab-preview-bar">
+        <div class="header-field" style="gap:8px">
+          <label style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:var(--text3);white-space:nowrap">Tab Name</label>
+          <input class="header-input" id="tabNameInput" type="text" value="Design" placeholder="e.g. Design" style="width:140px">
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;flex-shrink:0">
+          → <span id="tabNameDisplay" style="color:var(--text2)">Design</span>
+        </div>
+        <div class="tab-preview-lbl" style="margin-left:auto">Tab Preview</div>
+        <button class="sb-add" onclick="renderTabCanvas()" style="font-size:9px;padding:2px 8px">Update Preview</button>
+        <div>
+          <button class="export-btn" id="exportBtn" onclick="exportConfig()">Export Config →</button>
+        </div>
+      </div>
+
+      <div class="tab-canvas" id="tabCanvas">
+        <!-- rendered by renderTabCanvas() -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast">
+  <div class="toast-title"></div>
+  <div class="toast-body"></div>
+</div>
+
+<!-- Export overlay -->
+<div class="export-overlay" id="exportOverlay">
+  <div class="export-card">
+    <div class="export-title" id="exportTitle"></div>
+    <div id="exportPaths"></div>
+  </div>
+</div>
+
+<script src="rst_messages.js"></script>
+<script>
+  // ── ADDIN LOOKUP TABLE ──────────────────────────────────────────────────────
+  // Loaded from lookup/addin_lookup.json via pywebview API at init.
+  // Unknown sourceTabs (not in this table) are flagged amber in the header chips
+  // so the admin knows the end-user side will fall back to fuzzy / community match.
+  let ADDIN_LOOKUP = {};
+
+  // ── LOADED ADD-INS (from Revit session) ────────────────────────────────────
+  let LOADED_ADDINS = [];
+
+  // ── RESOLVED ADD-INS (assembly cross-reference: tab → .addin file) ────────
+  // {tabName: {addinFile, assemblyPath, url}} — definitive mapping from session
+  let RESOLVED_ADDINS = {};
+
+  var BUILTIN_TABS = new Set([
+    'Architecture', 'Structure', 'Systems', 'Steel', 'Precast',
+    'Insert', 'Annotate', 'Analyze', 'Massing & Site', 'Collaborate',
+    'View', 'Manage', 'Modify', 'Add-Ins', 'Create', 'RST',
+    'FormIt', 'FormIt Converter', 'eTransmit',
+  ]);
+
+  function isNativeTab(tabName) {
+    return BUILTIN_TABS.has(tabName);
+  }
+
+  function isAddinLoaded(tabName) {
+    if (isNativeTab(tabName)) return true;
+    if (!LOADED_ADDINS.length) return false;
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return true;
+      if (stem && name.indexOf(stem) !== -1) return true;
+    }
+    return false;
+  }
+
+  // ── STATE ──────────────────────────────────────────────────────────────────
+  const state = {
+    currentProfile: 'New Profile',
+    expandedStack:  null,   // name of the stack whose editor is open, or null
+    panelOpacity:   100,    // 10–100, applies to all panel background colors
+    stacks: {},
+    panels: {},
+    // sourceTab: null  = native Revit command (no add-in to attribute)
+    // sourceTab: string = add-in ribbon tab name, parsed from RevitCommandId at record time
+    // commandId: the RevitCommandId string captured via adwindows.dll ItemExecuted at record time
+    //   Native tools  → "ID_MODIFY_*" / "ID_VIEW_*" format
+    //   Add-in tools  → "CustomCtrl_%CustomCtrl_%{Tab}%{Panel}%{Button}" format
+    allTools: [],
+    currentPanel:   null,
+    profileList: [],       // list of profile name strings from get_profiles()
+    panelColors: [],       // [{hex, name}] loaded from panel_colors.json
+    selectedSwatchIdx: 0,  // index of the currently selected swatch
+  };
+
+  // ── HELPERS ────────────────────────────────────────────────────────────────
+  function esc(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+  function hexToRgb(hex) {
+    return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+  }
+
+  function rgbToHex(rgb) {
+    const m = rgb.match(/\d+/g);
+    return m ? '#' + m.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('') : '';
+  }
+
+  function opacityFrac() { return state.panelOpacity / 100; }
+
+  function setOpacity(val) {
+    state.panelOpacity = parseInt(val, 10);
+    document.getElementById('opacityVal').textContent = val + '%';
+    if (state.currentPanel) applyColorToMock(state.panels[state.currentPanel].color);
+    renderMockPreview();
+    renderTabCanvas();
+  }
+
+  function applyColorToMock(color) {
+    const rgb = hexToRgb(color);
+    const a = opacityFrac();
+    const h = document.getElementById('mockHead');
+    h.style.background = `rgba(${rgb},${(0.1 * a).toFixed(2)})`;
+    h.style.color = color;
+    h.style.borderBottomColor = `rgba(${rgb},${(0.2 * a).toFixed(2)})`;
+  }
+
+  // ── LIVE PREVIEW ───────────────────────────────────────────────────────────
+  function contrastTextColor(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.55 ? '#1e2536' : '#ffffff';
+  }
+
+  function renderMockPreview() {
+    const tools = document.getElementById('panelMockTools');
+    tools.innerHTML = '';
+    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    const panelColor = state.panels[state.currentPanel].color || '#4f8ef7';
+    const pRgb = hexToRgb(panelColor);
+    const a = opacityFrac();
+    const bgStyle = `rgba(${pRgb},${a.toFixed(2)})`;
+    const textCol = contrastTextColor(panelColor);
+    state.panels[state.currentPanel].slots.forEach(slot => {
+      if (slot.type === 'tool') {
+        tools.insertAdjacentHTML('beforeend',
+          `<div class="rib-btn" style="background:${bgStyle};border-color:${bgStyle}">
+             <div class="rib-icon" style="background:rgba(255,255,255,0.2);color:${textCol}">${slot.icon}</div>
+             <div class="rib-label" style="color:${textCol}">${escHtml(slot.baseName || slot.name)}</div>
+           </div>`);
+      } else {
+        const stackTools = state.stacks[slot.name]?.tools || [];
+        tools.insertAdjacentHTML('beforeend',
+          `<div class="rib-stack">${stackTools.map(t => {
+            const td = state.allTools.find(x => x.name === t) || { icon:'≡' };
+            return `<div class="rib-stack-item" style="background:${bgStyle};border-color:${bgStyle}">
+              <div class="rib-stack-icon" style="background:rgba(255,255,255,0.2);color:${textCol}">${td.icon}</div>
+              <div class="rib-stack-label" style="color:${textCol}">${t}</div>
+            </div>`;
+          }).join('')}</div>`);
+      }
+    });
+  }
+
+  // ── SLOT LIST ──────────────────────────────────────────────────────────────
+  function renderSlotList() {
+    const list = document.getElementById('slotList');
+    list.innerHTML = '';
+    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    state.panels[state.currentPanel].slots.forEach((slot, idx) => {
+      if (slot.type === 'tool') {
+        const iconBadge = slot.iconFile ? '<div class="slot-icon-badge"></div>' : '';
+        list.insertAdjacentHTML('beforeend',
+          `<div class="slot" data-idx="${idx}"
+                draggable="true"
+                ondragstart="onSlotDragStart(event,${idx})"
+                ondragover="onSlotDragOver(event,${idx})"
+                ondragend="onSlotDragEnd()"
+                ondrop="onSlotDrop(event)">
+             <span class="drag-h">⠿</span>
+             <div class="slot-icon">${slot.icon}</div>
+             ${escHtml(slot.baseName || slot.name)}
+             <button class="slot-icon-pick" title="Set custom icon" onclick="event.stopPropagation();pickIconForSlot(${idx})">
+               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+               </svg>
+             </button>
+             ${iconBadge}
+           </div>`);
+      } else {
+        const count = state.stacks[slot.name]?.tools.length ?? 0;
+        list.insertAdjacentHTML('beforeend',
+          `<div class="slot is-stack" data-idx="${idx}"
+                draggable="true"
+                ondragstart="onSlotDragStart(event,${idx})"
+                ondragover="onSlotDragOver(event,${idx})"
+                ondragend="onSlotDragEnd()"
+                ondrop="onSlotDrop(event)">
+             <span class="drag-h">⠿</span>
+             <div class="slot-icon" style="background:rgba(124,58,237,0.15);border-color:rgba(124,58,237,0.3);color:#a78bfa">≡</div>
+             ${slot.name}
+             <div class="slot-badge stack-badge">small · ${count}</div>
+           </div>`);
+      }
+    });
+  }
+
+  // ── DETECTED ADD-INS (derived, read-only) ─────────────────────────────────
+  // Chips are computed directly from placed tools' sourceTabs.
+  // No manual entry — auto-populated from recording, "Unknown" if detection failed.
+  function getDetectedAddins() {
+    const tabs = new Set();
+    Object.entries(state.panels)
+      .filter(([, p]) => p.active !== false)
+      .forEach(([, panel]) => {
+        panel.slots.forEach(slot => {
+          if (slot.type === 'tool') {
+            const tool = state.allTools.find(t => t.name === slot.name);
+            if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) {
+              if (BUILTIN_TABS.has(tool.sourceTab)) {
+                // Tool lives on a built-in tab — use panel name as the add-in identity
+                if (tool.sourcePanel && !BUILTIN_TABS.has(tool.sourcePanel)) tabs.add(tool.sourcePanel);
+              } else {
+                tabs.add(tool.sourceTab);
+              }
+            }
+          } else if (slot.type === 'stack') {
+            const stack = state.stacks[slot.name];
+            if (stack) {
+              stack.tools.forEach(toolName => {
+                const tool = state.allTools.find(t => t.name === toolName);
+                if (tool?.sourceTab && tool.sourceTab !== 'Custom' && !tool.sourceTab.startsWith('CustomCtrl_')) {
+                  if (BUILTIN_TABS.has(tool.sourceTab)) {
+                    if (tool.sourcePanel && !BUILTIN_TABS.has(tool.sourcePanel)) tabs.add(tool.sourcePanel);
+                  } else {
+                    tabs.add(tool.sourceTab);
+                  }
+                }
+              });
+            }
+          }
+        });
+      });
+
+    // Return enriched objects using resolved assembly data
+    return [...tabs].map(tabName => {
+      const resolved = RESOLVED_ADDINS[tabName] || {};
+      const lookup = ADDIN_LOOKUP[tabName] || {};
+      return {
+        tabName: tabName,
+        addinFile: resolved.addinFile || lookup.file || null,
+        url: resolved.url || lookup.url || '',
+      };
+    });
+  }
+
+  function dismissDisabledBanner() {
+    document.getElementById('disabledBanner').classList.remove('visible');
+  }
+
+  function renderDetectedAddins() {
+    const display = document.getElementById('addinChipsDisplay');
+    const addins  = getDetectedAddins();
+    if (addins.length === 0) {
+      display.innerHTML = `<span class="addin-chip-empty">none detected</span>`;
+    } else {
+      display.innerHTML = addins.map(addin => {
+        const name      = addin.tabName;
+        const native    = isNativeTab(name);
+        const known     = ADDIN_LOOKUP[name];
+        const loaded    = isAddinLoaded(name);
+        const resolved  = addin.addinFile != null;
+        const isUnknown = !native && !known && !loaded && !resolved;
+        let title, cls;
+        if (native) {
+          title = 'Revit built-in \u2014 always available';
+          cls = '';
+        } else if (resolved) {
+          title = 'Resolved: ' + addin.addinFile + (loaded ? ' (loaded)' : '');
+          cls = '';
+        } else if (loaded) {
+          title = 'Loaded in current Revit session';
+          cls = '';
+        } else if (known) {
+          title = known.displayName + ' \u2014 not loaded in this session';
+          cls = ' unknown';
+        } else {
+          title = 'Not in lookup and not loaded';
+          cls = ' unknown';
+        }
+        const badge = native ? ' Native' : (resolved || loaded ? ' \u2713' : (isUnknown ? ' ?' : ''));
+        return `<span class="addin-chip${cls}" title="${title}">${name}${badge}</span>`;
+      }).join('');
+    }
+  }
+
+  // ── DETECT TOOLS ────────────────────────────────────────────────────────────
+  function detectTools() {
+    if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.get_installed_commands) {
+      showToast('Error', 'pywebview API not available');
+      return;
+    }
+    var list = document.getElementById('toolList');
+    list.innerHTML = '<div style="color:var(--text3);font-family:\'DM Mono\',monospace;font-size:10px;padding:10px 14px;letter-spacing:0.06em">Detecting tools...</div>';
+
+    window.pywebview.api.get_installed_commands().then(function(cmds) {
+      if (Array.isArray(cmds) && cmds.length > 0) {
+        // Preserve custom URL tools across detect
+        var customTools = state.allTools.filter(function(t) { return t.sourceTab === 'Custom'; });
+        var existingIds = {};
+        state.allTools.forEach(function(t) { existingIds[t.commandId] = true; });
+        cmds.forEach(function(cmd) {
+          if (cmd.commandId && !existingIds[cmd.commandId]) {
+            state.allTools.push({
+              name:      cmd.name,
+              baseName:  cmd.baseName || cmd.name,
+              icon:      cmd.icon || '',
+              sourceTab: cmd.sourceTab || null,
+              sourcePanel: cmd.sourcePanel || null,
+              commandId: cmd.commandId,
+            });
+          }
+        });
+        // Re-append any custom URL tools that may have been lost
+        customTools.forEach(function(ct) {
+          if (!state.allTools.find(function(t) { return t.commandId === ct.commandId && t.sourceTab === 'Custom'; })) {
+            state.allTools.push(ct);
+          }
+        });
+      }
+      renderToolList();
+      renderDetectedAddins();
+      showToast('Detect', 'Found ' + state.allTools.length + ' tools');
+    }).catch(function(err) {
+      list.innerHTML = '';
+      showToast('Error', 'Detection failed: ' + err);
+    });
+  }
+
+  // ── TOOL LIST ──────────────────────────────────────────────────────────────
+  function renderToolList() {
+    const list = document.getElementById('toolList');
+
+    // ── Rebuild sourceTab dropdown options ──
+    const tabSelect = document.getElementById('toolTabFilter');
+    if (tabSelect) {
+      const uniqueTabs = [...new Set(
+        state.allTools.map(t => t.sourceTab).filter(Boolean)
+      )].sort();
+      const prevVal = tabSelect.value;
+      // Always include "Custom" as second option
+      if (!uniqueTabs.includes('Custom')) uniqueTabs.unshift('Custom');
+      tabSelect.innerHTML = '<option value="">All</option>' +
+        uniqueTabs.map(t => `<option value="${t}">${t}</option>`).join('');
+      // Restore previous selection if it still exists
+      if (uniqueTabs.includes(prevVal)) tabSelect.value = prevVal;
+    }
+
+    // ── Filter tools by search text and sourceTab dropdown ──
+    const searchVal = (document.getElementById('toolSearchInput')?.value || '').toLowerCase();
+    const tabVal    = document.getElementById('toolTabFilter')?.value || '';
+    const filtered  = state.allTools.filter(tool => {
+      if (searchVal && !tool.name.toLowerCase().includes(searchVal)) return false;
+      if (tabVal && (tool.sourceTab || '') !== tabVal) return false;
+      return true;
+    });
+
+    // Tools in the current panel — green checkbox, toggleable
+    const currentSlots = (state.currentPanel && state.panels[state.currentPanel])
+      ? state.panels[state.currentPanel].slots : [];
+    const currentPanelNames = new Set(
+      currentSlots.map(s => s.name)
+    );
+    // Tools placed in any OTHER panel — shown greyed, pointer-events:none
+    const otherPanelNames = new Set(
+      Object.entries(state.panels)
+        .filter(([n]) => n !== state.currentPanel)
+        .flatMap(([, p]) => p.slots.map(s => s.name))
+    );
+    // Tools used in any stack — shown greyed, not addable standalone
+    const inStackNames = new Set(
+      Object.values(state.stacks).flatMap(s => s.tools)
+    );
+
+    list.innerHTML = filtered.map((tool, filteredIdx) => {
+      const isInStack    = inStackNames.has(tool.name);
+      const isInCurrent  = !isInStack && currentPanelNames.has(tool.name);
+      const isElsewhere  = !isInStack && !isInCurrent && otherPanelNames.has(tool.name);
+      const hasAddin     = !!tool.sourceTab;
+      const addinBadge   = hasAddin
+        ? `<span class="source-tab-badge">${tool.sourceTab}</span>`
+        : '';
+      const isCustom = tool.sourceTab === 'Custom';
+      const allToolsIdx = state.allTools.indexOf(tool);
+      const customIcons = isCustom
+        ? `<span onclick="event.stopPropagation();editCustomTool(${allToolsIdx})" style="cursor:pointer;font-size:11px;color:var(--text3);margin-left:4px" title="Edit">✎</span>` +
+          `<span onclick="event.stopPropagation();deleteCustomTool(${allToolsIdx})" style="cursor:pointer;font-size:11px;color:var(--text3);margin-left:2px;transition:color 0.15s" onmouseenter="this.style.color='var(--danger)'" onmouseleave="this.style.color='var(--text3)'" title="Delete">✕</span>`
+        : '';
+
+      const isGreyed = isElsewhere || isInStack;
+      let goToLabel = '';
+      if (isGreyed) {
+        const loc = findToolLocation(tool.name);
+        if (loc) goToLabel = 'Go to ' + loc.name;
+      }
+
+      return `
+        <div class="sb-row" data-name="${tool.name}">
+          <div class="sb-stripe" style="background:transparent"></div>
+          <div class="sb-row-body ${isInCurrent ? 'placed' : ''} ${isGreyed ? 'elsewhere' : ''}"
+               ${isGreyed ? 'style="pointer-events:auto;cursor:pointer" title="' + escHtml(goToLabel) + '"' : ''}>
+            <div class="sb-cb ${isInCurrent ? 'checked' : ''}">${isInCurrent ? '✓' : isGreyed ? '–' : ''}</div>
+            <span style="flex:1">${escHtml(tool.name)}</span>
+            ${customIcons}
+            ${isInStack ? '<span class="source-tab-badge" style="background:rgba(124,58,237,0.1);border-color:rgba(124,58,237,0.25);color:#a78bfa">small tool</span>' : ''}
+            ${addinBadge}
+          </div>
+        </div>`;
+    }).join('') +
+    '<div class="add-url-btn" onclick="promptAddUrl()" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;margin:6px;border:1px dashed var(--border2);border-radius:4px;cursor:pointer;color:var(--accent3);font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:0.06em;transition:all 0.15s" onmouseenter="this.style.borderColor=\'var(--accent3)\';this.style.background=\'rgba(16,185,129,0.06)\'" onmouseleave="this.style.borderColor=\'var(--border2)\';this.style.background=\'transparent\'">+ Add URL</div>';
+
+    // Click sb-row-body → toggle in current panel, or navigate to location if greyed
+    list.querySelectorAll('.sb-row').forEach(row => {
+      row.querySelector('.sb-row-body').addEventListener('click', e => {
+        const name = row.dataset.name;
+        if (row.querySelector('.sb-row-body').classList.contains('elsewhere')) {
+          goToToolLocation(name);
+        } else {
+          toggleToolInPanel(name);
+        }
+      });
+    });
+  }
+
+  // ── FIND TOOL LOCATION ─────────────────────────────────────────────────────
+  function findToolLocation(name) {
+    // Check stacks first
+    for (const [stackName, stack] of Object.entries(state.stacks)) {
+      if (stack.tools.includes(name)) return { type: 'stack', name: stackName };
+    }
+    // Check panels
+    for (const [panelName, panel] of Object.entries(state.panels)) {
+      if (panel.slots.some(s => s.type === 'tool' && s.name === name)) return { type: 'panel', name: panelName, color: panel.color };
+    }
+    return null;
+  }
+
+  function goToToolLocation(name) {
+    const loc = findToolLocation(name);
+    if (!loc) return;
+    if (loc.type === 'panel') {
+      selectPanel(loc.name, loc.color);
+    } else if (loc.type === 'stack') {
+      state.expandedStack = loc.name;
+      renderStackList();
+    }
+  }
+
+  // ── TOGGLE TOOL IN PANEL ───────────────────────────────────────────────────
+  // Called when user clicks a tool row in the Available Tools list.
+  function toggleToolInPanel(name) {
+    if (!state.currentPanel || !state.panels[state.currentPanel]) {
+      // Auto-create a panel if none exist, otherwise prompt user to select one
+      if (Object.keys(state.panels).length === 0) {
+        createNewPanel();
+      } else {
+        showToast('No panel selected', 'Select or create a panel first.');
+        return;
+      }
+    }
+    // Block if tool is already in a stack
+    const inAnyStack = Object.values(state.stacks).some(s => s.tools.includes(name));
+    if (inAnyStack) return;
+
+    const slots = state.panels[state.currentPanel].slots;
+    const idx   = slots.findIndex(s => s.type === 'tool' && s.name === name);
+    if (idx !== -1) {
+      slots.splice(idx, 1);
+    } else {
+      const tool = state.allTools.find(t => t.name === name);
+      if (!tool) return;
+      slots.push({ type: 'tool', name: tool.name, baseName: tool.baseName || tool.name, icon: tool.icon, commandId: tool.commandId, sourceTab: tool.sourceTab, sourcePanel: tool.sourcePanel });
+    }
+    renderDetectedAddins();
+    renderSlotList();
+    renderMockPreview();
+    renderToolList();
+    renderPanelSlotList();
+  }
+
+  // ── TOGGLE STACK IN PANEL ──────────────────────────────────────────────────
+  // Called when user clicks a stack row in the Stacks list.
+  function toggleStackInPanel(name) {
+    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    const slots = state.panels[state.currentPanel].slots;
+    const idx   = slots.findIndex(s => s.type === 'stack' && s.name === name);
+    if (idx !== -1) {
+      slots.splice(idx, 1);
+    } else {
+      slots.push({ type: 'stack', name });
+    }
+    renderSlotList();
+    renderMockPreview();
+    renderStackList();
+    renderToolList();
+    renderPanelSlotList();
+  }
+
+  // ── DELETE FROM STATE ──────────────────────────────────────────────────────
+  function deleteToolFromState(name) {
+    // Remove from allTools
+    const idx = state.allTools.findIndex(t => t.name === name);
+    if (idx !== -1) state.allTools.splice(idx, 1);
+    // Remove from all panel slots
+    Object.values(state.panels).forEach(p => {
+      p.slots = p.slots.filter(s => s.name !== name || s.type !== 'tool');
+    });
+    // Remove from all stacks
+    Object.values(state.stacks).forEach(s => {
+      s.tools = s.tools.filter(t => t !== name);
+    });
+    renderDetectedAddins();
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    renderStackList();
+    renderTabCanvas();
+    renderPanelSlotList();
+  }
+
+  // ── CUSTOM URL TOOLS ──────────────────────────────────────────────────────
+  // ── PERSIST CUSTOM TOOLS ────────────────────────────────────────────────
+  function persistCustomTools() {
+    var custom = state.allTools.filter(function(t) { return t.sourceTab === 'Custom'; });
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_custom_tools) {
+      window.pywebview.api.save_custom_tools(JSON.stringify(custom)).catch(function() {});
+    }
+  }
+
+  function promptAddUrl() {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,17,23,0.85);display:flex;align-items:center;justify-content:center;z-index:1000';
+    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:24px;width:340px">' +
+      '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;color:var(--heading);margin-bottom:16px">Add URL Tool</div>' +
+      '<div style="margin-bottom:12px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">Name</label>' +
+      '<input id="urlToolName" type="text" placeholder="e.g. Company Wiki" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="margin-bottom:18px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">URL</label>' +
+      '<input id="urlToolUrl" type="text" placeholder="https://..." style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Cancel</button>' +
+      '<button onclick="confirmAddUrl()" style="padding:6px 14px;border-radius:4px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);color:var(--accent3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Add Tool</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    document.getElementById('urlToolName').focus();
+  }
+
+  function confirmAddUrl() {
+    var name = document.getElementById('urlToolName').value.trim();
+    var url = document.getElementById('urlToolUrl').value.trim();
+    if (!name || !url) return;
+    var overlay = document.querySelector('div[style*="fixed"][style*="inset"]');
+    if (overlay) overlay.remove();
+    state.allTools.push({
+      name: name,
+      baseName: name,
+      icon: '\u{1F517}',
+      sourceTab: 'Custom',
+      sourcePanel: null,
+      commandId: 'URL:' + url,
+    });
+    persistCustomTools();
+    renderToolList();
+  }
+
+  function editCustomTool(toolIdx) {
+    var tool = state.allTools[toolIdx];
+    if (!tool || tool.sourceTab !== 'Custom') return;
+    var currentUrl = (tool.commandId || '').replace(/^URL:/, '');
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,17,23,0.85);display:flex;align-items:center;justify-content:center;z-index:1000';
+    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:24px;width:340px">' +
+      '<div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;color:var(--heading);margin-bottom:16px">Edit URL Tool</div>' +
+      '<div style="margin-bottom:12px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">Name</label>' +
+      '<input id="urlToolName" type="text" value="' + tool.name.replace(/"/g, '&quot;') + '" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="margin-bottom:18px"><label style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:4px">URL</label>' +
+      '<input id="urlToolUrl" type="text" value="' + currentUrl.replace(/"/g, '&quot;') + '" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:13px;outline:none"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Cancel</button>' +
+      '<button onclick="confirmEditUrl(' + toolIdx + ')" style="padding:6px 14px;border-radius:4px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);color:var(--accent3);cursor:pointer;font-family:\'DM Mono\',monospace;font-size:10px">Save</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    document.getElementById('urlToolName').focus();
+  }
+
+  function confirmEditUrl(toolIdx) {
+    var name = document.getElementById('urlToolName').value.trim();
+    var url = document.getElementById('urlToolUrl').value.trim();
+    if (!name || !url) return;
+    var overlay = document.querySelector('div[style*="fixed"][style*="inset"]');
+    if (overlay) overlay.remove();
+
+    var oldName = state.allTools[toolIdx].name;
+    state.allTools[toolIdx].name = name;
+    state.allTools[toolIdx].baseName = name;
+    state.allTools[toolIdx].commandId = 'URL:' + url;
+
+    // Update references in panel slots
+    Object.values(state.panels).forEach(function(panel) {
+      panel.slots.forEach(function(slot) {
+        if (slot.type === 'tool' && slot.name === oldName) {
+          slot.name = name;
+          slot.baseName = name;
+          slot.commandId = 'URL:' + url;
+        }
+      });
+    });
+
+    persistCustomTools();
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
+  }
+
+  function deleteCustomTool(toolIdx) {
+    var tool = state.allTools[toolIdx];
+    if (!tool || tool.sourceTab !== 'Custom') return;
+    var name = tool.name;
+    state.allTools.splice(toolIdx, 1);
+    // Remove from any panels
+    Object.values(state.panels).forEach(function(panel) {
+      panel.slots = panel.slots.filter(function(s) {
+        return !(s.type === 'tool' && s.name === name);
+      });
+    });
+    persistCustomTools();
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
+  }
+
+  function deleteStackFromState(name) {
+    delete state.stacks[name];
+    if (state.expandedStack === name) state.expandedStack = null;
+    // Remove from all panel slots
+    Object.values(state.panels).forEach(p => {
+      p.slots = p.slots.filter(s => s.name !== name || s.type !== 'stack');
+    });
+    renderStackList();
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
+    renderPanelSlotList();
+  }
+
+  function deletePanelFromState(name) {
+    delete state.panels[name];
+    if (state.currentPanel === name) {
+      const first = Object.keys(state.panels)[0];
+      if (first) selectPanel(first, state.panels[first].color);
+    }
+    renderPanelList();
+    renderTabCanvas();
+    renderPanelSlotList();
+    checkExportReady();
+  }
+
+  function createNewPanel() {
+    let idx = Object.keys(state.panels).length + 1;
+    let name = 'Panel ' + idx;
+    while (state.panels[name]) { idx++; name = 'Panel ' + idx; }
+    const color = (state.panelColors.length > 0) ? state.panelColors[0].hex : '#4f8ef7';
+    state.panels[name] = { color: color, active: true, slots: [] };
+    selectPanel(name, color);
+    renderAll();
+  }
+
+  // ── CREATE NEW STACK ────────────────────────────────────────────────────────
+  function createNewStack() {
+    let idx = Object.keys(state.stacks).length + 1;
+    let name = 'Stack ' + idx;
+    while (state.stacks[name]) { idx++; name = 'Stack ' + idx; }
+    state.stacks[name] = { tools: [] };
+    state.expandedStack = name;
+    renderAll();
+  }
+
+  // ── STACK EXPANSION ────────────────────────────────────────────────────────
+  function toggleStackExpand(name) {
+    state.expandedStack = state.expandedStack === name ? null : name;
+    renderStackList();
+  }
+
+  function filterStackPicker(input, stackName) {
+    const stack = state.stacks[stackName];
+    if (!stack || stack.tools.length >= 3) return;
+    const query = input.value.toLowerCase();
+    const available = state.allTools.filter(t => !stack.tools.includes(t.name));
+    const filtered = available.filter(t => !query || t.name.toLowerCase().includes(query));
+    const container = document.getElementById('stackPickerResults_' + stackName);
+    if (!container) return;
+    if (filtered.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '1px';
+    container.innerHTML = filtered.map(t =>
+      `<div class="stack-picker-item" style="display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11px;color:var(--text2);cursor:pointer;border-radius:3px;transition:background 0.1s"
+            onmouseover="this.style.background='var(--surface2)'"
+            onmouseout="this.style.background='transparent'"
+            onmousedown="addToolToStack('${esc(stackName)}','${esc(t.name)}')">
+        <span style="font-size:10px;flex-shrink:0">${t.icon}</span>
+        ${escHtml(t.name)}
+      </div>`
+    ).join('');
+  }
+
+  // Close stack picker results when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.stack-add-row')) {
+      document.querySelectorAll('.stack-picker-results').forEach(el => el.style.display = 'none');
+    }
+  });
+
+  function addToolToStack(stackName, toolName) {
+    if (!toolName || !state.stacks[stackName]) return;
+    const stack = state.stacks[stackName];
+    if (stack.tools.includes(toolName) || stack.tools.length >= 3) return;
+    stack.tools.push(toolName);
+    // Remove from any panel where it was placed standalone
+    Object.values(state.panels).forEach(function(p) {
+      p.slots = p.slots.filter(function(s) {
+        return !(s.type === 'tool' && s.name === toolName);
+      });
+    });
+    renderStackList();
+    renderSlotList();
+    renderMockPreview();
+    renderDetectedAddins();
+    renderToolList();
+    renderTabCanvas();
+    renderPanelSlotList();
+  }
+
+  function removeToolFromStack(stackName, idx) {
+    if (!state.stacks[stackName]) return;
+    state.stacks[stackName].tools.splice(idx, 1);
+    renderStackList();
+    renderSlotList();
+    renderMockPreview();
+    renderDetectedAddins();
+    renderTabCanvas();
+    renderPanelSlotList();
+  }
+  function selectPanel(name, color) {
+    state.currentPanel = name;
+    document.getElementById('panelNameInput').value = name;
+    document.getElementById('mockTitle').textContent = name;
+    applyColorToMock(color);
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+    const matchIdx = state.panelColors.findIndex(function(c) { return c.hex.toLowerCase() === color.toLowerCase(); });
+    if (matchIdx >= 0) {
+      state.selectedSwatchIdx = matchIdx;
+      const swatches = document.querySelectorAll('#swatchRow .swatch');
+      if (swatches[matchIdx]) swatches[matchIdx].classList.add('on');
+    }
+    renderPanelList();
+    renderStackList();
+    renderPanelSlotList();
+    renderSlotList();
+    renderMockPreview();
+    renderToolList();
+    // Sync tab canvas selection highlight
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.classList.toggle('sel', p.dataset.panel === name);
+    });
+  }
+
+  // ── COLOR PICKING ──────────────────────────────────────────────────────────
+  function renderSwatches() {
+    const row = document.getElementById('swatchRow');
+    row.innerHTML = '';
+    state.panelColors.forEach(function(c, i) {
+      const el = document.createElement('div');
+      const isBlank = !c.hex;
+      el.className = 'swatch' + (i === state.selectedSwatchIdx ? ' on' : '') + (isBlank ? ' blank' : '');
+      if (!isBlank) el.style.background = c.hex;
+      el.title = isBlank ? c.name + ' (empty)' : c.name;
+      el.addEventListener('click', function() { pickColor(i); });
+      row.appendChild(el);
+    });
+  }
+
+  function persistColors() {
+    console.log('[persistColors] saving ' + state.panelColors.length + ' colors', JSON.stringify(state.panelColors));
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_panel_colors) {
+      window.pywebview.api.save_panel_colors(JSON.stringify(state.panelColors)).catch(function(err) {
+        console.error('[persistColors] save failed:', err);
+      });
+    } else {
+      console.warn('[persistColors] pywebview API not available');
+    }
+  }
+
+  function pickColor(idx) {
+    console.log('[pickColor] idx=' + idx + ', currentPanel=' + state.currentPanel);
+    if (!state.currentPanel || !state.panels[state.currentPanel]) {
+      console.warn('[pickColor] BLOCKED — no panel selected');
+      return;
+    }
+    state.selectedSwatchIdx = idx;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+    const swatches = document.querySelectorAll('#swatchRow .swatch');
+    if (swatches[idx]) swatches[idx].classList.add('on');
+    const color = state.panelColors[idx].hex;
+    if (!color) {
+      console.log('[pickColor] blank swatch selected — waiting for hex input');
+      return;
+    }
+    console.log('[pickColor] applying color=' + color + ' to panel=' + state.currentPanel);
+    state.panels[state.currentPanel].color = color;
+    applyColorToMock(color);
+    renderMockPreview();
+    renderTabCanvas();
+    renderPanelList();
+    renderPanelSlotList();
+  }
+
+  function validateHex() {
+    const input = document.getElementById('hexInput');
+    const raw   = input.value.replace(/[\s#]/g, '');
+    console.log('[validateHex] raw="' + raw + '" (length=' + raw.length + ')');
+    if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+      console.warn('[validateHex] FAILED — not a valid 6-char hex');
+      input.classList.add('err');
+      return null;
+    }
+    input.classList.remove('err');
+    console.log('[validateHex] OK → #' + raw);
+    return '#' + raw;
+  }
+
+  var DEFAULT_PANEL_COLORS = [
+    { hex: '#4f8ef7', name: 'Blue' },  { hex: '#10b981', name: 'Green' },
+    { hex: '#a78bfa', name: 'Purple' }, { hex: '#f59e0b', name: 'Amber' },
+    { hex: '#ef4444', name: 'Red' },    { hex: '#06b6d4', name: 'Cyan' },
+    { hex: '#f97316', name: 'Orange' }, { hex: '#84cc16', name: 'Lime' },
+    { hex: '', name: 'Custom 1' }, { hex: '', name: 'Custom 2' },
+    { hex: '', name: 'Custom 3' }, { hex: '', name: 'Custom 4' },
+    { hex: '', name: 'Custom 5' }, { hex: '', name: 'Custom 6' },
+    { hex: '', name: 'Custom 7' }, { hex: '', name: 'Custom 8' }
+  ];
+
+  function resetSwatch() {
+    console.log('[resetSwatch] called, selectedSwatchIdx=' + state.selectedSwatchIdx);
+    var idx = state.selectedSwatchIdx;
+    if (idx < 0 || idx >= state.panelColors.length) {
+      console.warn('[resetSwatch] BLOCKED — invalid idx=' + idx);
+      return;
+    }
+    // Restore to factory default (built-in color or blank for custom slots)
+    state.panelColors[idx].hex = DEFAULT_PANEL_COLORS[idx].hex;
+    state.panelColors[idx].name = DEFAULT_PANEL_COLORS[idx].name;
+    persistColors();
+    renderSwatches();
+    // Apply restored color to current panel
+    if (state.currentPanel && state.panels[state.currentPanel]) {
+      var color = state.panelColors[state.selectedSwatchIdx].hex;
+      state.panels[state.currentPanel].color = color;
+      applyColorToMock(color);
+      renderMockPreview();
+      renderTabCanvas();
+      renderPanelList();
+      renderPanelSlotList();
+    }
+    document.getElementById('hexInput').value = '';
+  }
+
+  function applyHex() {
+    console.log('[applyHex] called, currentPanel=' + state.currentPanel + ', selectedSwatchIdx=' + state.selectedSwatchIdx);
+    if (!state.currentPanel) {
+      console.warn('[applyHex] BLOCKED — no panel selected');
+      return;
+    }
+    const color = validateHex();
+    if (!color) return;
+    // Replace the selected swatch's color
+    if (state.selectedSwatchIdx >= 0 && state.selectedSwatchIdx < state.panelColors.length) {
+      console.log('[applyHex] replacing swatch ' + state.selectedSwatchIdx + ' with ' + color);
+      state.panelColors[state.selectedSwatchIdx].hex = color;
+      persistColors();
+      renderSwatches();
+    }
+    state.panels[state.currentPanel].color = color;
+    applyColorToMock(color);
+    renderMockPreview();
+    renderTabCanvas();
+    renderPanelList();
+    renderPanelSlotList();
+    document.getElementById('hexInput').value = '';
+  }
+
+
+  function handleHexKey(e) {
+    console.log('[handleHexKey] key=' + e.key);
+    if (e.key === 'Enter') applyHex();
+    if (e.key === 'Escape') {
+      document.getElementById('hexInput').value = '';
+      document.getElementById('hexInput').classList.remove('err');
+    }
+  }
+
+  // ── TAB PANEL (canvas) ─────────────────────────────────────────────────────
+  function selectTabPanel(el, name, color) {
+    selectPanel(name, color);
+  }
+
+
+  // ── PROFILE MANAGEMENT ────────────────────────────────────────────────────
+  function toggleProfileMenu() {
+    document.getElementById('profileBtn').classList.toggle('open');
+    document.getElementById('profileMenu').classList.toggle('open');
+  }
+
+  function closeProfileMenu() {
+    document.getElementById('profileBtn').classList.remove('open');
+    document.getElementById('profileMenu').classList.remove('open');
+  }
+
+  function switchProfile(el, name) {
+    document.querySelectorAll('.profile-menu-item').forEach(i => i.classList.remove('current'));
+    el.classList.add('current');
+    document.getElementById('profileNameDisplay').textContent = name;
+    state.currentProfile = name;
+    closeProfileMenu();
+    checkExportReady();
+  }
+
+  function newProfile() {
+    closeProfileMenu();
+    const menu    = document.getElementById('profileMenu');
+    const divider = menu.querySelector('.profile-menu-divider');
+    const item    = document.createElement('div');
+    item.className = 'profile-menu-item';
+    item.textContent = 'New Profile';
+    item.addEventListener('click', () => switchProfile(item, item.textContent));
+    menu.insertBefore(item, divider);
+    editProfileName('New Profile', newName => { item.textContent = newName; });
+  }
+
+  function editProfileName(defaultVal, onCommit) {
+    const switcher   = document.querySelector('.profile-switcher');
+    const btn        = document.getElementById('profileBtn');
+    const currentName = defaultVal || document.getElementById('profileNameDisplay').textContent;
+    const input = document.createElement('input');
+    input.className = 'pencil-edit-input';
+    input.value = currentName;
+    btn.style.display = 'none';
+    switcher.insertBefore(input, btn);
+    input.focus(); input.select();
+    let committed = false;
+    function commit() {
+      if (committed) return; committed = true;
+      const val = input.value.trim() || currentName;
+      document.getElementById('profileNameDisplay').textContent = val;
+      state.currentProfile = val;
+      input.remove();
+      btn.style.display = '';
+      if (onCommit) onCommit(val);
+      checkExportReady();
+    }
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { input.blur(); }
+      if (e.key === 'Escape') { input.remove(); btn.style.display = ''; }
+    });
+  }
+
+  // ── TOAST ──────────────────────────────────────────────────────────────────
+  function showToast(title, body, duration) {
+    duration = duration || 4000;
+    const el = document.getElementById('toast');
+    el.querySelector('.toast-title').textContent = title;
+    el.querySelector('.toast-body').textContent = body;
+    el.classList.add('visible');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('visible'), duration);
+  }
+
+  // ── EXPORT ────────────────────────────────────────────────────────────────
+  function exportConfig() {
+    const tabName    = document.getElementById('tabNameInput').value || 'New Tab';
+    const rvtRaw     = document.getElementById('rvtVersionDisplay').textContent.trim();
+    const minVersion = rvtRaw.replace(/^Revit\s*/i, '').trim(); // "Revit 2024" → "2024"
+    const date       = new Date().toISOString().slice(0, 10);
+
+    // Build a name → commandId lookup for resolving stack tool commandIds
+    const cmdLookup = {};
+    state.allTools.forEach(t => { cmdLookup[t.name] = t.commandId; });
+
+    const referencedStacks = new Set(
+      Object.entries(state.panels)
+        .filter(([, p]) => p.active !== false)
+        .flatMap(([, p]) => p.slots.filter(s => s.type === 'stack').map(s => s.name))
+    );
+    const stackDefs = {};
+    referencedStacks.forEach(name => {
+      if (state.stacks[name]) {
+        // Resolve each stack tool to { name, commandId } so runtime needs no lookup
+        stackDefs[name] = {
+          tools: state.stacks[name].tools.map(toolName => {
+            const t = state.allTools.find(x => x.name === toolName) || {};
+            return {
+              name:      toolName,
+              baseName:  t.baseName || toolName,
+              commandId: cmdLookup[toolName] ?? null,
+              sourceTab: t.sourceTab || null,
+            };
+          })
+        };
+      }
+    });
+
+    const config = {
+      profile:        state.currentProfile,
+      tab:            tabName,
+      min_version:    minVersion,
+      exportDate:     date,
+      panelOpacity:   state.panelOpacity,
+      requiredAddins: getDetectedAddins(),
+      hideRules:      [],       // suppression handled by the loader, not TabCreator
+      stacks:         stackDefs,
+      // Slots carry { type, name, icon, commandId, iconFile } — fully self-contained,
+      // runtime never needs to re-resolve commandId from a separate registry
+      // Only export active panels (checked in the sidebar)
+      panels:         Object.entries(state.panels)
+        .filter(([, p]) => p.active !== false)
+        .map(([name, p]) => ({
+        name,
+        color: p.color,
+        slots: p.slots.map(slot => {
+          const out = { ...slot };
+          // Include iconFile if set on the slot
+          if (slot.iconFile) out.iconFile = slot.iconFile;
+          return out;
+        }),
+      })),
+    };
+
+    // Use pywebview API if available, otherwise fall back to browser download
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_export) {
+      window.pywebview.api.save_export(JSON.stringify(config, null, 2)).then(result => {
+        if (result && result.ok) {
+          showExportOverlay(state.currentProfile, result.path || '', result.desktop_path || '');
+        } else if (result && result.error) {
+          showToast('Export failed', result.error);
+        }
+      }).catch(err => {
+        showToast('Export failed', String(err));
+      });
+    } else {
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type:'application/json' });
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${state.currentProfile}_${date}.json` });
+      a.click(); URL.revokeObjectURL(a.href);
+    }
+  }
+
+  // ── EXPORT OVERLAY ─────────────────────────────────────────────────────────
+  function showExportOverlay(profileName, installPath, desktopPath) {
+    const overlay = document.getElementById('exportOverlay');
+    const title   = document.getElementById('exportTitle');
+    const paths   = document.getElementById('exportPaths');
+
+    const baseName = 'Creating ' + profileName + ' Profile';
+    title.textContent = baseName + '.';
+
+    let pathsHtml = '<div class="export-path-label">Install</div>' +
+                    '<div class="export-path-value">' + escHtml(installPath) + '</div>';
+    if (desktopPath) {
+      pathsHtml += '<div class="export-path-label">Desktop</div>' +
+                   '<div class="export-path-value">' + escHtml(desktopPath) + '</div>';
+    }
+    paths.innerHTML = pathsHtml;
+    overlay.classList.add('visible');
+
+    let ticks = 0;
+    const dotTimer = setInterval(function() {
+      ticks++;
+      title.textContent = baseName + '.'.repeat((ticks % 3) + 1);
+    }, 1000);
+
+    setTimeout(function() {
+      clearInterval(dotTimer);
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+      } else {
+        try { window.close(); } catch(e) {}
+        overlay.classList.remove('visible');
+      }
+    }, 3000);
+  }
+
+  // ── EXPORT GATING ─────────────────────────────────────────────────────────
+  function checkExportReady() {
+    const profileOk = state.currentProfile && state.currentProfile.trim().length > 0;
+    const tabOk     = document.getElementById('tabNameInput').value.trim().length > 0;
+    document.getElementById('exportBtn').disabled = !(profileOk && tabOk);
+  }
+
+  // ── CLOSE DROPDOWN ON OUTSIDE CLICK ───────────────────────────────────────
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.profile-switcher')) closeProfileMenu();
+  });
+
+  // ── TAB NAME SYNC ─────────────────────────────────────────────────────────
+  document.getElementById('tabNameInput').addEventListener('input', function() {
+    document.getElementById('tabNameDisplay').textContent = this.value || 'New Tab';
+    checkExportReady();
+  });
+
+  // ── RENAME STATE ──────────────────────────────────────────────────────────
+  let editingPanelName = null;
+  let editingStackName = null;
+
+  function startRenamePanel(name) {
+    editingPanelName = name;
+    renderPanelList();
+    const input = document.getElementById('renameInput_panel_' + name);
+    if (input) { input.focus(); input.select(); }
+  }
+
+  function startRenameStack(name) {
+    editingStackName = name;
+    renderStackList();
+    const input = document.getElementById('renameInput_stack_' + name);
+    if (input) { input.focus(); input.select(); }
+  }
+
+  function confirmPanelRename() {
+    if (!state.currentPanel) return;
+    const input = document.getElementById('panelNameInput');
+    const newName = input.value.trim();
+    const oldName = state.currentPanel;
+    if (!newName || newName === oldName) return;
+    if (state.panels[newName]) { RSTmsgInform('Rename Failed', 'A panel with that name already exists.'); return; }
+    // Key rename: create new key with old value, delete old key, preserving order
+    const entries = Object.entries(state.panels).map(([k, v]) => k === oldName ? [newName, v] : [k, v]);
+    state.panels = Object.fromEntries(entries);
+    state.currentPanel = newName;
+    document.getElementById('mockTitle').textContent = newName;
+    renderPanelList();
+    renderTabCanvas();
+    renderPanelSlotList();
+    renderSlotList();
+    renderMockPreview();
+  }
+
+  function commitPanelRename(oldName, newNameRaw) {
+    editingPanelName = null;
+    const newName = newNameRaw.trim() || oldName;
+    if (newName === oldName || !newName) { renderPanelList(); return; }
+    if (state.panels[newName]) { renderPanelList(); return; } // name already taken
+    const entries = Object.entries(state.panels).map(([k, v]) => k === oldName ? [newName, v] : [k, v]);
+    state.panels = Object.fromEntries(entries);
+    if (state.currentPanel === oldName) state.currentPanel = newName;
+    renderPanelList(); renderTabCanvas(); renderPanelSlotList();
+  }
+
+  function commitStackRename(oldName, newNameRaw) {
+    editingStackName = null;
+    const newName = newNameRaw.trim() || oldName;
+    if (newName === oldName || !newName) { renderStackList(); return; }
+    if (state.stacks[newName]) { renderStackList(); return; }
+    const entries = Object.entries(state.stacks).map(([k, v]) => k === oldName ? [newName, v] : [k, v]);
+    state.stacks = Object.fromEntries(entries);
+    // Update slot references across all panels
+    Object.values(state.panels).forEach(panel => {
+      panel.slots.forEach(slot => { if (slot.type === 'stack' && slot.name === oldName) slot.name = newName; });
+    });
+    if (state.expandedStack === oldName) state.expandedStack = newName;
+    renderStackList(); renderSlotList(); renderMockPreview(); renderTabCanvas(); renderPanelSlotList();
+  }
+
+  function handleRenameKey(event, type, name) {
+    if (event.key === 'Enter') event.target.blur();
+    if (event.key === 'Escape') {
+      if (type === 'panel') { editingPanelName = null; renderPanelList(); }
+      else { editingStackName = null; renderStackList(); }
+    }
+  }
+
+  // ── PANEL LIST ────────────────────────────────────────────────────────────
+  function renderPanelList() {
+    const list = document.getElementById('panelList');
+
+    if (Object.keys(state.panels).length === 0) {
+      // [Claude Code] No panels have been created yet.
+      // Render an "Add Panel" empty state button here so the admin
+      // has a clear call-to-action before they can build the tab.
+      // Wire it to the same logic as the "New +" button in the panel section header.
+      list.innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = Object.entries(state.panels).map(([name, panel]) => {
+      const isEditing = name === state.currentPanel;
+      const isActive  = panel.active !== false;
+      return `<div class="sb-row" data-name="${name}">
+        <div class="sb-stripe" style="background:${panel.color}"></div>
+        <div class="sb-row-body ${isEditing ? 'editing' : ''} ${!isActive ? 'inactive' : ''}"
+             onclick="selectPanel('${esc(name)}','${panel.color}')">
+          <div class="sb-cb ${isActive ? 'checked' : ''}"
+               title="${isActive ? 'Exclude from tab' : 'Include in tab'}"
+               onclick="event.stopPropagation();togglePanelActive('${esc(name)}')">
+            ${isActive ? '✓' : ''}
+          </div>
+          ${editingPanelName === name
+            ? `<input class="sb-rename-input" id="renameInput_panel_${name}"
+                     value="${name}"
+                     onclick="event.stopPropagation()"
+                     onblur="commitPanelRename('${esc(name)}',this.value)"
+                     onkeydown="handleRenameKey(event,'panel','${esc(name)}')">`
+            : `<span style="flex:1;pointer-events:none">${escHtml(name)}</span>`
+          }
+          <button class="sb-edit-btn" title="Rename panel"
+                  onclick="event.stopPropagation();startRenamePanel('${esc(name)}')">✎</button>
+          <button class="item-trash" title="Delete panel" style="margin-left:auto"
+                  onclick="event.stopPropagation();deletePanelFromState('${esc(name)}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function togglePanelActive(name) {
+    if (state.panels[name]) {
+      state.panels[name].active = state.panels[name].active === false;
+    }
+    renderPanelList();
+    renderTabCanvas();
+    renderPanelSlotList();
+    checkExportReady();
+  }
+
+  // ── STACK LIST ────────────────────────────────────────────────────────────
+  function renderStackList() {
+    const list = document.getElementById('stackList');
+    const currentSlots = (state.currentPanel && state.panels[state.currentPanel])
+      ? state.panels[state.currentPanel].slots : [];
+    const placedStacks = new Set(
+      currentSlots.filter(s => s.type === 'stack').map(s => s.name)
+    );
+
+    list.innerHTML = Object.entries(state.stacks).map(([name, stack]) => {
+      const isPlaced   = placedStacks.has(name);
+      const isExpanded = state.expandedStack === name;
+      const toolCount  = stack.tools.length;
+      const atMax      = toolCount >= 3;
+
+      // Available tools to add (not already in this stack)
+      const available = state.allTools.filter(t => !stack.tools.includes(t.name));
+
+      const expansionHtml = isExpanded ? `
+        <div class="stack-expansion">
+          ${stack.tools.map((toolName, idx) => {
+            const td = state.allTools.find(t => t.name === toolName) || { icon: '≡' };
+            return `<div class="stack-tool-row">
+              <div class="stack-tool-icon">${td.icon}</div>
+              ${toolName}
+              <button class="item-trash" style="margin-left:auto" title="Remove from stack"
+                      onclick="removeToolFromStack('${esc(name)}',${idx})">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </button>
+            </div>`;
+          }).join('')}
+          <div class="stack-add-row" style="flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:center;gap:6px;width:100%">
+              <input type="text" class="stack-tool-picker" ${atMax ? 'disabled' : ''}
+                     placeholder="${atMax ? 'Max 3 small tools' : 'Search tools to add...'}"
+                     oninput="filterStackPicker(this, '${name}')"
+                     onfocus="filterStackPicker(this, '${name}')">
+              <span class="stack-count ${atMax ? 'at-max' : ''}">${toolCount}/3</span>
+            </div>
+            <div class="stack-picker-results" id="stackPickerResults_${name}" style="max-height:120px;overflow-y:auto;display:none">
+            </div>
+          </div>
+        </div>` : '';
+
+      return `<div class="sb-row" data-name="${name}">
+        <div class="sb-stripe" style="background:transparent"></div>
+        <div class="sb-row-body" onclick="toggleStackExpand('${esc(name)}')">
+          <div class="sb-cb stack-cb ${isPlaced ? 'checked' : ''}"
+               title="${isPlaced ? 'Remove from panel' : 'Add to panel'}"
+               onclick="event.stopPropagation();toggleStackInPanel('${esc(name)}')">
+            ${isPlaced ? '✓' : ''}
+          </div>
+          <span class="stack-chevron ${isExpanded ? 'open' : ''}">›</span>
+          ${editingStackName === name
+            ? `<input class="sb-rename-input" id="renameInput_stack_${name}"
+                     value="${name}"
+                     onclick="event.stopPropagation()"
+                     onblur="commitStackRename('${esc(name)}',this.value)"
+                     onkeydown="handleRenameKey(event,'stack','${esc(name)}')">`
+            : `<span style="flex:1;pointer-events:none">${escHtml(name)}</span>`
+          }
+          <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:9px;flex-shrink:0;pointer-events:none">· ${toolCount}</span>
+          <button class="sb-edit-btn" title="Rename stack"
+                  onclick="event.stopPropagation();startRenameStack('${esc(name)}')">✎</button>
+          <button class="item-trash" title="Delete stack"
+                  onclick="event.stopPropagation();deleteStackFromState('${esc(name)}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+            </svg>
+          </button>
+        </div>
+        ${expansionHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // ── TAB CANVAS (preview only — reorder via Panels in Tab) ──────────────────
+  function renderTabCanvas() {
+    const canvas = document.getElementById('tabCanvas');
+    const active = Object.entries(state.panels)
+      .filter(([, p]) => p.active !== false);
+
+    if (active.length === 0) {
+      canvas.innerHTML = `<div style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px;padding:18px;letter-spacing:0.06em">No panels active</div>`;
+      return;
+    }
+
+    const a = opacityFrac();
+
+    // Branding panel (always leftmost, not selectable)
+    const brandingHtml = `<div class="tab-panel" style="background:transparent;pointer-events:none;opacity:0.85">
+      <div class="tab-panel-stripe" style="background:transparent"></div>
+      <div class="tab-panel-inner" style="justify-content:center;align-items:center;min-height:48px">
+        <div class="rib-btn" style="width:50px;background:transparent;border-color:transparent">
+          <div class="rib-icon" style="width:22px;height:22px;font-size:9px;background:rgba(120,120,120,0.15);color:var(--text2);font-weight:700;letter-spacing:0.05em">RST</div>
+          <div class="rib-label" style="color:var(--text3)">RST</div>
+        </div>
+      </div>
+      <div class="tab-panel-name" style="color:var(--text3);background:rgba(0,0,0,0.08)">RST</div>
+    </div>`;
+
+    canvas.innerHTML = brandingHtml + active.map(([name, panel]) => {
+      const isSelected = name === state.currentPanel;
+      const pColor = panel.color || '#4f8ef7';
+      const pRgb = hexToRgb(pColor);
+      const bgStyle = `rgba(${pRgb},${a.toFixed(2)})`;
+      const tCol = contrastTextColor(pColor);
+      const toolsHtml  = panel.slots.slice(0, 4).map(slot => {
+        if (slot.type === 'tool') {
+          return `<div class="rib-btn" style="width:50px;background:${bgStyle};border-color:${bgStyle}">
+            <div class="rib-icon" style="width:22px;height:22px;font-size:10px;background:rgba(255,255,255,0.2);color:${tCol}">${slot.icon || '?'}</div>
+            <div class="rib-label" style="color:${tCol}">${escHtml(slot.baseName || slot.name)}</div>
+          </div>`;
+        }
+        const stackTools = state.stacks[slot.name]?.tools || [];
+        return `<div class="rib-stack" style="width:54px">
+          ${stackTools.slice(0, 3).map(t => {
+            const td = state.allTools.find(x => x.name === t) || { icon: '≡' };
+            return `<div class="rib-stack-item" style="padding:3px 6px;background:${bgStyle};border-color:${bgStyle}">
+              <div class="rib-stack-icon" style="background:rgba(255,255,255,0.2);color:${tCol}">${td.icon}</div>
+              <div class="rib-stack-label" style="color:${tCol}">${t}</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('');
+      return `<div class="tab-panel${isSelected ? ' sel' : ''}"
+                   data-panel="${name}"
+                   style="background:${bgStyle}"
+                   onclick="selectTabPanel(this,'${esc(name)}','${pColor}')">
+        <div class="tab-panel-stripe" style="background:${pColor}"></div>
+        <div class="tab-panel-inner">${toolsHtml}</div>
+        <div class="tab-panel-name" style="color:${tCol};background:rgba(0,0,0,0.15)">${escHtml(name)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── SLOT DRAG (Tools in Panel reorder) ────────────────────────────────────
+  let draggedSlotIdx = null;
+  let slotDropIdx    = null;
+
+  function onSlotDragStart(event, idx) {
+    draggedSlotIdx = idx;
+    event.dataTransfer.effectAllowed = 'move';
+    event.stopPropagation();
+  }
+  function onSlotDragOver(event, idx) {
+    event.preventDefault();
+    event.stopPropagation();
+    const list   = document.getElementById('slotList');
+    list.querySelectorAll('.drop-line').forEach(l => l.remove());
+    const target = event.currentTarget;
+    const above  = event.clientY < target.getBoundingClientRect().top + target.offsetHeight / 2;
+    slotDropIdx  = above ? idx : idx + 1;
+    const line   = document.createElement('div');
+    line.className = 'drop-line';
+    target.parentNode.insertBefore(line, above ? target : target.nextSibling);
+  }
+  function onSlotDragEnd() {
+    document.getElementById('slotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+    draggedSlotIdx = null;
+    slotDropIdx    = null;
+  }
+  function onSlotDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('slotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+    if (draggedSlotIdx === null || slotDropIdx === null) { draggedSlotIdx = null; slotDropIdx = null; return; }
+    const slots = state.panels[state.currentPanel].slots;
+    const [moved] = slots.splice(draggedSlotIdx, 1);
+    let insertAt = slotDropIdx;
+    if (draggedSlotIdx < slotDropIdx) insertAt--;
+    slots.splice(Math.max(0, Math.min(insertAt, slots.length)), 0, moved);
+    draggedSlotIdx = null;
+    slotDropIdx    = null;
+    renderSlotList();
+    renderMockPreview();
+    renderTabCanvas();
+  }
+  function onSlotListDragLeave(event) {
+    if (!document.getElementById('slotList').contains(event.relatedTarget)) {
+      document.getElementById('slotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+      slotDropIdx = null;
+    }
+  }
+
+  // ── PANEL DRAG (Panels in Tab reorder) ────────────────────────────────────
+  let draggedPanel    = null;
+  let panelDropTarget = null;
+  let panelDropBefore = true;
+
+  function renderPanelSlotList() {
+    const list = document.getElementById('panelSlotList');
+    const active = Object.entries(state.panels)
+      .filter(([, p]) => p.active !== false);
+
+    if (active.length === 0) {
+      list.innerHTML = `<div style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px;padding:10px 6px;letter-spacing:0.06em">No active panels</div>`;
+      return;
+    }
+
+    list.innerHTML = active.map(([name, panel]) => {
+      const isSelected = name === state.currentPanel;
+      const toolCount  = panel.slots.length;
+      return `<div class="panel-slot${isSelected ? ' selected' : ''}"
+                   data-panel="${name}"
+                   draggable="true"
+                   onclick="selectTabPanel(this,'${esc(name)}','${panel.color}')"
+                   ondragstart="onPanelDragStart(event,'${name}')"
+                   ondragover="onPanelDragOver(event,'${name}')"
+                   ondragend="onPanelDragEnd()"
+                   ondrop="onPanelDrop(event,'${name}')">
+        <span class="drag-h">⠿</span>
+        <div class="panel-slot-dot" style="background:${panel.color}"></div>
+        ${name}
+        <span class="panel-slot-count">· ${toolCount} tool${toolCount !== 1 ? 's' : ''}</span>
+        <span class="slot-remove" onclick="event.stopPropagation();deletePanel('${esc(name)}')" style="margin-left:auto;cursor:pointer;color:var(--text3);font-size:13px" title="Delete panel">&times;</span>
+      </div>`;
+    }).join('');
+  }
+
+  function deletePanel(name) {
+    RSTmsgConfirm('Delete Panel', 'Delete panel "' + name + '"?').then(function(ok) {
+      if (!ok) return;
+      delete state.panels[name];
+      if (state.currentPanel === name) state.currentPanel = null;
+      renderAll();
+    });
+  }
+
+  function onPanelDragStart(event, name) {
+    draggedPanel = name;
+    event.dataTransfer.effectAllowed = 'move';
+  }
+  function onPanelDragOver(event, name) {
+    event.preventDefault();
+    const list   = document.getElementById('panelSlotList');
+    list.querySelectorAll('.drop-line').forEach(l => l.remove());
+    const target = event.currentTarget;
+    const above  = event.clientY < target.getBoundingClientRect().top + target.offsetHeight / 2;
+    panelDropTarget = name;
+    panelDropBefore = above;
+    const line = document.createElement('div');
+    line.className = 'drop-line';
+    target.parentNode.insertBefore(line, above ? target : target.nextSibling);
+  }
+  function onPanelDragEnd() {
+    document.getElementById('panelSlotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+    draggedPanel    = null;
+    panelDropTarget = null;
+  }
+  function onPanelDrop(event, targetName) {
+    event.preventDefault();
+    document.getElementById('panelSlotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+    if (!draggedPanel || !panelDropTarget || draggedPanel === panelDropTarget) {
+      draggedPanel = null; panelDropTarget = null; return;
+    }
+    const entries = Object.entries(state.panels);
+    const fromIdx = entries.findIndex(([n]) => n === draggedPanel);
+    const [moved] = entries.splice(fromIdx, 1);
+    let toIdx = entries.findIndex(([n]) => n === panelDropTarget);
+    if (!panelDropBefore) toIdx++;
+    entries.splice(Math.max(0, Math.min(toIdx, entries.length)), 0, moved);
+    state.panels    = Object.fromEntries(entries);
+    draggedPanel    = null;
+    panelDropTarget = null;
+    renderTabCanvas();
+    renderPanelList();
+    renderPanelSlotList();
+  }
+  function onPanelSlotListDragLeave(event) {
+    if (!document.getElementById('panelSlotList').contains(event.relatedTarget)) {
+      document.getElementById('panelSlotList').querySelectorAll('.drop-line').forEach(l => l.remove());
+      panelDropTarget = null;
+    }
+  }
+
+  // ── BRANDING LOGO PICKER ──────────────────────────────────────────────
+  function pickBrandingLogo() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_branding_logo) {
+      window.pywebview.api.pick_branding_logo().then(function(result) {
+        if (result && result.ok) {
+          showToast('Logo Saved', 'Reload pyRevit to see it in the ribbon.');
+        }
+      }).catch(function(err) {
+        showToast('Error', 'Branding logo pick failed: ' + err);
+      });
+    }
+  }
+
+  // ── ICON PICKER ─────────────────────────────────────────────────────────
+  function pickIconForSlot(slotIdx) {
+    if (!state.currentPanel || !state.panels[state.currentPanel]) return;
+    const slot = state.panels[state.currentPanel].slots[slotIdx];
+    if (!slot || slot.type !== 'tool') return;
+
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_icon) {
+      window.pywebview.api.pick_icon(slot.name).then(result => {
+        if (result && result.filename) {
+          slot.iconFile = result.filename;
+          renderSlotList();
+          showToast('Icon set', slot.name + ' → ' + result.filename);
+        }
+      }).catch(() => {});
+    }
+  }
+
+  // ── OPEN PROFILES FOLDER ─────────────────────────────────────────────────
+  function openProfilesFolder() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.open_profiles_folder) {
+      window.pywebview.api.open_profiles_folder().catch(function(err) {
+        showToast('Error', 'Could not open folder');
+      });
+    }
+  }
+
+  // ── PROFILE DROPDOWN ─────────────────────────────────────────────────────
+  function populateProfileDropdown(profileNames) {
+    state.profileList = profileNames || [];
+    const menu    = document.getElementById('profileMenu');
+    const divider = menu.querySelector('.profile-menu-divider');
+    // Remove all existing profile items (but keep divider and "+ New" item)
+    menu.querySelectorAll('.profile-menu-item:not(.new-item)').forEach(el => el.remove());
+    // Insert "New Profile" default option at top
+    const newOpt = document.createElement('div');
+    newOpt.className = 'profile-menu-item' + (state.currentProfile === 'New Profile' ? ' current' : '');
+    newOpt.textContent = 'New Profile';
+    newOpt.addEventListener('click', () => {
+      loadNewProfile();
+      closeProfileMenu();
+    });
+    menu.insertBefore(newOpt, divider);
+    // Insert each fetched profile
+    state.profileList.forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'profile-menu-item' + (state.currentProfile === name ? ' current' : '');
+      item.textContent = name;
+      item.addEventListener('click', () => {
+        loadExistingProfile(name);
+        closeProfileMenu();
+      });
+      menu.insertBefore(item, divider);
+    });
+  }
+
+  function loadNewProfile() {
+    state.currentProfile = 'New Profile';
+    document.getElementById('profileNameDisplay').textContent = 'New Profile';
+    state.stacks = {};
+    state.panels = {};
+    state.allTools = [];
+    state.currentPanel = null;
+    state.expandedStack = null;
+    document.getElementById('tabNameInput').value = '';
+    document.getElementById('tabNameDisplay').textContent = 'New Tab';
+    document.getElementById('panelNameInput').value = '';
+    document.getElementById('mockTitle').textContent = '';
+    renderAll();
+  }
+
+  function loadExistingProfile(name) {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.load_profile_into_editor) {
+      window.pywebview.api.load_profile_into_editor(name).then(profile => {
+        if (!profile) return;
+        if (profile._copied) {
+          showToast('Copy Created', profile._message || 'Profile currently loaded. A copy has been made for editing.', 5000);
+        }
+        applyProfileToEditor(profile);
+      }).catch(err => {
+        showToast('Load failed', String(err));
+      });
+    }
+  }
+
+  function applyProfileToEditor(profile) {
+    // Set profile name
+    state.currentProfile = profile.profile || 'Loaded Profile';
+    document.getElementById('profileNameDisplay').textContent = state.currentProfile;
+
+    // Set tab name
+    document.getElementById('tabNameInput').value = profile.tab || '';
+    document.getElementById('tabNameDisplay').textContent = profile.tab || 'New Tab';
+
+    // Restore opacity
+    state.panelOpacity = profile.panelOpacity != null ? profile.panelOpacity : 100;
+    document.getElementById('opacitySlider').value = state.panelOpacity;
+    document.getElementById('opacityVal').textContent = state.panelOpacity + '%';
+
+    // Rebuild stacks
+    state.stacks = {};
+    if (profile.stacks) {
+      Object.entries(profile.stacks).forEach(([name, stackDef]) => {
+        state.stacks[name] = { tools: (stackDef.tools || []).map(t => t.name || t) };
+      });
+    }
+
+    // Rebuild panels
+    state.panels = {};
+    state.currentPanel = null;
+    if (profile.panels && Array.isArray(profile.panels)) {
+      profile.panels.forEach(p => {
+        state.panels[p.name] = {
+          color: p.color || '#4f8ef7',
+          active: true,
+          slots: (p.slots || []).map(slot => {
+            const s = { type: slot.type, name: slot.name };
+            if (slot.baseName) s.baseName = slot.baseName;
+            if (slot.type === 'tool') {
+              s.icon = slot.icon || '●';
+              s.commandId = slot.commandId || '';
+              s.sourceTab = slot.sourceTab || null;
+              s.sourcePanel = slot.sourcePanel || null;
+              if (slot.iconFile) s.iconFile = slot.iconFile;
+            }
+            return s;
+          }),
+        };
+      });
+      // Select first panel
+      const firstPanel = Object.keys(state.panels)[0];
+      if (firstPanel) {
+        state.currentPanel = firstPanel;
+        document.getElementById('panelNameInput').value = firstPanel;
+        document.getElementById('mockTitle').textContent = firstPanel;
+        applyColorToMock(state.panels[firstPanel].color);
+      }
+    }
+
+    // Do NOT rebuild state.allTools here — it is populated by the auto-record
+    // scan with ALL Revit commands. The profile's tools are already placed in
+    // panels/stacks above, so renderToolList() will mark them as checked.
+    // Only fall back to rebuilding if auto-record hasn't run yet (allTools empty).
+    if (!state.allTools || state.allTools.length === 0) {
+      const seen = new Set();
+      state.allTools = [];
+      // Gather from panel slots
+      Object.values(state.panels).forEach(panel => {
+        panel.slots.forEach(slot => {
+          if (slot.type === 'tool' && slot.commandId && !seen.has(slot.commandId)) {
+            seen.add(slot.commandId);
+            let sourceTab = null;
+            const m = slot.commandId && slot.commandId.match(/^CustomCtrl_%CustomCtrl_%([^%]+)%/);
+            if (m) sourceTab = m[1];
+            state.allTools.push({
+              name: slot.name,
+              baseName: slot.baseName || slot.name,
+              icon: slot.icon || '●',
+              sourceTab: sourceTab || slot.sourceTab || null,
+              sourcePanel: slot.sourcePanel || null,
+              commandId: slot.commandId,
+            });
+          }
+        });
+      });
+      // Gather from stacks
+      Object.values(state.stacks).forEach(stack => {
+        stack.tools.forEach(toolName => {
+          if (!state.allTools.find(t => t.name === toolName)) {
+            let cmdId = null;
+            if (profile.stacks) {
+              Object.values(profile.stacks).forEach(sd => {
+                const found = (sd.tools || []).find(t => (t.name || t) === toolName);
+                if (found && found.commandId) cmdId = found.commandId;
+              });
+            }
+            let sourceTab = null;
+            if (cmdId) {
+              const m = cmdId.match(/^CustomCtrl_%CustomCtrl_%([^%]+)%/);
+              if (m) sourceTab = m[1];
+            }
+            state.allTools.push({
+              name: toolName,
+              icon: '●',
+              sourceTab: sourceTab,
+              commandId: cmdId,
+            });
+          }
+        });
+      });
+    }
+
+    state.expandedStack = null;
+
+    // Update profile dropdown highlight
+    document.querySelectorAll('#profileMenu .profile-menu-item').forEach(el => {
+      el.classList.toggle('current', el.textContent === state.currentProfile);
+    });
+
+    renderAll();
+  }
+
+  function renderAll() {
+    renderPanelList();
+    renderStackList();
+    renderTabCanvas();
+    renderPanelSlotList();
+    renderDetectedAddins();
+    renderToolList();
+    renderSlotList();
+    renderMockPreview();
+    checkExportReady();
+  }
+
+  // ── PYWEBVIEW READY ──────────────────────────────────────────────────────
+  window.addEventListener('pywebviewready', async function() {
+    try {
+      // Fetch addin lookup
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_addin_lookup) {
+        const lookup = await window.pywebview.api.get_addin_lookup();
+        if (lookup && typeof lookup === 'object') {
+          ADDIN_LOOKUP = lookup;
+        }
+      }
+
+      // Fetch loaded add-ins from Revit session
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_loaded_addins) {
+        const addins = await window.pywebview.api.get_loaded_addins();
+        if (Array.isArray(addins)) {
+          LOADED_ADDINS = addins;
+        }
+      }
+
+      // Fetch resolved add-in mappings (assembly cross-reference)
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_resolved_addins) {
+        const resolved = await window.pywebview.api.get_resolved_addins();
+        if (resolved && typeof resolved === 'object') {
+          RESOLVED_ADDINS = resolved;
+        }
+      }
+
+      renderDetectedAddins();
+
+      // Check for disabled add-ins and show warning banner
+      if (window.pywebview.api.get_disabled_addins) {
+        const disabled = await window.pywebview.api.get_disabled_addins();
+        if (disabled && disabled.length > 0) {
+          const names = disabled.map(a => a.displayName || a.tabName || 'Unknown');
+          document.getElementById('disabledBannerList').textContent =
+            'Disabled: ' + names.join(', ') + '.';
+          document.getElementById('disabledBanner').classList.add('visible');
+        }
+      }
+    } catch(e) { /* ignore */ }
+
+    try {
+      // Fetch Revit version
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_revit_version) {
+        const ver = await window.pywebview.api.get_revit_version();
+        if (ver) {
+          document.getElementById('rvtVersionDisplay').textContent = 'Revit ' + ver;
+        }
+      }
+    } catch(e) { /* ignore */ }
+
+    try {
+      // Fetch profile list
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_profiles) {
+        const profiles = await window.pywebview.api.get_profiles();
+        if (Array.isArray(profiles)) {
+          populateProfileDropdown(profiles);
+        }
+      }
+    } catch(e) { /* ignore */ }
+
+    try {
+      // Load persistent custom URL tools
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_custom_tools) {
+        const custom = await window.pywebview.api.get_custom_tools();
+        if (Array.isArray(custom)) {
+          custom.forEach(function(ct) {
+            if (!state.allTools.find(function(t) { return t.commandId === ct.commandId && t.sourceTab === 'Custom'; })) {
+              state.allTools.push(ct);
+            }
+          });
+          renderToolList();
+        }
+      }
+    } catch(e) { /* ignore */ }
+
+    try {
+      // Load panel color swatches from config
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_panel_colors) {
+        const colors = await window.pywebview.api.get_panel_colors();
+        if (Array.isArray(colors) && colors.length > 0) {
+          // Pad to 16 if user has old 8-color config
+          while (colors.length < 16) {
+            colors.push({ hex: '', name: 'Custom ' + (colors.length - 7) });
+          }
+          state.panelColors = colors;
+          state.selectedSwatchIdx = 0;
+          renderSwatches();
+        }
+      }
+    } catch(e) { /* ignore */ }
+
+  });
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  // Wire hex action buttons
+  var hexApplyBtn = document.querySelector('.hex-apply');
+  if (hexApplyBtn) hexApplyBtn.addEventListener('click', applyHex);
+  var hexResetBtn = document.querySelector('.hex-reset');
+  if (hexResetBtn) hexResetBtn.addEventListener('click', resetSwatch);
+
+  // Fallback defaults if pywebview hasn't loaded colors yet
+  if (state.panelColors.length === 0) {
+    state.panelColors = DEFAULT_PANEL_COLORS.map(function(c) { return { hex: c.hex, name: c.name }; });
+  }
+  renderSwatches();
+  renderAll();
+
+  // Initialize profile dropdown with empty state (pywebviewready will populate)
+  populateProfileDropdown([]);
+
+</script>
+<div style="position:fixed;bottom:6px;left:10px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);opacity:0.5;letter-spacing:0.05em;pointer-events:none">v0.5.0-beta</div>
+</body>
+</html>

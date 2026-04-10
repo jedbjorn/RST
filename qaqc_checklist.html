@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RST_Pro QAQC Checklist</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --border: #2a3a5e;
+    --text: #e0e0e0;
+    --muted: #8899aa;
+    --accent: #197AFF;
+    --green: #4caf50;
+    --amber: #ff9800;
+    --red: #f44336;
+    --pass: #1b5e20;
+    --fail: #b71c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 32px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 4px;
+    color: var(--accent);
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .progress-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    height: 32px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    border-radius: 8px;
+  }
+  .progress-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .controls button {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  .filter-label {
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: auto;
+  }
+  .filter-select {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { background: rgba(255,255,255,0.03); }
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-count {
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.06);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .section-chevron {
+    font-size: 14px;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .section-body { padding: 0 20px 16px; }
+  section.collapsed .section-body { display: none; }
+  section.collapsed .section-chevron { transform: rotate(-90deg); }
+
+  .group-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-label:first-child { margin-top: 4px; }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-item input[type="checkbox"] {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--green);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .check-item label {
+    font-size: 14px;
+    cursor: pointer;
+    flex: 1;
+  }
+  .check-item.checked label {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+  .check-item .tag {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .tag-core { background: rgba(25,122,255,0.2); color: #5fa8ff; }
+  .tag-edge { background: rgba(255,152,0,0.2); color: #ffb74d; }
+  .tag-error { background: rgba(244,67,54,0.2); color: #ef9a9a; }
+
+  .notes-input {
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    resize: vertical;
+    min-height: 36px;
+  }
+  .notes-input::placeholder { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>RST_Pro QAQC Checklist</h1>
+<p class="subtitle">Python/pyRevit/pywebview stack — manual verification of all features</p>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  <div class="progress-label" id="progressLabel">0 / 0</div>
+</div>
+
+<div class="controls">
+  <button onclick="expandAll()">Expand All</button>
+  <button onclick="collapseAll()">Collapse All</button>
+  <button onclick="resetAll()">Reset All</button>
+  <span class="filter-label">Show:</span>
+  <select class="filter-select" onchange="filterItems(this.value)">
+    <option value="all">All items</option>
+    <option value="unchecked">Unchecked only</option>
+    <option value="checked">Checked only</option>
+  </select>
+</div>
+
+<div id="sections">
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: PUSHBUTTONS -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">RST.tab Pushbuttons <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">Profiler (Tab Creator) Button</div>
+    <div class="check-item"><input type="checkbox"><label>Click Profiler button &mdash; pywebview Tab Creator window opens</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Commands list populates with all ribbon commands (1000+)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Loaded add-ins detected from current session (non-builtin tabs)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Third-party panels on built-in tabs detected (e.g. Kinship on Add-Ins)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>LoadedApplications assembly paths enriched where available</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>_revit_data.json written and cleaned up after read</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Contextual tabs (Family Editor, etc.) excluded from scan</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Nested ribbon containers (RowPanel, StackedPanel) scanned recursively</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Loader (Profile Selector) Button</div>
+    <div class="check-item"><input type="checkbox"><label>Click Loader button &mdash; pywebview Profile Selector window opens</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Session data written to _loader_data.json and cleaned up after read</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Profile change detected after window closes &mdash; triggers pyRevit reload</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>No reload if profile unchanged</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">RSTify Button (Tab Visibility Toggle)</div>
+    <div class="check-item"><input type="checkbox"><label>Click RSTify &mdash; hidden tabs become invisible</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Click again &mdash; hidden tabs restored to visible</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Icon swaps to orange when hiding, blue when showing</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Alert shown if no hidden_tabs configured in active profile</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>RSTIFYACTIVE env var set/cleared correctly (persists icon state across sessions)</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Reload Button</div>
+    <div class="check-item"><input type="checkbox"><label>Click Reload &mdash; pyRevit reloads successfully</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Alert if pyRevit reload command not found</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">Update Button</div>
+    <div class="check-item"><input type="checkbox"><label>Click Update &mdash; downloads RST zip from GitHub</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>User data preserved: active_profile, profiles/, branding.png, config.json, custom_tools, panel_colors, rst.log</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Locked files skipped gracefully during wipe/copy</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>pyRevit reloads after successful update</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Alert shown if download fails (network error)</label><span class="tag tag-error">error</span></div>
+    <div class="check-item"><input type="checkbox"><label>Staging directory cleaned up on error</label><span class="tag tag-edge">edge</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for pushbutton testing..."></textarea>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: TAB CREATOR UI -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">Tab Creator (profile_manager.html) <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">Tool Detection &amp; Filtering</div>
+    <div class="check-item"><input type="checkbox"><label>Click Detect &mdash; commands load from Revit session</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Toast shows detected command count</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Search input filters tool list in real time</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tab dropdown filters by source tab</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tools in current panel: green checkbox, toggleable</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tools in another panel: greyed out, click navigates to that panel</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tools in a stack: greyed out, not addable standalone</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Source tab badge (purple) shown for add-in tools</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Panel Management</div>
+    <div class="check-item"><input type="checkbox"><label>Create panel &mdash; auto-numbered, default color assigned</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Rename panel &mdash; inline edit, Enter/Escape to commit/cancel</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Delete panel &mdash; removes from state and canvas</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Toggle panel visibility checkbox &mdash; unchecked panels dimmed, excluded from export</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Drag-reorder panels in tab canvas</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Selecting panel row (not checkbox) switches editor focus without toggling visibility</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Color Picker</div>
+    <div class="check-item"><input type="checkbox"><label>Click swatch &mdash; applies color to current panel</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>8 built-in swatches + 8 custom slots</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Hex input validates 6-character hex code</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Apply button saves custom hex to swatch slot</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Reset button restores factory default for that swatch</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Opacity slider (10&ndash;100%) updates live preview</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Colors persisted via save_panel_colors API (survive restart)</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Slot Ordering (Drag &amp; Drop)</div>
+    <div class="check-item"><input type="checkbox"><label>Drag tool slot within panel &mdash; reorders correctly</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Drop line indicator shows insertion point during drag</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Removing tool via X button syncs with tool list checkboxes</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Stack Management</div>
+    <div class="check-item"><input type="checkbox"><label>Create stack &mdash; auto-numbered</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Add tools to stack via picker (search autocomplete)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Max 3 tools per stack enforced (picker disabled at max)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Remove tool from stack by index</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Place stack in panel &mdash; shows as grouped slot</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Rename stack &mdash; inline edit</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Custom URL Tools</div>
+    <div class="check-item"><input type="checkbox"><label>Add custom URL tool &mdash; name + URL fields</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Edit/delete icons on custom tool rows</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Custom tools persisted via save_custom_tools API</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Icon Picking</div>
+    <div class="check-item"><input type="checkbox"><label>Pick icon for tool &mdash; file dialog opens, PNG copied to icons/</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Icon filename collision handled (appends counter)</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Pick branding logo &mdash; resized to 48x48 if PIL available, raw copy otherwise</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Profile Management</div>
+    <div class="check-item"><input type="checkbox"><label>Profile dropdown lists all saved profiles</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Switch profile &mdash; loads JSON into editor state</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>New profile &mdash; clears state, prompts for name</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Rename profile &mdash; pencil button, inline edit</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Open profiles folder &mdash; Explorer opens at app/profiles/</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Loading active profile creates a copy for editing (warns user)</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Required Add-ins</div>
+    <div class="check-item"><input type="checkbox"><label>Add-in chips auto-computed from placed tools&rsquo; source tabs</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Disabled add-ins warning banner shown at launch (if any disabled in config)</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Resolved add-ins cross-referenced via XML assembly paths (admin-side only)</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Export</div>
+    <div class="check-item"><input type="checkbox"><label>Export button disabled if profile name or tab name empty</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Export builds complete config JSON (profile, tab, panels, stacks, requiredAddins, opacity)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Saved to app/profiles/ AND copied to Desktop</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Overwrite existing profile with same name (if not currently loaded)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Cannot overwrite active profile &mdash; error shown</label><span class="tag tag-error">error</span></div>
+    <div class="check-item"><input type="checkbox"><label>Export overlay shows ticking dots, auto-closes after 3s</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Only active panels and referenced stacks included in export</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">User Config (Admin Side)</div>
+    <div class="check-item"><input type="checkbox"><label>User config built on first call (session scan + directory listing)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Config file created at app/users/{username}_{version}_addins.json</label><span class="tag tag-core">core</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for Tab Creator testing..."></textarea>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: PROFILE LOADER UI -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">Profile Selector (profile_loader.html) <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">Profile List &amp; Selection</div>
+    <div class="check-item"><input type="checkbox"><label>All profiles from app/profiles/ listed as cards</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Active profile card highlighted with green border + &ldquo;Loaded&rdquo; badge</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Click card &mdash; detail pane updates (metadata, tab preview, add-ins)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Card shows tab name, min Revit version, panel count</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Detail Pane &mdash; Tab Preview</div>
+    <div class="check-item"><input type="checkbox"><label>Read-only render of panels with colors and tools</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Stack items shown as grouped mini-buttons</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Panel opacity matches exported value</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Required Add-ins (4-State Badges)</div>
+    <div class="check-item"><input type="checkbox"><label>Present (green) &mdash; native tab OR loaded in session OR installed .addin on disk</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Missing (red) &mdash; known in lookup but .addin file not found on disk</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Disabled (amber) &mdash; .addin.RSTdisabled on disk, can be restored</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Unknown (amber) &mdash; not in lookup, not loaded in session</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">RSTify Tab Toggles</div>
+    <div class="check-item"><input type="checkbox"><label>Toggles shown per non-core ribbon tab</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Core tabs excluded (Modify, Manage, View, Annotate, Add-Ins, Create)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Source tabs excluded (tabs where this profile&rsquo;s tools come from)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Previous hidden state restored from last load</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Add Profile</div>
+    <div class="check-item"><input type="checkbox"><label>Click &ldquo;+ Add Profile&rdquo; &mdash; file picker opens (JSON only)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Valid profile &mdash; copied to profiles/, appears in list immediately</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Missing required fields &mdash; error shown with field names</label><span class="tag tag-error">error</span></div>
+    <div class="check-item"><input type="checkbox"><label>Duplicate profile name &mdash; overwrites existing file</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Invalid JSON file &mdash; error shown</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">Load Profile</div>
+    <div class="check-item"><input type="checkbox"><label>Click &ldquo;Load Profile&rdquo; &mdash; writes active_profile.json</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Loading overlay with ticking dots shown, auto-closes</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Hidden tabs list saved to active_profile.json</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>pyRevit reload triggered after load</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Dependency Check (Missing Add-ins)</div>
+    <div class="check-item"><input type="checkbox"><label>Missing add-ins detected &mdash; dependency overlay shown</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Download URLs shown for each missing add-in</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>&ldquo;Continue Anyway&rdquo; bypasses check and loads</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>&ldquo;Open as HTML&rdquo; downloads checklist file with URLs</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Cancel closes overlay without loading</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Disable Unused Add-ins</div>
+    <div class="check-item"><input type="checkbox"><label>Toggle ON &mdash; fetches disable preview from API</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Confirm overlay shows &ldquo;staying active&rdquo; vs &ldquo;will be disabled&rdquo; columns</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>&ldquo;Confirm &amp; Load&rdquo; renames .addin to .addin.RSTdisabled</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Intent log written before any renames</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Intent log cleared after successful completion</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>User config updated with enabled=false for disabled add-ins</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Protected add-ins (pyRevit, Kinship) never disabled</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Machine-scope (ProgramData) add-ins never disabled (elevated flag)</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Disabled required add-ins auto re-enabled on profile load</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Disable toggle OFF when Restore toggle ON (mutually exclusive)</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Restore All Add-ins</div>
+    <div class="check-item"><input type="checkbox"><label>Toggle ON &mdash; sweeps all dirs for .RSTdisabled, renames back to .addin</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>User config rebuilt from scratch (clean slate)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Restore toggle OFF when Disable toggle ON (mutually exclusive)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Success message: &ldquo;Restart Revit for changes to take effect&rdquo;</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Unload &amp; Delete Profile</div>
+    <div class="check-item"><input type="checkbox"><label>Unload &mdash; clears active_profile.json, profile file stays on disk</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Unload triggers pyRevit reload (blank RST tab)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Delete &mdash; confirm dialog shown (different text if loaded vs not)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Delete loaded profile &mdash; unloads first, then deletes file</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Profile list and detail pane updated after delete</label><span class="tag tag-core">core</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for Profile Selector testing..."></textarea>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: STARTUP.PY (RIBBON BUILD) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">Startup &amp; Ribbon Build <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">Profile Loading</div>
+    <div class="check-item"><input type="checkbox"><label>No active_profile.json &mdash; RST tab builds with branding panel only</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Blank profile (profile: null) &mdash; empty RST tab with branding</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Valid profile &mdash; full tab built with panels, tools, stacks</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Corrupt active_profile.json &mdash; logged, tab builds empty</label><span class="tag tag-error">error</span></div>
+    <div class="check-item"><input type="checkbox"><label>Missing profile file (referenced but deleted) &mdash; logged, tab builds empty</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">Ribbon Tab &amp; Panels</div>
+    <div class="check-item"><input type="checkbox"><label>Old REST_ tabs removed on rebuild (handles renames)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tab name matches profile&rsquo;s &ldquo;tab&rdquo; field</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Branding panel (leftmost) &mdash; shows logo, transparent GitHub link button</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Panel background colors match exported hex + opacity</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Panel backgrounds have rounded corners (DrawingBrush)</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Tool Buttons</div>
+    <div class="check-item"><input type="checkbox"><label>Large buttons (32x32 icon + text below)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Button text wrapped at spaces or CamelCase boundaries</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Custom icon loaded if available, default icon fallback</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Tooltip shows tool name + source info</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Click tool button &mdash; correct Revit command fires (PostCommand)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>ID_ commands: PostableCommand fallback if LookupCommandId fails</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Non-postable commands: warning logged, no crash</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">Stack Buttons</div>
+    <div class="check-item"><input type="checkbox"><label>Stacks render as 1&ndash;3 small buttons vertically (RibbonRowPanel)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Stack tool clicks fire correct commands</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Stack buttons show text only (no icons), small size</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">URL Tools</div>
+    <div class="check-item"><input type="checkbox"><label>URL tools display globe emoji prefix in button text</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Click URL tool &mdash; opens URL in default browser</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>URL tool text colored accent blue</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">Tab Hiding &amp; Admin Styling</div>
+    <div class="check-item"><input type="checkbox"><label>Tabs in hidden_tabs array hidden on startup (Idling event)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>RSTify icon set to orange on startup if tabs are hidden</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>RST admin panels (pyRevit-created) styled with light grey background</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Admin styling deferred to Idling event (waits for pyRevit to finish)</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Intent Log &amp; Crash Recovery</div>
+    <div class="check-item"><input type="checkbox"><label>Intent log checked on every startup (before ribbon build)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Incomplete renames from crash completed on next launch</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Intent log cleared after successful reconciliation</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Reconciliation errors logged but non-fatal (partial recovery OK)</label><span class="tag tag-error">error</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for startup/ribbon testing..."></textarea>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: BACKEND / SHARED LIBRARY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">Backend &amp; Shared Library <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">rst_lib.py &mdash; Path Constants</div>
+    <div class="check-item"><input type="checkbox"><label>EXT_ROOT resolves to python/ directory (extension root)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>PROFILES_DIR, USERS_DIR, ICONS_DIR, ACTIVE_PROFILE_PATH all correct</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>ADDIN_LOOKUP_PATH and CONFIG_PATH point to lookup/ subdirectory</label><span class="tag tag-core">core</span></div>
+
+    <div class="group-label">rst_lib.py &mdash; Utility Functions</div>
+    <div class="check-item"><input type="checkbox"><label>safe_filename() strips illegal chars: \ / : * ? " &lt; &gt; |</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>find_profile() returns (filename, data) for matching profile name</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>find_profile() returns (None, None) for non-existent profile</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>get_active_profile_name() returns name or None</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>validate_profile() returns empty set for valid profile</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>validate_profile() returns set of missing fields for invalid profile</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>load_json_safe() returns default on corrupt/missing file</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">addin_scanner.py</div>
+    <div class="check-item"><input type="checkbox"><label>load_addin_lookup() reads lookup/addin_lookup.json</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>config.json protected/autodesk/exempt lists loaded correctly</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>get_addins_dirs() returns user + machine + install dirs for version</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>_is_hands_off() blocks Program Files and exempt paths</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>check_addins() returns correct status for each required add-in</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Fuzzy match: tab name substring in .addin filename</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Fuzzy match: tab name substring in .addin XML content</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Fuzzy match cached to user_addin_overrides.json</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">user_config.py</div>
+    <div class="check-item"><input type="checkbox"><label>Config built from session data + directory listing on first call</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>New add-ins appended on subsequent calls (never rebuild)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Enabled/disabled state preserved across sessions</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Username mismatch triggers full rebuild</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Atomic writes (tmp + replace) for config files</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Orphaned .addin files (no loaded tab) get config entries</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">logger.py</div>
+    <div class="check-item"><input type="checkbox"><label>rst.log created at extension root</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Log truncated at 512KB and started fresh</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Timestamps, severity, module name in log format</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Works in both IronPython and CPython</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">UI Message System (rst_messages.js)</div>
+    <div class="check-item"><input type="checkbox"><label>RSTmsgConfirm &mdash; shows modal, returns Promise true/false</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>RSTmsgInform &mdash; toast auto-dismisses after 3 seconds</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>RSTmsgWait &mdash; loading overlay with animated dots</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>RSTmsgWaitClose &mdash; dismisses loading overlay</label><span class="tag tag-core">core</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for backend testing..."></textarea>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: EDGE CASES & ERROR HANDLING -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">Edge Cases &amp; Error Handling <span class="section-count" data-section></span></span>
+    <span class="section-chevron">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="group-label">File System</div>
+    <div class="check-item"><input type="checkbox"><label>app/profiles/ directory auto-created if missing</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>app/users/ directory auto-created if missing</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>icons/ directory auto-created if missing</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Corrupt JSON files handled gracefully (logged, defaults used)</label><span class="tag tag-error">error</span></div>
+    <div class="check-item"><input type="checkbox"><label>Locked files during update/disable skipped with log warning</label><span class="tag tag-error">error</span></div>
+
+    <div class="group-label">Revit Compatibility</div>
+    <div class="check-item"><input type="checkbox"><label>LoadedApplications path auto-detected (Revit 2024+ vs earlier)</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Ribbon scan handles missing or null tab titles</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>Commands without CommandId fall back to Id attribute</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Protection Rules</div>
+    <div class="check-item"><input type="checkbox"><label>pyRevit.addin NEVER disabled regardless of profile</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Kinship.addin NEVER disabled regardless of profile</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Program Files add-ins scanned for presence but never renamed</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Exempt paths from config.json respected (e.g. Dynamo dir)</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Autodesk-shipped add-ins tagged but not disabled</label><span class="tag tag-edge">edge</span></div>
+
+    <div class="group-label">Data Integrity</div>
+    <div class="check-item"><input type="checkbox"><label>Profile requiredAddins handles both old (string[]) and new (object[]) formats</label><span class="tag tag-edge">edge</span></div>
+    <div class="check-item"><input type="checkbox"><label>_revit_data.json and _loader_data.json cleaned up after read</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Atomic writes prevent half-written config files</label><span class="tag tag-core">core</span></div>
+    <div class="check-item"><input type="checkbox"><label>Intent log ensures crash recovery for rename operations</label><span class="tag tag-core">core</span></div>
+
+    <textarea class="notes-input" placeholder="Notes for edge case testing..."></textarea>
+  </div>
+</section>
+
+</div><!-- /sections -->
+
+<script>
+  function toggleSection(header) {
+    header.closest('section').classList.toggle('collapsed');
+  }
+  function expandAll() {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('collapsed'));
+  }
+  function collapseAll() {
+    document.querySelectorAll('section').forEach(s => s.classList.add('collapsed'));
+  }
+  function resetAll() {
+    if (!confirm('Reset all checkboxes and notes?')) return;
+    document.querySelectorAll('.check-item input').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.check-item').forEach(el => el.classList.remove('checked'));
+    document.querySelectorAll('.notes-input').forEach(t => { t.value = ''; });
+    saveState();
+    updateProgress();
+  }
+  function filterItems(value) {
+    document.querySelectorAll('.check-item').forEach(el => {
+      const checked = el.querySelector('input').checked;
+      if (value === 'all') el.style.display = '';
+      else if (value === 'checked') el.style.display = checked ? '' : 'none';
+      else el.style.display = checked ? 'none' : '';
+    });
+  }
+  function updateProgress() {
+    const all = document.querySelectorAll('.check-item input');
+    const done = document.querySelectorAll('.check-item input:checked');
+    const pct = all.length ? Math.round(done.length / all.length * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = done.length + ' / ' + all.length + ' (' + pct + '%)';
+
+    // Per-section counts
+    document.querySelectorAll('section').forEach(sec => {
+      const total = sec.querySelectorAll('.check-item input').length;
+      const checked = sec.querySelectorAll('.check-item input:checked').length;
+      const badge = sec.querySelector('[data-section]');
+      if (badge) badge.textContent = checked + '/' + total;
+    });
+  }
+  function saveState() {
+    const checks = [];
+    document.querySelectorAll('.check-item input').forEach((cb, i) => checks.push(cb.checked));
+    const notes = [];
+    document.querySelectorAll('.notes-input').forEach(t => notes.push(t.value));
+    localStorage.setItem('rst_qaqc', JSON.stringify({ checks, notes }));
+  }
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('rst_qaqc'));
+      if (!saved) return;
+      document.querySelectorAll('.check-item input').forEach((cb, i) => {
+        if (saved.checks && saved.checks[i]) {
+          cb.checked = true;
+          cb.closest('.check-item').classList.add('checked');
+        }
+      });
+      document.querySelectorAll('.notes-input').forEach((t, i) => {
+        if (saved.notes && saved.notes[i]) t.value = saved.notes[i];
+      });
+    } catch(e) {}
+  }
+
+  // Wire up events
+  document.querySelectorAll('.check-item input').forEach(cb => {
+    cb.addEventListener('change', function() {
+      this.closest('.check-item').classList.toggle('checked', this.checked);
+      updateProgress();
+      saveState();
+    });
+  });
+  document.querySelectorAll('.notes-input').forEach(t => {
+    t.addEventListener('input', saveState);
+  });
+
+  loadState();
+  updateProgress();
+</script>
+</body>
+</html>
