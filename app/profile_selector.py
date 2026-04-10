@@ -210,9 +210,13 @@ class ProfileSelectorAPI:
                 continue  # always protected — don't clutter the overlay
             elif is_required:
                 staying.append(info)
+            elif not info.get('addinPath'):
+                entry = dict(info)
+                entry['skipReason'] = 'No file path found — cannot be disabled by RST'
+                skipped.append(entry)
             elif info.get('scope') != 'user':
                 entry = dict(info)
-                entry['skipReason'] = 'Installed in a protected system directory (requires manual removal)'
+                entry['skipReason'] = 'Installed in a protected system directory'
                 skipped.append(entry)
             else:
                 disabling.append(info)

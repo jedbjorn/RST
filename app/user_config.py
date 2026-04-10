@@ -200,10 +200,9 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
         # Resolve addin filename: lookup first, then fuzzy match in directory
         addin_file = expected_file
         if not addin_file:
-            tab_lower = tab_name.lower()
+            tab_compact = tab_name.lower().replace(' ', '')
             for fname_lower in dir_files:
-                if tab_lower in fname_lower and fname_lower.endswith('.addin'):
-                    # Strip path, keep original casing via dir listing
+                if tab_compact in fname_lower.replace(' ', '') and fname_lower.endswith('.addin'):
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
 
@@ -253,9 +252,9 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
 
         addin_file = expected_file
         if not addin_file:
-            panel_lower = panel_name.lower()
+            panel_compact = panel_name.lower().replace(' ', '')
             for fname_lower in dir_files:
-                if panel_lower in fname_lower and fname_lower.endswith('.addin'):
+                if panel_compact in fname_lower.replace(' ', '') and fname_lower.endswith('.addin'):
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
 
@@ -387,9 +386,9 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
 
         addin_file = expected_file
         if not addin_file:
-            tab_lower = tab_name.lower()
+            tab_compact = tab_name.lower().replace(' ', '')
             for fname_lower in dir_files:
-                if tab_lower in fname_lower and fname_lower.endswith('.addin'):
+                if tab_compact in fname_lower.replace(' ', '') and fname_lower.endswith('.addin'):
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
 
@@ -439,9 +438,9 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
 
         addin_file = expected_file
         if not addin_file:
-            panel_lower = panel_name.lower()
+            panel_compact = panel_name.lower().replace(' ', '')
             for fname_lower in dir_files:
-                if panel_lower in fname_lower and fname_lower.endswith('.addin'):
+                if panel_compact in fname_lower.replace(' ', '') and fname_lower.endswith('.addin'):
                     addin_file = os.path.basename(dir_files[fname_lower])
                     break
 
