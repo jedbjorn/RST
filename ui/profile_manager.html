@@ -1983,7 +1983,7 @@
         tool = state.allTools.find(t => t.name === name);
       }
       if (!tool) {
-        showToast('Tool not found', name.substring(0, 40));
+        showToast('Tool not found', 'idx=' + allToolsIdx + ' total=' + state.allTools.length + ' name="' + name.substring(0, 30) + '"');
         return;
       }
       slots.push({ type: 'tool', name: tool.name, baseName: tool.baseName || tool.name, icon: tool.icon, commandId: tool.commandId, sourceTab: tool.sourceTab, sourcePanel: tool.sourcePanel });
