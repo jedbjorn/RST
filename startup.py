@@ -722,7 +722,7 @@ def _apply_hidden_tabs():
                 pass
             # Swap the button icon directly — __selfinit__ has already run
             try:
-                on_icon = os.path.join(_root, 'RST.tab', 'Minify.panel',
+                on_icon = os.path.join(_root, 'RSTPro.tab', 'Minify.panel',
                                        'RSTify.pushbutton', 'on.png')
                 if os.path.exists(on_icon):
                     from System.Windows.Media.Imaging import BitmapImage
