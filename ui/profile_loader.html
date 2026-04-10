@@ -530,13 +530,6 @@
   .confirm-col-label.staying { color: var(--accent3); }
   .confirm-col-label.disabling { color: var(--warn); }
   .confirm-col-label.skipped { color: var(--text3); }
-  .confirm-skipped-note {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text3);
-    line-height: 1.6;
-    margin-bottom: 8px;
-  }
   .confirm-list {
     max-height: 200px;
     overflow-y: auto;
@@ -800,8 +793,7 @@
         <div class="confirm-list" id="confirmDisabling"></div>
       </div>
       <div class="confirm-col" id="confirmSkippedWrap" style="display:none">
-        <div class="confirm-col-label skipped">Not Disabled</div>
-        <div class="confirm-skipped-note">Program Files / Program Data</div>
+        <div class="confirm-col-label skipped">Not Disabled (Admin Req.)</div>
         <div class="confirm-list" id="confirmSkipped"></div>
       </div>
     </div>
