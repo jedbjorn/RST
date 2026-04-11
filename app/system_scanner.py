@@ -19,9 +19,14 @@ from datetime import datetime, timezone
 log = logging.getLogger('rst')
 
 # Registry paths for installed programs (64-bit and 32-bit views)
-UNINSTALL_KEYS = [
+# Registry paths for installed programs
+# HKLM covers machine-wide installs; HKCU covers per-user installs
+HKLM_UNINSTALL_KEYS = [
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
     r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+]
+HKCU_UNINSTALL_KEYS = [
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
 ]
 
 # Fields to capture from each registry entry
@@ -42,6 +47,7 @@ REGISTRY_FIELDS = [
 def scan_installed_programs():
     """Read all installed programs from the Windows registry.
 
+    Scans both HKLM (machine-wide) and HKCU (per-user) uninstall keys.
     Returns list of dicts, one per program, with keys from REGISTRY_FIELDS.
     Skips entries without a DisplayName.
     """
@@ -50,53 +56,59 @@ def scan_installed_programs():
     programs = []
     seen = set()
 
-    for key_path in UNINSTALL_KEYS:
-        try:
-            hkey = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path)
-        except OSError:
-            continue
+    hives = [
+        (winreg.HKEY_LOCAL_MACHINE, HKLM_UNINSTALL_KEYS),
+        (winreg.HKEY_CURRENT_USER,  HKCU_UNINSTALL_KEYS),
+    ]
 
-        try:
-            i = 0
-            while True:
-                try:
-                    subkey_name = winreg.EnumKey(hkey, i)
-                except OSError:
-                    break
-                i += 1
+    for hive, key_paths in hives:
+        for key_path in key_paths:
+            try:
+                hkey = winreg.OpenKey(hive, key_path)
+            except OSError:
+                continue
 
-                try:
-                    subkey = winreg.OpenKey(hkey, subkey_name)
-                except OSError:
-                    continue
+            try:
+                i = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(hkey, i)
+                    except OSError:
+                        break
+                    i += 1
 
-                entry = {}
-                try:
-                    for field in REGISTRY_FIELDS:
-                        try:
-                            value, reg_type = winreg.QueryValueEx(subkey, field)
-                            if reg_type == winreg.REG_DWORD:
-                                entry[field] = value or 0
-                            else:
-                                entry[field] = str(value).strip() if value else ''
-                        except OSError:
-                            entry[field] = '' if field != 'EstimatedSize' else 0
-                finally:
-                    winreg.CloseKey(subkey)
+                    try:
+                        subkey = winreg.OpenKey(hkey, subkey_name)
+                    except OSError:
+                        continue
 
-                name = entry.get('DisplayName', '')
-                if not name:
-                    continue
+                    entry = {}
+                    try:
+                        for field in REGISTRY_FIELDS:
+                            try:
+                                value, reg_type = winreg.QueryValueEx(subkey, field)
+                                if reg_type == winreg.REG_DWORD:
+                                    entry[field] = value or 0
+                                else:
+                                    entry[field] = str(value).strip() if value else ''
+                            except OSError:
+                                entry[field] = '' if field != 'EstimatedSize' else 0
+                    finally:
+                        winreg.CloseKey(subkey)
 
-                # Deduplicate across 64-bit and WOW6432Node
-                dedup_key = (name.lower(), entry.get('DisplayVersion', ''))
-                if dedup_key in seen:
-                    continue
-                seen.add(dedup_key)
+                    name = entry.get('DisplayName', '')
+                    if not name:
+                        continue
 
-                programs.append(entry)
-        finally:
-            winreg.CloseKey(hkey)
+                    # Deduplicate across hives and 64-bit/WOW6432Node
+                    dedup_key = (name.lower(), entry.get('DisplayVersion', ''))
+                    if dedup_key in seen:
+                        continue
+                    seen.add(dedup_key)
+
+                    programs.append(entry)
+            finally:
+                winreg.CloseKey(hkey)
 
     log.info('Registry scan found %d installed programs', len(programs))
     return programs
@@ -173,6 +185,8 @@ def filter_revit_addins(programs, static_lookup):
             'sizeKB':      None,
         }
 
+    from rst_lib import normalize_addin_name
+
     # Build reverse indexes for matching
     # displayName (lowercase) -> tab_name
     display_to_tab = {}
@@ -183,6 +197,16 @@ def filter_revit_addins(programs, static_lookup):
 
     # tab key (lowercase) -> tab_name  (for substring matching)
     tab_keys_lower = {k.lower(): k for k in static_lookup}
+
+    # normalized name -> tab_name  (strips dots, versions, noise words)
+    norm_to_tab = {}
+    for tab_name, info in static_lookup.items():
+        norm = normalize_addin_name(info.get('displayName', tab_name))
+        if norm:
+            norm_to_tab[norm] = tab_name
+        norm_key = normalize_addin_name(tab_name)
+        if norm_key and norm_key not in norm_to_tab:
+            norm_to_tab[norm_key] = tab_name
 
     # Match registry entries against known add-ins
     for prog in programs:
@@ -197,14 +221,20 @@ def filter_revit_addins(programs, static_lookup):
         if reg_name_lower in display_to_tab:
             matched_tab = display_to_tab[reg_name_lower]
 
-        # Strategy 2: registry name contains a known tab key
+        # Strategy 2: normalized name match (strips dots, versions, noise)
+        if not matched_tab:
+            reg_norm = normalize_addin_name(reg_name)
+            if reg_norm and reg_norm in norm_to_tab:
+                matched_tab = norm_to_tab[reg_norm]
+
+        # Strategy 3: registry name contains a known tab key
         if not matched_tab:
             for key_lower, key_original in tab_keys_lower.items():
                 if len(key_lower) >= 3 and key_lower in reg_name_lower:
                     matched_tab = key_original
                     break
 
-        # Strategy 3: a known tab key contains the registry name
+        # Strategy 4: a known tab key contains the registry name
         if not matched_tab:
             for key_lower, key_original in tab_keys_lower.items():
                 if len(reg_name_lower) >= 3 and reg_name_lower in key_lower:

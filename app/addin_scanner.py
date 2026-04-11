@@ -18,8 +18,6 @@ BUILTIN_TABS = {
 
 from rst_lib import EXT_ROOT, ADDIN_LOOKUP_PATH, SYSTEM_SCAN_PATH, CONFIG_PATH
 
-_overrides_path = os.path.join(EXT_ROOT, 'app', 'user_addin_overrides.json')
-
 
 def _load_config():
     """Load lookup/config.json. Returns (autodesk set, exempt_paths list)."""
@@ -137,31 +135,6 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
 
     return 'unknown'
 
-
-
-def _load_overrides():
-    if os.path.exists(_overrides_path):
-        try:
-            with open(_overrides_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (IOError, ValueError):
-            return {}
-    return {}
-
-
-def _save_overrides(overrides):
-    try:
-        with open(_overrides_path, 'w', encoding='utf-8') as f:
-            json.dump(overrides, f, indent=2)
-    except IOError as e:
-        log.error('Failed to save overrides: %s', e)
-
-
-def _record_fuzzy_match(tab_name, addin_path):
-    log.info('Fuzzy match: %s -> %s', tab_name, addin_path)
-    overrides = _load_overrides()
-    overrides[tab_name] = addin_path
-    _save_overrides(overrides)
 
 
 def _get_appdata():
@@ -387,142 +360,6 @@ def resolve_tab_to_addin(loaded_addins, addin_files, addin_lookup=None):
     return resolved
 
 
-def _search_addin_contents(tab_name, addin_files):
-    """Search inside .addin file contents for the tab name string."""
-    tab_lower = tab_name.lower()
-    for fname, paths in addin_files.items():
-        if not fname.endswith('.addin'):
-            continue
-        for fpath in paths:
-            try:
-                with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                    contents = f.read().lower()
-                if tab_lower in contents:
-                    log.info('Content match: "%s" found in %s', tab_name, fpath)
-                    return fname, fpath
-            except (IOError, OSError):
-                continue
-    return None, None
-
-
-def _fuzzy_find(tab_name, search_dirs, overrides=None, addin_files=None):
-    """Check overrides, then filename match, then content search."""
-    if overrides is None:
-        overrides = _load_overrides()
-
-    if tab_name in overrides:
-        cached_path = overrides[tab_name]
-        if os.path.exists(cached_path):
-            return os.path.basename(cached_path), cached_path
-
-    if addin_files is None:
-        addin_files = _find_all_addin_files(search_dirs)
-
-    tab_lower = tab_name.lower()
-    for fname, paths in addin_files.items():
-        if fname.endswith('.addin') and tab_lower in fname.lower():
-            fpath = paths[0]
-            _record_fuzzy_match(tab_name, fpath)
-            return fname, fpath
-
-    fname, fpath = _search_addin_contents(tab_name, addin_files)
-    if fname:
-        _record_fuzzy_match(tab_name, fpath)
-        return fname, fpath
-
-    return None, None
-
-
-def check_addins(required_addins, revit_version):
-    """Returns dict: { tabName: 'present' | 'not_found' | 'unknown' }"""
-    log.info('Checking addins for Revit %s: %s', revit_version, required_addins)
-    lookup = load_addin_lookup()
-    search_dirs = get_addins_dirs(revit_version)
-    overrides = _load_overrides()
-
-    if not search_dirs:
-        log.warning('No addin directories found for Revit %s', revit_version)
-        return dict((name, 'unknown') for name in required_addins)
-
-    addin_files = _find_all_addin_files(search_dirs)
-    active_filenames = set(f for f in addin_files.keys() if f.endswith('.addin'))
-    log.debug('Found %d unique .addin files: %s', len(active_filenames), sorted(active_filenames))
-
-    results = {}
-    for tab_name in required_addins:
-        # Built-in Revit tabs are always present
-        if tab_name in BUILTIN_TABS:
-            results[tab_name] = 'present'
-            continue
-
-        entry = lookup.get(tab_name)
-        if entry and entry.get('file') in active_filenames:
-            results[tab_name] = 'present'
-        else:
-            # Fuzzy search: filename match then content search
-            fname, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
-            if fname:
-                results[tab_name] = 'present'
-            elif entry:
-                results[tab_name] = 'not_found'
-            else:
-                results[tab_name] = 'unknown'
-
-    log.info('Addin check results: %s', results)
-    return results
-
-
-def apply_hide_rules(hide_rules, revit_version, protected_addins=None):
-    """Rename .addin -> .addin.RSTdisabled for each tab in hide_rules.
-    Only modifies files in user/ProgramData dirs, never Program Files.
-    protected_addins: set/list of .addin filenames to never disable (from profile)."""
-    log.info('Applying hide rules for Revit %s: %s', revit_version, hide_rules)
-    protected = set(protected_addins or PROTECTED_ADDINS)
-    lookup = load_addin_lookup()
-    search_dirs = get_addins_dirs(revit_version)
-    overrides = _load_overrides()
-
-    if not search_dirs:
-        log.warning('No addin directories found')
-        return
-
-    addin_files = _find_all_addin_files(search_dirs)
-
-    for tab_name in hide_rules:
-        fpath = None
-        resolved_filename = None
-
-        entry = lookup.get(tab_name)
-        if entry and entry.get('file') in addin_files:
-            paths = addin_files[entry.get('file')]
-            resolved_filename = entry.get('file')
-            # Pick first modifiable path
-            fpath = next((p for p in paths if not _is_hands_off(p)), None)
-        else:
-            resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
-
-        # Check protection by filename
-        if resolved_filename and resolved_filename in protected:
-            log.debug('Skipping protected addin: %s', resolved_filename)
-            continue
-
-        if not fpath:
-            log.warning('No .addin file found for: %s', tab_name)
-            continue
-
-        if _is_hands_off(fpath):
-            log.debug('Skipping protected/exempt path: %s', fpath)
-            continue
-
-        dest = fpath + '.RSTdisabled'
-        if os.path.exists(fpath) and not fpath.endswith('.RSTdisabled'):
-            try:
-                os.rename(fpath, dest)
-                log.info('Hidden: %s', fpath)
-            except (OSError, IOError) as e:
-                log.error('Failed to hide %s: %s', fpath, e)
-
-
 def restore_all_addins(revit_version):
     """Sweep all addins directories for .addin.RSTdisabled and rename back to .addin.
     Config-independent — purely filesystem-based recovery.
@@ -556,7 +393,6 @@ def disable_non_required_addins(required_addins, revit_version, protected_addins
     protected = set(protected_addins or PROTECTED_ADDINS)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
-    overrides = _load_overrides()
     addin_files = _find_all_addin_files(search_dirs)
 
     # Build set of filenames to keep
@@ -565,10 +401,12 @@ def disable_non_required_addins(required_addins, revit_version, protected_addins
         if a in lookup:
             keep_files.add(lookup[a]['file'])
         else:
-            # Resolve fuzzy-matched addins too
-            fname, _ = _fuzzy_find(a, search_dirs, overrides, addin_files)
-            if fname:
-                keep_files.add(fname)
+            # Fuzzy filename match
+            tab_lower = a.lower()
+            for f in addin_files:
+                if f.endswith('.addin') and tab_lower in f.lower():
+                    keep_files.add(f)
+                    break
     keep_files.update(protected)
 
     for base_dir in search_dirs:

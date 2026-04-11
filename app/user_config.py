@@ -334,7 +334,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             is_protected=is_protected,
             origin=classify_addin_origin(
                 addin_file=addin_file, lookup_entry=lookup_entry,
-                tab_name=panel_info.get('sourceTab')),
+                tab_name=panel_name),
             lookup_entry=lookup_entry,
             addin_id=addin_id_map.get(addin_file, ''))
 
@@ -510,7 +510,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             is_protected=is_protected,
             origin=classify_addin_origin(
                 addin_file=addin_file, lookup_entry=lookup_entry,
-                tab_name=panel_info.get('sourceTab')),
+                tab_name=panel_name),
             lookup_entry=lookup_entry,
             addin_id=addin_id_map.get(addin_file, ''))
         added.append(panel_name)
