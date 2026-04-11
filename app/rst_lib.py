@@ -71,6 +71,36 @@ def build_identity(revit_username=None):
     }
 
 
+# ── Add-in Entry Builder ─────────────────────────────────────────────────────
+
+def build_addin_entry(display_name, tab_name, addin_file, addin_path,
+                      assembly_path, scope, enabled, is_protected,
+                      origin, lookup_entry=None):
+    """Build a standardized add-in entry dict.
+
+    Single source of truth for the addin object shape used in user configs,
+    profile operations, and UI rendering.
+    """
+    le = lookup_entry or {}
+    return {
+        'displayName':  display_name,
+        'tabName':      tab_name,
+        'addinFile':    addin_file,
+        'addinPath':    addin_path,
+        'assemblyPath': assembly_path,
+        'scope':        scope,
+        'elevated':     scope == 'machine',
+        'enabled':      enabled,
+        'protected':    is_protected,
+        'origin':       origin,
+        'url':          le.get('url', ''),
+        'version':      le.get('version'),
+        'publisher':    le.get('publisher'),
+        'installDate':  le.get('installDate'),
+        'sizeKB':       le.get('sizeKB'),
+    }
+
+
 # ── Utility Functions ─────────────────────────────────────────────────────────
 
 def safe_filename(s):

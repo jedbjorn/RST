@@ -19,7 +19,7 @@ from logger import get_logger
 
 log = get_logger('user_config')
 
-from rst_lib import USERS_DIR as _USERS_DIR
+from rst_lib import USERS_DIR as _USERS_DIR, build_addin_entry
 
 
 def _ensure_users_dir():
@@ -219,30 +219,19 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        origin = classify_addin_origin(
-            addin_file=addin_file, lookup_entry=lookup_entry,
-            assembly_path=assembly_path, tab_name=tab_name)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        addins[tab_name] = {
-            'displayName': display_name,
-            'tabName': tab_name,
-            'addinFile': addin_file,
-            'addinPath': addin_path,
-            'assemblyPath': assembly_path,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': enabled,
-            'protected': is_protected,
-            'origin': origin,
-            'url': url,
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        addins[tab_name] = build_addin_entry(
+            display_name=display_name, tab_name=tab_name,
+            addin_file=addin_file, addin_path=addin_path,
+            assembly_path=assembly_path, scope=scope, enabled=enabled,
+            is_protected=is_protected,
+            origin=classify_addin_origin(
+                addin_file=addin_file, lookup_entry=lookup_entry,
+                assembly_path=assembly_path, tab_name=tab_name),
+            lookup_entry=lookup_entry)
 
     # Step 5: process third-party panels on built-in tabs (e.g. Kinship on Add-Ins)
     for panel_info in (addin_panels or []):
@@ -281,30 +270,19 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        origin = classify_addin_origin(
-            addin_file=addin_file, lookup_entry=lookup_entry,
-            tab_name=panel_info.get('sourceTab'))
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        addins[panel_name] = {
-            'displayName': display_name,
-            'tabName': panel_info.get('sourceTab'),
-            'addinFile': addin_file,
-            'addinPath': addin_path,
-            'assemblyPath': None,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': enabled,
-            'protected': is_protected,
-            'origin': origin,
-            'url': url,
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        addins[panel_name] = build_addin_entry(
+            display_name=display_name, tab_name=panel_info.get('sourceTab'),
+            addin_file=addin_file, addin_path=addin_path,
+            assembly_path=None, scope=scope, enabled=enabled,
+            is_protected=is_protected,
+            origin=classify_addin_origin(
+                addin_file=addin_file, lookup_entry=lookup_entry,
+                tab_name=panel_info.get('sourceTab')),
+            lookup_entry=lookup_entry)
 
     # Step 6: catch any .addin files in the directory not matched to a loaded tab
     matched_files = set()
@@ -331,23 +309,14 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
         if appdata_lower and not fpath.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        addins[base] = {
-            'displayName': lookup_entry.get('displayName', base),
-            'tabName': tab_from_file,
-            'addinFile': canonical,
-            'addinPath': fpath,
-            'assemblyPath': None,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': not fname.endswith('.RSTdisabled'),
-            'protected': canonical.lower() in protected_lower,
-            'origin': classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
-            'url': lookup_entry.get('url', ''),
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        addins[base] = build_addin_entry(
+            display_name=lookup_entry.get('displayName', base),
+            tab_name=tab_from_file, addin_file=canonical,
+            addin_path=fpath, assembly_path=None, scope=scope,
+            enabled=not fname.endswith('.RSTdisabled'),
+            is_protected=canonical.lower() in protected_lower,
+            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
+            lookup_entry=lookup_entry)
 
     config = {
         'username': username,
@@ -419,30 +388,19 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        origin = classify_addin_origin(
-            addin_file=addin_file, lookup_entry=lookup_entry,
-            assembly_path=assembly_path, tab_name=tab_name)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        existing[tab_name] = {
-            'displayName': display_name,
-            'tabName': tab_name,
-            'addinFile': addin_file,
-            'addinPath': addin_path,
-            'assemblyPath': assembly_path,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': enabled,
-            'protected': is_protected,
-            'origin': origin,
-            'url': url,
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        existing[tab_name] = build_addin_entry(
+            display_name=display_name, tab_name=tab_name,
+            addin_file=addin_file, addin_path=addin_path,
+            assembly_path=assembly_path, scope=scope, enabled=enabled,
+            is_protected=is_protected,
+            origin=classify_addin_origin(
+                addin_file=addin_file, lookup_entry=lookup_entry,
+                assembly_path=assembly_path, tab_name=tab_name),
+            lookup_entry=lookup_entry)
         added.append(tab_name)
 
     # Step 2: check third-party panels on built-in tabs
@@ -482,30 +440,19 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        origin = classify_addin_origin(
-            addin_file=addin_file, lookup_entry=lookup_entry,
-            tab_name=panel_info.get('sourceTab'))
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        existing[panel_name] = {
-            'displayName': display_name,
-            'tabName': panel_info.get('sourceTab'),
-            'addinFile': addin_file,
-            'addinPath': addin_path,
-            'assemblyPath': None,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': enabled,
-            'protected': is_protected,
-            'origin': origin,
-            'url': url,
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        existing[panel_name] = build_addin_entry(
+            display_name=display_name, tab_name=panel_info.get('sourceTab'),
+            addin_file=addin_file, addin_path=addin_path,
+            assembly_path=None, scope=scope, enabled=enabled,
+            is_protected=is_protected,
+            origin=classify_addin_origin(
+                addin_file=addin_file, lookup_entry=lookup_entry,
+                tab_name=panel_info.get('sourceTab')),
+            lookup_entry=lookup_entry)
         added.append(panel_name)
 
     # Step 3: check directory for new .addin files not matched to any tab
@@ -537,23 +484,14 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
         if appdata_lower and not fpath.lower().startswith(appdata_lower):
             scope = 'machine'
 
-        existing[base] = {
-            'displayName': lookup_entry.get('displayName', base),
-            'tabName': tab_from_file,
-            'addinFile': canonical,
-            'addinPath': fpath,
-            'assemblyPath': None,
-            'scope': scope,
-            'elevated': scope == 'machine',
-            'enabled': not fname.endswith('.RSTdisabled'),
-            'protected': canonical.lower() in protected_lower,
-            'origin': classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
-            'url': lookup_entry.get('url', ''),
-            'version': lookup_entry.get('version'),
-            'publisher': lookup_entry.get('publisher'),
-            'installDate': lookup_entry.get('installDate'),
-            'sizeKB': lookup_entry.get('sizeKB'),
-        }
+        existing[base] = build_addin_entry(
+            display_name=lookup_entry.get('displayName', base),
+            tab_name=tab_from_file, addin_file=canonical,
+            addin_path=fpath, assembly_path=None, scope=scope,
+            enabled=not fname.endswith('.RSTdisabled'),
+            is_protected=canonical.lower() in protected_lower,
+            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
+            lookup_entry=lookup_entry)
         added.append(base)
 
     if added:
