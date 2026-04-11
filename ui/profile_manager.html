@@ -826,6 +826,22 @@
     font-weight: 600;
     color: var(--text);
   }
+
+  .iconpack-search {
+    width: 100%;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .iconpack-search:focus { border-color: var(--accent); }
+  .iconpack-search::placeholder { color: var(--text3); }
   .iconpack-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -3381,6 +3397,15 @@
         grid.appendChild(item);
       });
       document.getElementById('iconpackOverlay').classList.add('visible');
+      var searchInput = document.getElementById('iconpackSearch');
+      searchInput.value = '';
+      searchInput.focus();
+      searchInput.oninput = function() {
+        var q = this.value.toLowerCase();
+        grid.querySelectorAll('.iconpack-item').forEach(function(el) {
+          el.style.display = el.title.toLowerCase().includes(q) ? '' : 'none';
+        });
+      };
     }
 
     // Use JS cache if available, otherwise fetch from backend
@@ -3519,8 +3544,11 @@
             const s = { type: slot.type, name: slot.name };
             if (slot.baseName) s.baseName = slot.baseName;
             if (slot.type === 'tool') {
-              s.icon = slot.icon || '●';
               s.commandId = slot.commandId || '';
+              // Assign correct icon for URL/mailto tools
+              if (s.commandId.startsWith('URL:mailto:')) s.icon = '@';
+              else if (s.commandId.startsWith('URL:')) s.icon = '\u{1F517}';
+              else s.icon = slot.icon || '●';
               s.sourceTab = slot.sourceTab || null;
               s.sourcePanel = slot.sourcePanel || null;
               if (slot.iconFile) s.iconFile = slot.iconFile;
@@ -3581,9 +3609,12 @@
               const m = cmdId.match(/^CustomCtrl_%CustomCtrl_%([^%]+)%/);
               if (m) sourceTab = m[1];
             }
+            var toolIcon = '●';
+            if (cmdId && cmdId.startsWith('URL:mailto:')) toolIcon = '@';
+            else if (cmdId && cmdId.startsWith('URL:')) toolIcon = '\u{1F517}';
             state.allTools.push({
               name: toolName,
-              icon: '●',
+              icon: toolIcon,
               sourceTab: sourceTab,
               commandId: cmdId,
             });
@@ -3744,6 +3775,7 @@
 <div class="iconpack-overlay" id="iconpackOverlay" onclick="if(event.target===this)closeIconPack()">
   <div class="iconpack-modal">
     <h3>Choose an icon</h3>
+    <input type="text" class="iconpack-search" id="iconpackSearch" placeholder="Search icons..." autocomplete="off">
     <div class="iconpack-grid" id="iconpackGrid"></div>
     <div class="iconpack-actions">
       <button onclick="clearSlotIcon()">Clear</button>
