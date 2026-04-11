@@ -159,33 +159,36 @@ def needs_rescan(username, version):
 
 def _list_addins_dirs(version):
     """List .addin files from user-scope and machine-scope addins directories.
-    Returns {filename_lower: full_path}. Non-recursive — flat directory listing only.
-    User-scope is checked first so it takes precedence for duplicate filenames."""
+    Returns {filename_lower: full_path}. Recursive — walks subdirectories to find
+    add-ins installed in vendor subfolders (e.g. DiRoots/, Enscape/).
+    User-scope is checked second so it takes precedence for duplicate filenames."""
     result = {}
     ver = str(version)
+
+    def _walk_dir(base_dir):
+        if not os.path.isdir(base_dir):
+            return 0
+        count = 0
+        for dirpath, dirnames, filenames in os.walk(base_dir):
+            for f in filenames:
+                if f.endswith('.addin') or f.endswith('.addin.RSTdisabled'):
+                    result[f.lower()] = os.path.join(dirpath, f)
+                    count += 1
+        return count
 
     # Machine-scope first (ProgramData) — read-only, for tracking
     programdata = os.environ.get('PROGRAMDATA', r'C:\ProgramData')
     machine_dir = os.path.join(programdata, 'Autodesk', 'Revit', 'Addins', ver)
-    if os.path.isdir(machine_dir):
-        for f in os.listdir(machine_dir):
-            if f.endswith('.addin') or f.endswith('.addin.RSTdisabled'):
-                result[f.lower()] = os.path.join(machine_dir, f)
-        log.debug('Machine addins dir: %s (%d files)', machine_dir,
-                  sum(1 for k in result))
+    machine_count = _walk_dir(machine_dir)
+    log.debug('Machine addins dir: %s (%d files)', machine_dir, machine_count)
 
     # User-scope second (AppData) — overwrites machine entries for same filename
     appdata = os.environ.get('APPDATA', '')
     user_dir = None
     if appdata:
         user_dir = os.path.join(appdata, 'Autodesk', 'Revit', 'Addins', ver)
-        if os.path.isdir(user_dir):
-            user_count = 0
-            for f in os.listdir(user_dir):
-                if f.endswith('.addin') or f.endswith('.addin.RSTdisabled'):
-                    result[f.lower()] = os.path.join(user_dir, f)
-                    user_count += 1
-            log.debug('User addins dir: %s (%d files)', user_dir, user_count)
+        user_count = _walk_dir(user_dir)
+        log.debug('User addins dir: %s (%d files)', user_dir, user_count)
 
     log.debug('Total addins found: %d', len(result))
     return result, user_dir
