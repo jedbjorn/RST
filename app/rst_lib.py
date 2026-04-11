@@ -56,35 +56,19 @@ def load_json_safe(path, default=None):
 # ── Profile Helpers ───────────────────────────────────────────────────────────
 
 def generate_profile_id():
-    """Generate a new unique profile ID."""
     return str(uuid.uuid4())
 
 
 def ensure_profile_id(data):
-    """Ensure a profile dict has an 'id' field. Adds one if missing."""
+    """Add a UUID 'id' field if missing."""
     if not data.get('id'):
         data['id'] = generate_profile_id()
     return data
 
 
-def find_profile(profile_name):
-    """Find a profile by name in PROFILES_DIR. Returns (filename, data) or (None, None)."""
-    for fname in os.listdir(PROFILES_DIR):
-        if fname.endswith('.json'):
-            fpath = os.path.join(PROFILES_DIR, fname)
-            try:
-                with open(fpath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                if data.get('profile') == profile_name:
-                    return fname, data
-            except (json.JSONDecodeError, IOError, UnicodeDecodeError):
-                continue
-    return None, None
-
-
-def find_profile_by_id(profile_id):
-    """Find a profile by ID in PROFILES_DIR. Returns (filename, data) or (None, None)."""
-    if not profile_id:
+def _find_profile_by(field, value):
+    """Scan PROFILES_DIR for a profile where data[field] == value."""
+    if not value:
         return None, None
     for fname in os.listdir(PROFILES_DIR):
         if fname.endswith('.json'):
@@ -92,15 +76,30 @@ def find_profile_by_id(profile_id):
             try:
                 with open(fpath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                if data.get('id') == profile_id:
+                if data.get(field) == value:
                     return fname, data
             except (json.JSONDecodeError, IOError, UnicodeDecodeError):
                 continue
     return None, None
 
 
+def find_profile(profile_name):
+    return _find_profile_by('profile', profile_name)
+
+
+def find_profile_by_id(profile_id):
+    return _find_profile_by('id', profile_id)
+
+
+def resolve_profile(profile_name, profile_id=None):
+    """Find profile by ID first, falling back to name. Returns (filename, data)."""
+    fname, data = find_profile_by_id(profile_id)
+    if not data:
+        fname, data = find_profile(profile_name)
+    return fname, data
+
+
 def get_all_profile_names():
-    """Return set of all existing profile names."""
     names = set()
     for fname in os.listdir(PROFILES_DIR):
         if fname.endswith('.json'):
@@ -117,27 +116,33 @@ def get_all_profile_names():
 
 
 def get_active_profile():
-    """Return dict with 'id' and 'name' of the currently loaded profile, or None."""
-    if not os.path.exists(ACTIVE_PROFILE_PATH):
+    """Return dict with 'id' and 'name' of the active profile, or None."""
+    data = load_json_safe(ACTIVE_PROFILE_PATH)
+    if not data:
         return None
-    try:
-        with open(ACTIVE_PROFILE_PATH, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return {
-            'id': data.get('profile_id'),
-            'name': data.get('profile'),
-        }
-    except (ValueError, IOError):
-        return None
+    return {
+        'id': data.get('profile_id'),
+        'name': data.get('profile'),
+    }
 
 
 def get_active_profile_name():
-    """Return the name of the currently loaded profile, or None."""
     active = get_active_profile()
     return active['name'] if active else None
 
 
 def get_active_profile_id():
-    """Return the ID of the currently loaded profile, or None."""
     active = get_active_profile()
     return active['id'] if active else None
+
+
+def is_active_profile(profile_id=None, profile_name=None):
+    """Check if a profile (by ID or name) is the currently active one."""
+    active = get_active_profile()
+    if not active:
+        return False
+    if profile_id and active['id'] == profile_id:
+        return True
+    if profile_name and active['name'] == profile_name:
+        return True
+    return False

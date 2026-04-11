@@ -12,8 +12,8 @@ log = get_logger('profile_selector')
 from rst_lib import (
     EXT_ROOT, PROFILES_DIR, ACTIVE_PROFILE_PATH, UI_DIR,
     REQUIRED_PROFILE_FIELDS, validate_profile,
-    safe_filename, find_profile, find_profile_by_id,
-    ensure_profile_id, generate_profile_id,
+    safe_filename, find_profile, resolve_profile,
+    ensure_profile_id, is_active_profile,
 )
 
 _html_path = os.path.join(UI_DIR, 'profile_loader.html')
@@ -328,17 +328,13 @@ class ProfileSelectorAPI:
             log.error('Missing required fields: %s', missing)
             return {'ok': False, 'error': 'Missing fields: ' + ', '.join(sorted(missing))}
 
-        # Ensure imported profile has an ID
         ensure_profile_id(profile)
 
         safe_name = safe_filename(profile['profile'])
         safe_date = safe_filename(profile['exportDate'])
         dest_name = '%s_%s.json' % (safe_name, safe_date)
 
-        # Overwrite existing profile with same ID or same name
-        existing_fname, _ = find_profile_by_id(profile['id'])
-        if not existing_fname:
-            existing_fname, _ = find_profile(profile['profile'])
+        existing_fname, _ = resolve_profile(profile['profile'], profile['id'])
         if existing_fname:
             os.remove(os.path.join(PROFILES_DIR, existing_fname))
             log.info('Overwriting existing profile: %s', existing_fname)
@@ -366,16 +362,10 @@ class ProfileSelectorAPI:
             return {'ok': False, 'warnings': ['Internal error: ' + str(e)]}
 
     def _load_profile_inner(self, profile_name, disable_non_required, revit_version=None, hidden_tabs=None, profile_id=None):
-        # Find by ID first, fall back to name
-        profile_filename, profile_data = None, None
-        if profile_id:
-            profile_filename, profile_data = find_profile_by_id(profile_id)
-        if not profile_data:
-            profile_filename, profile_data = find_profile(profile_name)
+        profile_filename, profile_data = resolve_profile(profile_name, profile_id)
         if not profile_data:
             log.error('Profile not found: %s (id=%s)', profile_name, profile_id)
             return {'ok': False, 'warnings': ['Profile not found: ' + profile_name]}
-        # Ensure profile has an ID
         ensure_profile_id(profile_data)
 
         if not revit_version:
@@ -500,12 +490,7 @@ class ProfileSelectorAPI:
 
     def remove_profile(self, profile_name, profile_id=None):
         log.info('Removing profile: %s [id=%s]', profile_name, profile_id)
-        # Find by ID first, fall back to name
-        profile_filename = None
-        if profile_id:
-            profile_filename, _ = find_profile_by_id(profile_id)
-        if not profile_filename:
-            profile_filename, _ = find_profile(profile_name)
+        profile_filename, _ = resolve_profile(profile_name, profile_id)
         if not profile_filename:
             log.error('Profile not found for removal: %s', profile_name)
             return {'ok': False, 'error': 'Profile not found'}
@@ -513,18 +498,9 @@ class ProfileSelectorAPI:
         os.remove(os.path.join(PROFILES_DIR, profile_filename))
         log.info('Deleted: %s', profile_filename)
 
-        # Write blank profile if this was the active one
-        try:
-            if os.path.exists(ACTIVE_PROFILE_PATH):
-                with open(ACTIVE_PROFILE_PATH, 'r', encoding='utf-8') as f:
-                    active = json.load(f)
-                is_active = (profile_id and active.get('profile_id') == profile_id) or \
-                            active.get('profile') == profile_name
-                if is_active:
-                    _write_blank_profile()
-                    log.info('Wrote blank profile (deleted profile was active)')
-        except (json.JSONDecodeError, IOError) as e:
-            log.error('Error checking active profile: %s', e)
+        if is_active_profile(profile_id, profile_name):
+            _write_blank_profile()
+            log.info('Wrote blank profile (deleted profile was active)')
 
         return {'ok': True}
 

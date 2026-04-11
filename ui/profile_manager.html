@@ -863,8 +863,6 @@
     cursor: pointer;
   }
   .iconpack-actions button:hover { border-color: var(--accent); color: var(--accent); }
-  .iconpack-actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .iconpack-actions button.primary:hover { background: var(--accent2); }
 
   .slot-icon-badge {
     width: 8px; height: 8px;
@@ -3151,32 +3149,40 @@
     const grid = document.getElementById('iconpackGrid');
     grid.innerHTML = '';
 
-    // Load icon pack list from backend
-    const api = window.pywebview && window.pywebview.api;
-    if (api && api.get_icon_pack) {
-      api.get_icon_pack().then(function(icons) {
-        icons.forEach(function(entry) {
-          const item = document.createElement('div');
-          item.className = 'iconpack-item';
-          if (slot.iconFile === 'pack:' + entry.name) item.classList.add('selected');
-          item.title = entry.name;
-          item.innerHTML = '<img src="' + entry.src + '"><span>' + entry.name + '</span>';
-          // Cache the data URI for preview rendering
-          _iconpackCache[entry.name] = entry.src;
-          item.onclick = function() {
-            grid.querySelectorAll('.iconpack-item').forEach(function(el) { el.classList.remove('selected'); });
-            item.classList.add('selected');
-            slot.iconFile = 'pack:' + entry.name;
-            renderSlotList();
-            renderMockPreview();
-            renderTabCanvas();
-            showToast('Icon set', slot.name + ' → ' + entry.name);
-            closeIconPack();
-          };
-          grid.appendChild(item);
-        });
-        document.getElementById('iconpackOverlay').classList.add('visible');
+    function buildGrid(icons) {
+      icons.forEach(function(entry) {
+        const item = document.createElement('div');
+        item.className = 'iconpack-item';
+        if (slot.iconFile === 'pack:' + entry.name) item.classList.add('selected');
+        item.title = entry.name;
+        item.innerHTML = '<img src="' + entry.src + '"><span>' + entry.name + '</span>';
+        item.onclick = function() {
+          grid.querySelectorAll('.iconpack-item').forEach(function(el) { el.classList.remove('selected'); });
+          item.classList.add('selected');
+          slot.iconFile = 'pack:' + entry.name;
+          renderSlotList();
+          renderMockPreview();
+          renderTabCanvas();
+          showToast('Icon set', slot.name + ' → ' + entry.name);
+          closeIconPack();
+        };
+        grid.appendChild(item);
       });
+      document.getElementById('iconpackOverlay').classList.add('visible');
+    }
+
+    // Use JS cache if available, otherwise fetch from backend
+    var cachedKeys = Object.keys(_iconpackCache);
+    if (cachedKeys.length > 0) {
+      buildGrid(cachedKeys.map(function(name) { return { name: name, src: _iconpackCache[name] }; }));
+    } else {
+      var api = window.pywebview && window.pywebview.api;
+      if (api && api.get_icon_pack) {
+        api.get_icon_pack().then(function(icons) {
+          icons.forEach(function(entry) { _iconpackCache[entry.name] = entry.src; });
+          buildGrid(icons);
+        });
+      }
     }
   }
 
