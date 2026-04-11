@@ -110,11 +110,11 @@ def save_addin_defaults(config):
     only updates scan metadata (origin, version, publisher, etc.) and adds
     new add-ins with defaults.
     """
-    from rst_lib import ADDIN_SCAN_PATH, load_json_safe
+    from rst_lib import ADDIN_DEFAULTS_PATH, load_json_safe
     addins = config.get('addins', {})
 
     # Load existing defaults to preserve admin edits
-    existing_data = load_json_safe(ADDIN_SCAN_PATH, {})
+    existing_data = load_json_safe(ADDIN_DEFAULTS_PATH, {})
     existing = existing_data.get('addins', {})
 
     defaults = {}
@@ -140,16 +140,16 @@ def save_addin_defaults(config):
 
         defaults[name] = entry
 
-    os.makedirs(os.path.dirname(ADDIN_SCAN_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(ADDIN_DEFAULTS_PATH), exist_ok=True)
     data = {
         'scanDate': config.get('scanDate', ''),
         'revitVersion': config.get('revitVersion', ''),
         'addinCount': len(defaults),
         'addins': defaults,
     }
-    _atomic_write(ADDIN_SCAN_PATH, data)
+    _atomic_write(ADDIN_DEFAULTS_PATH, data)
     log.info('Saved addin defaults: %s (%d add-ins, %d preserved)',
-             ADDIN_SCAN_PATH, len(defaults), len(existing))
+             ADDIN_DEFAULTS_PATH, len(defaults), len(existing))
 
 
 def needs_rescan(username, version):

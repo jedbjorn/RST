@@ -82,16 +82,16 @@ class TabCreatorAPI:
     def get_addin_defaults(self):
         """Return addin defaults from data/addin_scan.json.
         Used by profile manager to populate protectedAddins/lockedAddins."""
-        from rst_lib import ADDIN_SCAN_PATH, load_json_safe
-        data = load_json_safe(ADDIN_SCAN_PATH, {})
+        from rst_lib import ADDIN_DEFAULTS_PATH, load_json_safe
+        data = load_json_safe(ADDIN_DEFAULTS_PATH, {})
         return data.get('addins', {})
 
     def save_addin_defaults(self, addins):
         """Save admin-edited protection settings back to data/addin_scan.json.
         Only updates locked/protected fields — preserves all other scan data."""
-        from rst_lib import ADDIN_SCAN_PATH, load_json_safe
+        from rst_lib import ADDIN_DEFAULTS_PATH, load_json_safe
         import json
-        data = load_json_safe(ADDIN_SCAN_PATH, {})
+        data = load_json_safe(ADDIN_DEFAULTS_PATH, {})
         existing = data.get('addins', {})
 
         for name, edits in addins.items():
@@ -103,12 +103,12 @@ class TabCreatorAPI:
 
         data['addins'] = existing
         try:
-            tmp = ADDIN_SCAN_PATH + '.tmp'
+            tmp = ADDIN_DEFAULTS_PATH + '.tmp'
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             import os
-            os.replace(tmp, ADDIN_SCAN_PATH)
-            log.info('Saved admin protection settings to %s', ADDIN_SCAN_PATH)
+            os.replace(tmp, ADDIN_DEFAULTS_PATH)
+            log.info('Saved admin protection settings to %s', ADDIN_DEFAULTS_PATH)
             return {'ok': True}
         except Exception as e:
             log.error('Failed to save protection settings: %s', e)

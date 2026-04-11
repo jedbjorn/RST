@@ -26,7 +26,7 @@ DATA_DIR            = os.path.join(EXT_ROOT, 'data')
 ADDIN_LOOKUP_PATH   = os.path.join(LOOKUP_DIR, 'addin_lookup.json')
 SYSTEM_SCAN_PATH    = os.path.join(DATA_DIR, 'system_scan.json')
 HEALTH_SCAN_PATH    = os.path.join(DATA_DIR, 'health_scan.json')
-ADDIN_SCAN_PATH     = os.path.join(DATA_DIR, 'addin_scan.json')
+ADDIN_DEFAULTS_PATH = os.path.join(DATA_DIR, 'addin_defaults.json')
 CONFIG_PATH         = os.path.join(LOOKUP_DIR, 'config.json')
 UI_DIR              = os.path.join(EXT_ROOT, 'ui')
 
