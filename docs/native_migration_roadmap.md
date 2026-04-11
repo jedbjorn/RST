@@ -232,7 +232,9 @@ Port the three existing scanners and add session tracking.
 - [ ] Add SyncService (DocumentSynchronizedWithCentral)
 - [ ] Add WarningsService (Idling-throttled warning count)
 
-**Exit criteria:** All current data files still produced. New session/model/sync/warning events captured. Agent runs on schedule outside Revit.
+**Design constraint:** Services must produce data shaped for the target DB schema even though the DB doesn't exist yet. Each service writes to local JSON now, but the payloads must match the planned table structures so connecting the API later is wiring, not redesign. See Data Architecture below.
+
+**Exit criteria:** All current data files still produced. New session/model/sync/warning events captured. Agent runs on schedule outside Revit. Every service payload is schema-aligned.
 
 ### Phase 3: Disable Flow + Admin UI
 
@@ -260,13 +262,112 @@ Ship it.
 
 ---
 
+## Data Architecture
+
+The DB doesn't exist yet. Services should be built so that when the backend is ready, it's just connecting a pipe — not reshaping data. Every service writes local JSON today, but the payload structure must match the planned schema.
+
+### Multi-tenancy
+
+Option A (tenant column + Postgres Row Level Security). One database, shared tables, `tenant_id` on every row. RLS enforces isolation at the database level — even buggy queries can't leak across tenants.
+
+### Target schema (Postgres)
+
+```
+tenants
+  tenant_id (PK), company_name, api_key, created_at
+
+devices
+  device_id (PK), tenant_id (FK), hostname, os_version, cpu, ram_gb, gpu,
+  disk_total_gb, disk_free_gb, display_info, first_seen, last_seen
+
+device_software
+  device_id (FK), tenant_id (FK), software_name, version, publisher,
+  install_date, source, scanned_at
+  PK: (device_id, software_name)
+
+revit_sessions
+  session_id (PK), device_id (FK), tenant_id (FK), revit_version,
+  revit_build, revit_username, started_at, ended_at, duration_sec,
+  startup_sec, addin_count, journal_path, journal_size_kb
+
+session_addins
+  session_id (FK), tenant_id (FK), addin_name, addin_file, assembly_path, origin
+  PK: (session_id, addin_name)
+
+model_sessions
+  model_session_id (PK), session_id (FK), tenant_id (FK), model_name,
+  model_path, is_workshared, file_size_mb, opened_at, closed_at,
+  open_duration_sec, warning_count_open, warning_count_close
+
+sync_events
+  sync_id (PK), model_session_id (FK), tenant_id (FK), synced_at,
+  duration_sec, file_size_mb, success, warning_count
+```
+
+### Data hierarchy
+
+```
+Tenant (1)
+  └── Device (many per tenant, changes slowly)
+       └── Revit Session (many per device, one per launch)
+            ├── Session Addins (snapshot of loaded add-ins)
+            └── Model Session (many per Revit session)
+                 └── Sync Events (many per model session)
+```
+
+### Transport (future)
+
+```
+Revit Plugin → REST API → Postgres
+                              ↑
+                    Dashboard UI ──┘
+```
+
+Plugin auth: API key per tenant (headless, write-only).
+Dashboard auth: Email + password or SSO (read-only, user-facing).
+
+Planned API endpoints:
+
+```
+POST /api/v1/device/heartbeat     → upserts devices + device_software
+POST /api/v1/session/start        → inserts revit_sessions + session_addins
+POST /api/v1/session/end          → updates revit_sessions (ended_at, duration)
+POST /api/v1/model/open           → inserts model_sessions
+POST /api/v1/model/close          → updates model_sessions (closed_at, warnings)
+POST /api/v1/model/sync           → inserts sync_events
+```
+
+Plugin queues payloads locally and flushes in batches. Retries on network failure. No data lost.
+
+### Decisions to make before backend build
+
+| Decision | Options | Notes |
+|----------|---------|-------|
+| Postgres hosting | Supabase, Neon, Railway, Azure | Managed preferred. Supabase gives Postgres + auth + RLS out of the box |
+| API hosting | Serverless (Azure Functions) vs always-on (App Service) | Serverless is cheaper at low scale |
+| Dashboard frontend | React/Next.js, or TBD | Separate decision from plugin work |
+| Dashboard user | BIM manager? IT admin? Firm owner? | Shapes which data surfaces first |
+| PII handling | Hash hostnames/usernames? Or internal-only? | Compliance question — depends on customer expectations |
+| Data retention | Keep raw data forever? Aggregate after 90 days? | Cost vs query flexibility |
+| device_id generation | Hardware hash vs UUID stored locally | Hardware hash is stable across reinstalls; UUID is simpler |
+
+### Design rule for services
+
+Each service must:
+1. Produce a payload that maps 1:1 to the target table columns
+2. Include a `device_id` field (generated on first run, stored locally)
+3. Write to local JSON today (same path as current scanners)
+4. Be swappable to HTTP POST later without changing the payload shape
+
+---
+
 ## Dependencies & Blockers
 
 | Dependency | Status | Impact |
 |------------|--------|--------|
 | ADN approval | Pending | Blocks multi-user Revit testing |
 | Brand name (Kinship vs TBD) | TBD | Namespace, DLL names, ribbon tab name |
-| Azure infrastructure | Not started | Blocks DB push from services (Phase 2 can ship with local JSON only) |
+| Backend infrastructure (Postgres + API + dashboard) | Not started | Phase 2 services write local JSON. API connection is Phase 5 work — no blocker for plugin development |
 | ~~WebView2 runtime~~ | ~~Ships with Win11, NuGet for Win10~~ | No longer needed — full WPF rewrite, no HTML wrapping |
 | Revit API version targeting | 2024+ | Same as current; `LoadedApplications` API path already handled |
 
