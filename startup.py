@@ -17,7 +17,7 @@ log = get_logger('startup')
 
 from user_config import read_intent_log, clear_intent_log
 
-from rst_lib import ACTIVE_PROFILE_PATH, PROFILES_DIR, ICONS_DIR
+from rst_lib import ACTIVE_PROFILE_PATH, PROFILES_DIR, ICONS_DIR, ICONPACK_DIR
 
 _default_icon_32 = os.path.join(ICONS_DIR, 'default_32.png')
 _default_icon_16 = os.path.join(ICONS_DIR, 'default_16.png')
@@ -143,19 +143,33 @@ def _load_active_profile():
 def _get_icon_path(slot, small=False):
     """Resolve icon path for a tool slot.
     iconFile stores a stem (e.g. 'MyTool') → looks for MyTool_32.png / MyTool_64.png.
+    'pack:name' prefix → looks in iconpack dir for 64_name.png / 32_name.png.
     Falls back to legacy format (MyTool.png) and then default icon."""
     icon_file = slot.get('iconFile')
     if icon_file:
-        stem = icon_file.replace('.png', '')  # strip extension if legacy
-        suffix = '_32.png' if small else '_64.png'
-        sized_path = os.path.join(ICONS_DIR, stem + suffix)
-        if os.path.exists(sized_path):
-            return sized_path
-        # Fallback: legacy single-file format
-        legacy_path = os.path.join(ICONS_DIR, stem + '.png')
-        if os.path.exists(legacy_path):
-            return legacy_path
-        log.warning('Custom icon not found: %s - using default', icon_file)
+        # Icon pack reference: "pack:arrow" → iconpack/64_arrow.png
+        if icon_file.startswith('pack:'):
+            pack_name = icon_file[5:]
+            prefix = '32' if small else '64'
+            pack_path = os.path.join(ICONPACK_DIR, '%s_%s.png' % (prefix, pack_name))
+            if os.path.exists(pack_path):
+                return pack_path
+            # Fallback: try 64px even for small
+            pack_path_64 = os.path.join(ICONPACK_DIR, '64_%s.png' % pack_name)
+            if os.path.exists(pack_path_64):
+                return pack_path_64
+            log.warning('Icon pack icon not found: %s - using default', icon_file)
+        else:
+            stem = icon_file.replace('.png', '')  # strip extension if legacy
+            suffix = '_32.png' if small else '_64.png'
+            sized_path = os.path.join(ICONS_DIR, stem + suffix)
+            if os.path.exists(sized_path):
+                return sized_path
+            # Fallback: legacy single-file format
+            legacy_path = os.path.join(ICONS_DIR, stem + '.png')
+            if os.path.exists(legacy_path):
+                return legacy_path
+            log.warning('Custom icon not found: %s - using default', icon_file)
     return _default_icon_16 if small else _default_icon_32
 
 

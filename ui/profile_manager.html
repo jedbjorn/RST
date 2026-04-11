@@ -800,6 +800,68 @@
   .slot:hover .slot-icon-pick { opacity: 1; }
   .slot-icon-pick:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
 
+  /* Icon pack picker modal */
+  .iconpack-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .iconpack-overlay.visible { opacity: 1; pointer-events: auto; }
+  .iconpack-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 16px;
+    width: 380px;
+    max-height: 70vh;
+    display: flex; flex-direction: column;
+  }
+  .iconpack-modal h3 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .iconpack-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 50vh;
+    padding: 4px;
+  }
+  .iconpack-item {
+    width: 48px; height: 48px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--bg);
+  }
+  .iconpack-item:hover { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+  .iconpack-item.selected { border-color: var(--accent); background: rgba(79,142,247,0.15); }
+  .iconpack-item img { width: 32px; height: 32px; image-rendering: auto; }
+  .iconpack-actions {
+    display: flex; gap: 8px; margin-top: 12px;
+    justify-content: space-between;
+  }
+  .iconpack-actions button {
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .iconpack-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .iconpack-actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .iconpack-actions button.primary:hover { background: var(--accent2); }
+
   .slot-icon-badge {
     width: 8px; height: 8px;
     border-radius: 50%;
@@ -3058,20 +3120,57 @@
   }
 
   // ── ICON PICKER ─────────────────────────────────────────────────────────
+  var _iconPickSlotIdx = null;
+
   function pickIconForSlot(slotIdx) {
     if (!state.currentPanel || !state.panels[state.currentPanel]) return;
     const slot = state.panels[state.currentPanel].slots[slotIdx];
     if (!slot || slot.type !== 'tool') return;
 
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_icon) {
-      window.pywebview.api.pick_icon(slot.name).then(result => {
-        if (result && result.filename) {
-          slot.iconFile = result.filename;
-          renderSlotList();
-          showToast('Icon set', slot.name + ' → ' + result.filename);
-        }
-      }).catch(() => {});
+    _iconPickSlotIdx = slotIdx;
+    const grid = document.getElementById('iconpackGrid');
+    grid.innerHTML = '';
+
+    // Load icon pack list from backend
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.get_icon_pack) {
+      api.get_icon_pack().then(function(icons) {
+        icons.forEach(function(name) {
+          const item = document.createElement('div');
+          item.className = 'iconpack-item';
+          if (slot.iconFile === 'pack:' + name) item.classList.add('selected');
+          item.title = name;
+          item.innerHTML = '<img src="../iconpack/64_' + name + '.png">';
+          item.onclick = function() {
+            grid.querySelectorAll('.iconpack-item').forEach(function(el) { el.classList.remove('selected'); });
+            item.classList.add('selected');
+            // Apply immediately
+            slot.iconFile = 'pack:' + name;
+            renderSlotList();
+            showToast('Icon set', slot.name + ' → ' + name);
+            closeIconPack();
+          };
+          grid.appendChild(item);
+        });
+        document.getElementById('iconpackOverlay').classList.add('visible');
+      });
     }
+  }
+
+  function clearSlotIcon() {
+    if (_iconPickSlotIdx === null) return;
+    const slot = state.panels[state.currentPanel].slots[_iconPickSlotIdx];
+    if (slot) {
+      delete slot.iconFile;
+      renderSlotList();
+      showToast('Icon cleared', slot.name);
+    }
+    closeIconPack();
+  }
+
+  function closeIconPack() {
+    document.getElementById('iconpackOverlay').classList.remove('visible');
+    _iconPickSlotIdx = null;
   }
 
   // ── OPEN PROFILES FOLDER ─────────────────────────────────────────────────
@@ -3385,6 +3484,18 @@
   populateProfileDropdown([]);
 
 </script>
+<!-- Icon Pack Picker Modal -->
+<div class="iconpack-overlay" id="iconpackOverlay" onclick="if(event.target===this)closeIconPack()">
+  <div class="iconpack-modal">
+    <h3>Choose an icon</h3>
+    <div class="iconpack-grid" id="iconpackGrid"></div>
+    <div class="iconpack-actions">
+      <button onclick="clearSlotIcon()">Clear</button>
+      <button onclick="closeIconPack()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div style="position:fixed;bottom:6px;left:10px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);opacity:0.5;letter-spacing:0.05em;pointer-events:none">v0.5.0-beta</div>
 </body>
 </html>

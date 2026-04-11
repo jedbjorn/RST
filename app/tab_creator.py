@@ -17,7 +17,7 @@ from logger import get_logger
 log = get_logger('tab_creator')
 
 from rst_lib import (
-    EXT_ROOT, PROFILES_DIR, ICONS_DIR, ACTIVE_PROFILE_PATH, UI_DIR,
+    EXT_ROOT, PROFILES_DIR, ICONS_DIR, ICONPACK_DIR, ACTIVE_PROFILE_PATH, UI_DIR,
     safe_filename, find_profile, get_all_profile_names, get_active_profile_name,
 )
 from addin_scanner import (
@@ -297,6 +297,16 @@ class TabCreatorAPI:
             shutil.copy2(src_path, path_32)
 
         return {'ok': True, 'filename': stem}
+
+    def get_icon_pack(self):
+        """Return list of available icon pack icons (64px versions)."""
+        icons = []
+        if os.path.isdir(ICONPACK_DIR):
+            for f in sorted(os.listdir(ICONPACK_DIR)):
+                if f.startswith('64_') and f.endswith('.png'):
+                    name = f[3:-4]  # strip '64_' prefix and '.png' suffix
+                    icons.append(name)
+        return icons
 
     def get_profiles(self):
         profiles = []
