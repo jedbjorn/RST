@@ -267,6 +267,10 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             norm_assembly = os.path.normpath(assembly_path).lower()
             addin_file = dll_to_addin.get(norm_assembly)
 
+        # Fallback: if no assembly from session, resolve from .addin XML
+        if not assembly_path and addin_file:
+            assembly_path = addin_to_dll.get(addin_file)
+
         # Check enabled/disabled state via directory listing
         addin_path = None
         enabled = True
@@ -314,6 +318,10 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
         if not addin_file and assembly_path:
             norm_assembly = os.path.normpath(assembly_path).lower()
             addin_file = dll_to_addin.get(norm_assembly)
+
+        # Fallback: if no assembly from session, resolve from .addin XML
+        if not assembly_path and addin_file:
+            assembly_path = addin_to_dll.get(addin_file)
 
         # Skip panels with no resolved addin file and no lookup entry —
         # these are native Revit ribbon panels, not third-party add-ins
@@ -385,6 +393,28 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             lookup_entry=lookup_entry,
             addin_id=addin_id_map.get(canonical, ''))
 
+    # Post-process: link add-ins to their loader's assembly path
+    for key, info in addins.items():
+        if info.get('assemblyPath'):
+            continue
+        key_compact = key.lower().replace(' ', '')
+        # Check other addins for a loader variant
+        for other_key, other_info in addins.items():
+            if other_key == key:
+                continue
+            other_compact = other_key.lower().replace(' ', '')
+            if other_info.get('assemblyPath') and other_compact.startswith(key_compact) and 'loader' in other_compact:
+                info['assemblyPath'] = other_info['assemblyPath']
+                break
+        if info.get('assemblyPath'):
+            continue
+        # Check addin_to_dll for a loader .addin file
+        for addin_fname, dll_path in addin_to_dll.items():
+            fname_compact = addin_fname.lower().replace('.addin', '').replace(' ', '')
+            if fname_compact.startswith(key_compact) and 'loader' in fname_compact:
+                info['assemblyPath'] = dll_path
+                break
+
     config = {
         'username': username,
         'revitVersion': str(version),
@@ -444,6 +474,10 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             norm_assembly = os.path.normpath(assembly_path).lower()
             addin_file = dll_to_addin.get(norm_assembly)
 
+        # Fallback: if no assembly from session, resolve from .addin XML
+        if not assembly_path and addin_file:
+            assembly_path = addin_to_dll.get(addin_file)
+
         addin_path = None
         enabled = True
         if addin_file:
@@ -490,6 +524,10 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
         if not addin_file and assembly_path:
             norm_assembly = os.path.normpath(assembly_path).lower()
             addin_file = dll_to_addin.get(norm_assembly)
+
+        # Fallback: if no assembly from session, resolve from .addin XML
+        if not assembly_path and addin_file:
+            assembly_path = addin_to_dll.get(addin_file)
 
         # Skip panels with no resolved addin file and no lookup entry —
         # these are native Revit ribbon panels, not third-party add-ins
@@ -554,16 +592,40 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
         if appdata_lower and not fpath.lower().startswith(appdata_lower):
             scope = 'machine'
 
+        dll_path = addin_to_dll.get(canonical)
         existing[base] = build_addin_entry(
             display_name=lookup_entry.get('displayName', base),
             tab_name=tab_from_file, addin_file=canonical,
-            addin_path=fpath, assembly_path=None, scope=scope,
+            addin_path=fpath, assembly_path=dll_path, scope=scope,
             enabled=not fname.endswith('.RSTdisabled'),
             is_protected=False,  # protection applied by profile, not at scan time
-            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
+            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry,
+                                         assembly_path=dll_path),
             lookup_entry=lookup_entry,
             addin_id=addin_id_map.get(canonical, ''))
         added.append(base)
+
+    # Post-process: link add-ins to their loader's assembly path
+    for key, info in existing.items():
+        if info.get('assemblyPath'):
+            continue
+        key_compact = key.lower().replace(' ', '')
+        # Check other addins for a loader variant
+        for other_key, other_info in existing.items():
+            if other_key == key:
+                continue
+            other_compact = other_key.lower().replace(' ', '')
+            if other_info.get('assemblyPath') and other_compact.startswith(key_compact) and 'loader' in other_compact:
+                info['assemblyPath'] = other_info['assemblyPath']
+                break
+        if info.get('assemblyPath'):
+            continue
+        # Check addin_to_dll for a loader .addin file
+        for addin_fname, dll in addin_to_dll.items():
+            fname_compact = addin_fname.lower().replace('.addin', '').replace(' ', '')
+            if fname_compact.startswith(key_compact) and 'loader' in fname_compact:
+                info['assemblyPath'] = dll
+                break
 
     if added:
         config['scanDate'] = datetime.date.today().isoformat()
