@@ -208,12 +208,12 @@ def _is_exempt_path(path):
 
 
 def _is_readonly_dir(path):
-    """Check if a path is under Program Files or ProgramData (never modify)."""
+    """Check if a path is under Program Files (requires admin to modify).
+    ProgramData is writable by standard users and is NOT protected."""
     path_lower = os.path.normpath(path).lower()
     protected = [
         os.environ.get('PROGRAMFILES', r'C:\Program Files'),
         os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)'),
-        os.environ.get('PROGRAMDATA', r'C:\ProgramData'),
     ]
     for d in protected:
         if path_lower.startswith(os.path.normpath(d).lower()):
@@ -444,7 +444,8 @@ def restore_all_addins(revit_version):
 
 
 def disable_non_required_addins(required_addins, revit_version, protected_addins=None):
-    """Disable all .addin files except required and protected (skip Program Files).
+    """Disable all .addin files except required and protected.
+    Skips Program Files (requires admin). ProgramData is writable by standard users.
     protected_addins: set/list of .addin filenames to never disable (from profile)."""
     log.info('Disabling non-required addins for Revit %s (keeping: %s)', revit_version, required_addins)
     protected = set(protected_addins or PROTECTED_ADDINS)

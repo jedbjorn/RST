@@ -57,6 +57,7 @@ from addin_scanner import (
     load_addin_lookup,
     disable_non_required_addins,
     restore_all_addins,
+    _is_readonly_dir as _is_program_files,
 )
 from user_config import (
     load_user_config,
@@ -227,9 +228,9 @@ class ProfileSelectorAPI:
                 entry = dict(info)
                 entry['skipReason'] = 'No file path found — cannot be disabled by RST'
                 skipped.append(entry)
-            elif info.get('scope') != 'user':
+            elif info.get('elevated') and _is_program_files(info.get('addinPath', '')):
                 entry = dict(info)
-                entry['skipReason'] = 'Installed in a protected system directory'
+                entry['skipReason'] = 'Installed in Program Files — requires admin to disable'
                 skipped.append(entry)
             else:
                 disabling.append(info)
