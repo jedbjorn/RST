@@ -22,27 +22,27 @@ _overrides_path = os.path.join(EXT_ROOT, 'app', 'user_addin_overrides.json')
 
 
 def _load_config():
-    """Load lookup/config.json. Returns (protected set, autodesk set, exempt_paths list)."""
-    protected = {'pyRevit.addin'}
+    """Load lookup/config.json. Returns (autodesk set, exempt_paths list)."""
     autodesk = set()
     exempt = []
     try:
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             cfg = json.load(f)
-        if 'protected_addins' in cfg:
-            protected = set(cfg['protected_addins'])
         if 'autodesk_addins' in cfg:
             autodesk = set(cfg['autodesk_addins'])
         if 'exempt_paths' in cfg:
             exempt = [os.path.normpath(os.path.expandvars(p)) for p in cfg['exempt_paths']]
-        log.debug('Config loaded: %d protected, %d autodesk, %d exempt paths',
-                  len(protected), len(autodesk), len(exempt))
+        log.debug('Config loaded: %d autodesk, %d exempt paths',
+                  len(autodesk), len(exempt))
     except (IOError, ValueError) as e:
         log.warning('Could not load config.json, using defaults: %s', e)
-    return protected, autodesk, exempt
+    return autodesk, exempt
 
 
-PROTECTED_ADDINS, AUTODESK_ADDINS, EXEMPT_PATHS = _load_config()
+AUTODESK_ADDINS, EXEMPT_PATHS = _load_config()
+
+# Legacy fallback — functions that accept protected_addins param default to empty set
+PROTECTED_ADDINS = set()
 
 
 _cached_lookup = None
@@ -450,10 +450,12 @@ def check_addins(required_addins, revit_version):
     return results
 
 
-def apply_hide_rules(hide_rules, revit_version):
+def apply_hide_rules(hide_rules, revit_version, protected_addins=None):
     """Rename .addin -> .addin.RSTdisabled for each tab in hide_rules.
-    Only modifies files in user/ProgramData dirs, never Program Files."""
+    Only modifies files in user/ProgramData dirs, never Program Files.
+    protected_addins: set/list of .addin filenames to never disable (from profile)."""
     log.info('Applying hide rules for Revit %s: %s', revit_version, hide_rules)
+    protected = set(protected_addins or PROTECTED_ADDINS)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
     overrides = _load_overrides()
@@ -478,7 +480,7 @@ def apply_hide_rules(hide_rules, revit_version):
             resolved_filename, fpath = _fuzzy_find(tab_name, search_dirs, overrides, addin_files)
 
         # Check protection by filename
-        if resolved_filename and resolved_filename in PROTECTED_ADDINS:
+        if resolved_filename and resolved_filename in protected:
             log.debug('Skipping protected addin: %s', resolved_filename)
             continue
 
@@ -525,9 +527,11 @@ def restore_all_addins(revit_version):
     return restored
 
 
-def disable_non_required_addins(required_addins, revit_version):
-    """Disable all .addin files except required and protected (skip Program Files)."""
+def disable_non_required_addins(required_addins, revit_version, protected_addins=None):
+    """Disable all .addin files except required and protected (skip Program Files).
+    protected_addins: set/list of .addin filenames to never disable (from profile)."""
     log.info('Disabling non-required addins for Revit %s (keeping: %s)', revit_version, required_addins)
+    protected = set(protected_addins or PROTECTED_ADDINS)
     lookup = load_addin_lookup()
     search_dirs = get_addins_dirs(revit_version)
     overrides = _load_overrides()
@@ -543,7 +547,7 @@ def disable_non_required_addins(required_addins, revit_version):
             fname, _ = _fuzzy_find(a, search_dirs, overrides, addin_files)
             if fname:
                 keep_files.add(fname)
-    keep_files.update(PROTECTED_ADDINS)
+    keep_files.update(protected)
 
     for base_dir in search_dirs:
         if _is_hands_off(base_dir):

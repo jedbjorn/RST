@@ -153,12 +153,9 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
     No recursive scan. No XML parsing.
     addin_lookup provides display names and URLs as fallback metadata.
     """
-    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, classify_addin_origin
+    from addin_scanner import BUILTIN_TABS, classify_addin_origin
 
     log.info('Building user config for %s / Revit %s', username, version)
-
-    # Build lowercase sets for filename matching
-    protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
 
     # Step 1: list user + machine addins directories
     dir_files, user_addins_dir = _list_addins_dirs(version)
@@ -218,7 +215,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 addin_path = dir_files[disabled_key]
                 enabled = False
 
-        is_protected = addin_file and addin_file.lower() in protected_lower
+        is_protected = False  # protection applied by profile, not at scan time
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -269,7 +266,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 addin_path = dir_files[disabled_key]
                 enabled = False
 
-        is_protected = addin_file and addin_file.lower() in protected_lower
+        is_protected = False  # protection applied by profile, not at scan time
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -314,7 +311,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             tab_name=tab_from_file, addin_file=canonical,
             addin_path=fpath, assembly_path=None, scope=scope,
             enabled=not fname.endswith('.RSTdisabled'),
-            is_protected=canonical.lower() in protected_lower,
+            is_protected=False,  # protection applied by profile, not at scan time
             origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
             lookup_entry=lookup_entry)
 
@@ -332,12 +329,11 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
 def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panels=None):
     """Check current Revit session against config and append any new add-ins.
     Never removes or rebuilds — only adds. Preserves enabled/disabled state."""
-    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, classify_addin_origin
+    from addin_scanner import BUILTIN_TABS, classify_addin_origin
 
     existing = config.get('addins', {})
     version = config.get('revitVersion', '')
 
-    protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
     appdata_lower = (os.environ.get('APPDATA', '') or '').lower()
 
     # Get current directory listing
@@ -387,7 +383,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 addin_path = dir_files[disabled_key]
                 enabled = False
 
-        is_protected = addin_file and addin_file.lower() in protected_lower
+        is_protected = False  # protection applied by profile, not at scan time
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -439,7 +435,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 addin_path = dir_files[disabled_key]
                 enabled = False
 
-        is_protected = addin_file and addin_file.lower() in protected_lower
+        is_protected = False  # protection applied by profile, not at scan time
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -489,7 +485,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             tab_name=tab_from_file, addin_file=canonical,
             addin_path=fpath, assembly_path=None, scope=scope,
             enabled=not fname.endswith('.RSTdisabled'),
-            is_protected=canonical.lower() in protected_lower,
+            is_protected=False,  # protection applied by profile, not at scan time
             origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
             lookup_entry=lookup_entry)
         added.append(base)

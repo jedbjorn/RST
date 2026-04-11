@@ -55,7 +55,6 @@ import sys
 sys.path.insert(0, os.path.join(EXT_ROOT, 'app'))
 from addin_scanner import (
     BUILTIN_TABS,
-    PROTECTED_ADDINS,
     load_addin_lookup,
     disable_non_required_addins,
     restore_all_addins,
@@ -193,7 +192,9 @@ class ProfileSelectorAPI:
         staying = []
         disabling = []
         skipped = []
-        protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
+
+        # Protected add-ins come from the profile
+        profile_protected = set(profile_data.get('protectedAddins', []))
 
         for name, info in config.get('addins', {}).items():
             if not info.get('enabled', True):
@@ -206,10 +207,11 @@ class ProfileSelectorAPI:
             if profile_tab and (tab_name == profile_tab or name == profile_tab):
                 continue
 
-            is_required = tab_name in required or name in required
-            is_protected = info.get('protected', False) or addin_file in protected_lower
             if info.get('locked', False):
                 continue  # system-locked — hidden from all lists
+
+            is_required = tab_name in required or name in required
+            is_protected = name in profile_protected or tab_name in profile_protected
 
             if is_protected or is_required:
                 staying.append(info)

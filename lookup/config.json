@@ -1,7 +1,4 @@
 {
-  "protected_addins": [
-    "pyRevit.addin"
-  ],
   "autodesk_addins": [
     "Dynamo.addin",
     "DynamoForRevit.addin",
