@@ -516,6 +516,20 @@ class ProfileSelectorAPI:
             window.destroy()
 
 
+def _run_health_scan(revit_version, revit_username):
+    """Run health scan in background thread so it doesn't block UI."""
+    try:
+        from health_scanner import capture_health_snapshot, save_health_snapshot
+        from rst_lib import HEALTH_SCAN_PATH
+        snapshot = capture_health_snapshot(
+            revit_version=revit_version,
+            revit_username=revit_username,
+        )
+        save_health_snapshot(snapshot, HEALTH_SCAN_PATH)
+    except Exception as e:
+        log.warning('Health scan failed: %s', e)
+
+
 if __name__ == '__main__':
     _revit_ver = _loader_data.get('revit_version')
     _addins = _loader_data.get('loaded_addins', [])
@@ -523,6 +537,15 @@ if __name__ == '__main__':
     _panels = _loader_data.get('addin_panels', [])
     log.info('=== RST Profile Selector starting (Revit %s, %d tabs, %d add-ins, %d panels) ===',
              _revit_ver, len(_tabs), len(_addins), len(_panels))
+
+    # Run health scan in background
+    import threading
+    _health_thread = threading.Thread(
+        target=_run_health_scan,
+        args=(_revit_ver, _loader_data.get('revit_username')),
+        daemon=True,
+    )
+    _health_thread.start()
     log.info('HTML path: %s', _html_path)
     log.info('Profiles dir: %s', PROFILES_DIR)
 

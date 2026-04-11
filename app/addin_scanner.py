@@ -16,7 +16,7 @@ BUILTIN_TABS = {
     'Modify | Structural Framing', 'Modify | Generic Models',
 }
 
-from rst_lib import EXT_ROOT, ADDIN_LOOKUP_PATH, CONFIG_PATH
+from rst_lib import EXT_ROOT, ADDIN_LOOKUP_PATH, SYSTEM_SCAN_PATH, CONFIG_PATH
 
 _overrides_path = os.path.join(EXT_ROOT, 'app', 'user_addin_overrides.json')
 
@@ -45,15 +45,46 @@ def _load_config():
 PROTECTED_ADDINS, AUTODESK_ADDINS, EXEMPT_PATHS = _load_config()
 
 
+_cached_lookup = None
+
 
 def load_addin_lookup():
-    """Load addin_lookup.json, return empty dict on failure."""
+    """Load enriched addin lookup: registry scan merged with static JSON fallback."""
+    global _cached_lookup
+    if _cached_lookup is not None:
+        return _cached_lookup
+
+    # Load static JSON as baseline
+    static = {}
     try:
         with open(ADDIN_LOOKUP_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            static = json.load(f)
     except (IOError, ValueError) as e:
         log.error('Failed to load addin_lookup.json: %s', e)
-        return {}
+
+    # Try registry enrichment (CPython on Windows only)
+    try:
+        from system_scanner import get_enriched_lookup
+        _cached_lookup = get_enriched_lookup(static, SYSTEM_SCAN_PATH)
+    except ImportError:
+        log.debug('system_scanner not available (IronPython?), using static lookup')
+        _cached_lookup = static
+    except Exception as e:
+        log.warning('Registry scan failed, falling back to static lookup: %s', e)
+        _cached_lookup = static
+
+    return _cached_lookup
+
+
+def is_autodesk_addin(addin_file, lookup_entry=None):
+    """Check if an add-in is Autodesk-native.
+
+    Uses publisher from registry data if available,
+    falls back to static AUTODESK_ADDINS list from config.json.
+    """
+    if lookup_entry and lookup_entry.get('publisher'):
+        return 'autodesk' in lookup_entry['publisher'].lower()
+    return addin_file and addin_file.lower() in {a.lower() for a in AUTODESK_ADDINS}
 
 
 def _load_overrides():

@@ -153,13 +153,12 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
     No recursive scan. No XML parsing.
     addin_lookup provides display names and URLs as fallback metadata.
     """
-    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, AUTODESK_ADDINS
+    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, is_autodesk_addin
 
     log.info('Building user config for %s / Revit %s', username, version)
 
     # Build lowercase sets for filename matching
     protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
-    autodesk_lower = set(a.lower() for a in AUTODESK_ADDINS)
 
     # Step 1: list user + machine addins directories
     dir_files, user_addins_dir = _list_addins_dirs(version)
@@ -220,7 +219,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        is_autodesk = addin_file and addin_file.lower() in autodesk_lower
+        is_autodesk = is_autodesk_addin(addin_file, lookup_entry)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -237,6 +236,10 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             'protected': is_protected,
             'autodesk': is_autodesk,
             'url': url,
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
 
     # Step 5: process third-party panels on built-in tabs (e.g. Kinship on Add-Ins)
@@ -276,7 +279,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        is_autodesk = addin_file and addin_file.lower() in autodesk_lower
+        is_autodesk = is_autodesk_addin(addin_file, lookup_entry)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -293,6 +296,10 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             'protected': is_protected,
             'autodesk': is_autodesk,
             'url': url,
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
 
     # Step 6: catch any .addin files in the directory not matched to a loaded tab
@@ -330,8 +337,12 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
             'elevated': scope == 'machine',
             'enabled': not fname.endswith('.RSTdisabled'),
             'protected': canonical.lower() in protected_lower,
-            'autodesk': canonical.lower() in autodesk_lower,
+            'autodesk': is_autodesk_addin(canonical, lookup_entry),
             'url': lookup_entry.get('url', ''),
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
 
     config = {
@@ -348,13 +359,12 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
 def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panels=None):
     """Check current Revit session against config and append any new add-ins.
     Never removes or rebuilds — only adds. Preserves enabled/disabled state."""
-    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, AUTODESK_ADDINS
+    from addin_scanner import BUILTIN_TABS, PROTECTED_ADDINS, is_autodesk_addin
 
     existing = config.get('addins', {})
     version = config.get('revitVersion', '')
 
     protected_lower = set(p.lower() for p in PROTECTED_ADDINS)
-    autodesk_lower = set(a.lower() for a in AUTODESK_ADDINS)
     appdata_lower = (os.environ.get('APPDATA', '') or '').lower()
 
     # Get current directory listing
@@ -405,7 +415,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        is_autodesk = addin_file and addin_file.lower() in autodesk_lower
+        is_autodesk = is_autodesk_addin(addin_file, lookup_entry)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -422,6 +432,10 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             'protected': is_protected,
             'autodesk': is_autodesk,
             'url': url,
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
         added.append(tab_name)
 
@@ -462,7 +476,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
                 enabled = False
 
         is_protected = addin_file and addin_file.lower() in protected_lower
-        is_autodesk = addin_file and addin_file.lower() in autodesk_lower
+        is_autodesk = is_autodesk_addin(addin_file, lookup_entry)
         scope = 'user'
         if addin_path and appdata_lower and not addin_path.lower().startswith(appdata_lower):
             scope = 'machine'
@@ -479,6 +493,10 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             'protected': is_protected,
             'autodesk': is_autodesk,
             'url': url,
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
         added.append(panel_name)
 
@@ -521,8 +539,12 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
             'elevated': scope == 'machine',
             'enabled': not fname.endswith('.RSTdisabled'),
             'protected': canonical.lower() in protected_lower,
-            'autodesk': canonical.lower() in autodesk_lower,
+            'autodesk': is_autodesk_addin(canonical, lookup_entry),
             'url': lookup_entry.get('url', ''),
+            'version': lookup_entry.get('version'),
+            'publisher': lookup_entry.get('publisher'),
+            'installDate': lookup_entry.get('installDate'),
+            'sizeKB': lookup_entry.get('sizeKB'),
         }
         added.append(base)
 
