@@ -86,6 +86,34 @@ class TabCreatorAPI:
         data = load_json_safe(ADDIN_SCAN_PATH, {})
         return data.get('addins', {})
 
+    def save_addin_defaults(self, addins):
+        """Save admin-edited protection settings back to data/addin_scan.json.
+        Only updates locked/protected fields — preserves all other scan data."""
+        from rst_lib import ADDIN_SCAN_PATH, load_json_safe
+        import json
+        data = load_json_safe(ADDIN_SCAN_PATH, {})
+        existing = data.get('addins', {})
+
+        for name, edits in addins.items():
+            if name in existing:
+                if 'locked' in edits:
+                    existing[name]['locked'] = edits['locked']
+                if 'protected' in edits:
+                    existing[name]['protected'] = edits['protected']
+
+        data['addins'] = existing
+        try:
+            tmp = ADDIN_SCAN_PATH + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            import os
+            os.replace(tmp, ADDIN_SCAN_PATH)
+            log.info('Saved admin protection settings to %s', ADDIN_SCAN_PATH)
+            return {'ok': True}
+        except Exception as e:
+            log.error('Failed to save protection settings: %s', e)
+            return {'ok': False, 'error': str(e)}
+
     def get_revit_version(self):
         ver = _revit_data.get('revit_version')
         log.info('Revit version: %s', ver)

@@ -105,25 +105,40 @@ def save_user_config(config):
 def save_addin_defaults(config):
     """Write addin defaults snapshot to data/addin_scan.json.
 
-    This is the admin's template — each add-in's default locked/protected
-    state derived from origin classification. Profile creation reads this
-    to populate protectedAddins and lockedAddins.
+    On first build: sets locked/protected defaults from origin classification.
+    On rescan (JSON exists): preserves admin-edited locked/protected values,
+    only updates scan metadata (origin, version, publisher, etc.) and adds
+    new add-ins with defaults.
     """
-    from rst_lib import ADDIN_SCAN_PATH
+    from rst_lib import ADDIN_SCAN_PATH, load_json_safe
     addins = config.get('addins', {})
+
+    # Load existing defaults to preserve admin edits
+    existing_data = load_json_safe(ADDIN_SCAN_PATH, {})
+    existing = existing_data.get('addins', {})
+
     defaults = {}
     for name, info in addins.items():
-        defaults[name] = {
+        entry = {
             'displayName': info.get('displayName', name),
             'origin':      info.get('origin', ''),
-            'locked':      info.get('locked', False),
-            'protected':   info.get('protected', False),
             'addinFile':   info.get('addinFile'),
             'addinId':     info.get('addinId'),
             'assemblyPath': info.get('assemblyPath'),
             'publisher':   info.get('publisher'),
             'version':     info.get('version'),
         }
+
+        if name in existing:
+            # Preserve admin-edited locked/protected
+            entry['locked'] = existing[name].get('locked', info.get('locked', False))
+            entry['protected'] = existing[name].get('protected', info.get('protected', False))
+        else:
+            # New add-in — use origin-derived defaults
+            entry['locked'] = info.get('locked', False)
+            entry['protected'] = info.get('protected', False)
+
+        defaults[name] = entry
 
     os.makedirs(os.path.dirname(ADDIN_SCAN_PATH), exist_ok=True)
     data = {
@@ -133,7 +148,8 @@ def save_addin_defaults(config):
         'addins': defaults,
     }
     _atomic_write(ADDIN_SCAN_PATH, data)
-    log.info('Saved addin defaults: %s (%d add-ins)', ADDIN_SCAN_PATH, len(defaults))
+    log.info('Saved addin defaults: %s (%d add-ins, %d preserved)',
+             ADDIN_SCAN_PATH, len(defaults), len(existing))
 
 
 def needs_rescan(username, version):
