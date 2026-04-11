@@ -84,15 +84,31 @@ def load_addin_lookup():
     return _cached_lookup
 
 
-def _find_in_registry(name):
+def _find_in_registry(name=None, dll_path=None):
     """Search cached registry programs for a matching entry.
 
-    Returns the Publisher string if found, None otherwise.
-    Used by classify_addin_origin as a fallback when the lookup_entry
-    has no registry data (add-in not in addin_lookup.json or enrichment
-    matched the wrong entry).
+    Matches by:
+      1. DLL path inside InstallLocation (most reliable)
+      2. Name matching (exact, normalized, compact, substring)
+
+    Returns the full program dict if found, None otherwise.
     """
-    if not _cached_programs or not name:
+    if not _cached_programs:
+        return None
+
+    # Strategy 1: DLL path inside InstallLocation
+    if dll_path:
+        dll_lower = os.path.normpath(dll_path).lower()
+        for prog in _cached_programs:
+            loc = prog.get('InstallLocation', '')
+            if not loc or len(loc) < 5:
+                continue
+            loc_lower = os.path.normpath(loc).lower()
+            if dll_lower.startswith(loc_lower):
+                return prog
+
+    # Strategy 2: name matching
+    if not name:
         return None
 
     from rst_lib import normalize_addin_name
@@ -108,23 +124,22 @@ def _find_in_registry(name):
 
         # Exact match
         if display_lower == name_lower:
-            return prog.get('Publisher') or None
+            return prog
 
         # Normalized match
         display_norm = normalize_addin_name(display)
         if name_norm and display_norm == name_norm:
-            return prog.get('Publisher') or None
+            return prog
 
-        # Compact match: strip spaces from normalized forms so
-        # "dirootsone" matches "diroots one" (from "DiRoots.One")
+        # Compact match
         if name_compact and display_norm and display_norm.replace(' ', '') == name_compact:
-            return prog.get('Publisher') or None
+            return prog
 
         # Substring: name in display or display in name
         if len(name_lower) >= 4 and name_lower in display_lower:
-            return prog.get('Publisher') or None
+            return prog
         if len(display_lower) >= 4 and display_lower in name_lower:
-            return prog.get('Publisher') or None
+            return prog
 
     return None
 
@@ -154,15 +169,14 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
     has_registry_data = publisher or (lookup_entry or {}).get('version') is not None
 
     # Fallback: if lookup_entry has no registry data, search the programs cache
-    # directly. Handles add-ins not in addin_lookup.json or where enrichment
-    # matched the wrong entry (e.g. "DiRoots" stealing "DiRoots.One").
+    # directly. Tries DLL path first (most reliable), then name matching.
     if not has_registry_data:
         display_name = (lookup_entry or {}).get('displayName', '') or tab_name or ''
-        reg_publisher = _find_in_registry(display_name)
-        if not reg_publisher and tab_name and tab_name != display_name:
-            reg_publisher = _find_in_registry(tab_name)
-        if reg_publisher:
-            publisher = reg_publisher
+        reg_entry = _find_in_registry(dll_path=assembly_path, name=display_name)
+        if not reg_entry and tab_name and tab_name != display_name:
+            reg_entry = _find_in_registry(name=tab_name)
+        if reg_entry:
+            publisher = reg_entry.get('Publisher', '') or ''
             has_registry_data = True
 
     def _is_autodesk_dll(path):
@@ -324,15 +338,18 @@ def _find_all_addin_files(search_dirs):
 def parse_addin_assemblies(addin_files):
     """Parse .addin XML files and extract Assembly DLL paths.
 
-    Returns dict: {normalized_dll_path: addin_filename}
+    Returns two dicts:
+      dll_to_addin: {normalized_dll_path: addin_filename}
+      addin_to_dll: {addin_filename: normalized_dll_path}
+
     Each .addin file can contain multiple <AddIn> elements, each with an
-    <Assembly> child pointing to a DLL.
+    <Assembly> child pointing to a DLL. Uses first Assembly found per file.
     """
     dll_to_addin = {}
+    addin_to_dll = {}
     for fname, paths in addin_files.items():
         if not (fname.endswith('.addin') or fname.endswith('.addin.RSTdisabled')):
             continue
-        # Use first path for each filename
         fpath = paths[0]
         try:
             tree = ET.parse(fpath)
@@ -340,12 +357,15 @@ def parse_addin_assemblies(addin_files):
             for addin_elem in root.iter('AddIn'):
                 assembly = addin_elem.findtext('Assembly')
                 if assembly:
-                    dll_to_addin[os.path.normpath(assembly).lower()] = fname
+                    norm = os.path.normpath(assembly).lower()
+                    dll_to_addin[norm] = fname
+                    if fname not in addin_to_dll:
+                        addin_to_dll[fname] = norm
         except (ET.ParseError, IOError, OSError) as e:
             log.debug('Could not parse %s: %s', fpath, e)
             continue
     log.debug('Parsed assemblies from %d .addin files', len(dll_to_addin))
-    return dll_to_addin
+    return dll_to_addin, addin_to_dll
 
 
 def parse_addin_ids(addin_files):
@@ -384,7 +404,7 @@ def resolve_tab_to_addin(loaded_addins, addin_files, addin_lookup=None):
 
     Returns dict: {tab_name: {addinFile, assemblyPath, url}}
     """
-    dll_to_addin = parse_addin_assemblies(addin_files)
+    dll_to_addin, _ = parse_addin_assemblies(addin_files)
     if addin_lookup is None:
         addin_lookup = {}
 

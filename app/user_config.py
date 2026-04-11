@@ -226,7 +226,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
     search_dirs = get_addins_dirs(version)
     all_addin_files = _find_all_addin_files(search_dirs) if search_dirs else {}
     addin_id_map = parse_addin_ids(all_addin_files) if all_addin_files else {}
-    dll_to_addin = parse_addin_assemblies(all_addin_files) if all_addin_files else {}
+    dll_to_addin, addin_to_dll = parse_addin_assemblies(all_addin_files) if all_addin_files else ({}, {})
 
     # Determine scope helper: is this path in user AppData?
     appdata_lower = (os.environ.get('APPDATA', '') or '').lower()
@@ -373,13 +373,15 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
         if appdata_lower and not fpath.lower().startswith(appdata_lower):
             scope = 'machine'
 
+        dll_path = addin_to_dll.get(canonical)
         addins[base] = build_addin_entry(
             display_name=lookup_entry.get('displayName', base),
             tab_name=tab_from_file, addin_file=canonical,
-            addin_path=fpath, assembly_path=None, scope=scope,
+            addin_path=fpath, assembly_path=dll_path, scope=scope,
             enabled=not fname.endswith('.RSTdisabled'),
             is_protected=False,  # protection applied by profile, not at scan time
-            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry),
+            origin=classify_addin_origin(addin_file=canonical, lookup_entry=lookup_entry,
+                                         assembly_path=dll_path),
             lookup_entry=lookup_entry,
             addin_id=addin_id_map.get(canonical, ''))
 
@@ -411,7 +413,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
     search_dirs = get_addins_dirs(version)
     all_addin_files = _find_all_addin_files(search_dirs) if search_dirs else {}
     addin_id_map = parse_addin_ids(all_addin_files) if all_addin_files else {}
-    dll_to_addin = parse_addin_assemblies(all_addin_files) if all_addin_files else {}
+    dll_to_addin, addin_to_dll = parse_addin_assemblies(all_addin_files) if all_addin_files else ({}, {})
 
     # Index loaded_addins by name
     loaded_by_name = {}
