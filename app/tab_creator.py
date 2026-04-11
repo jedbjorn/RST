@@ -264,11 +264,10 @@ class TabCreatorAPI:
             export_date = safe_filename(profile.get('exportDate', 'unknown'))
             filename = '%s_%s.json' % (profile_name, export_date)
 
+            active = is_active_profile(profile_id, raw_name)
+
             existing_fname, _ = resolve_profile(raw_name, profile_id)
             if existing_fname:
-                if is_active_profile(profile_id, raw_name):
-                    log.error('Cannot overwrite active profile: %s', raw_name)
-                    return {'ok': False, 'error': 'Cannot overwrite a profile that is currently loaded in Revit. Use a different name.'}
                 os.remove(os.path.join(PROFILES_DIR, existing_fname))
                 log.info('Overwriting existing: %s', existing_fname)
 
@@ -284,7 +283,7 @@ class TabCreatorAPI:
                 shutil.copy2(dest_path, desktop_path)
                 log.info('Copied to Desktop: %s', desktop_path)
 
-            return {'ok': True, 'path': dest_path, 'desktop_path': desktop_path}
+            return {'ok': True, 'path': dest_path, 'desktop_path': desktop_path, 'was_active': active}
 
         except Exception as e:
             log.error('Export failed: %s', e)

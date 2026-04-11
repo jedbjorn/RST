@@ -320,6 +320,23 @@ def get_all_profile_names():
     return names
 
 
+def get_rst_tab_names():
+    """Return set of tab names created by RST profiles. These are not add-ins."""
+    tabs = set()
+    for fname in os.listdir(PROFILES_DIR):
+        if fname.endswith('.json'):
+            fpath = os.path.join(PROFILES_DIR, fname)
+            try:
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                tab = data.get('tab')
+                if tab:
+                    tabs.add(tab)
+            except (json.JSONDecodeError, IOError, UnicodeDecodeError):
+                continue
+    return tabs
+
+
 def get_active_profile():
     """Return dict with 'id' and 'name' of the active profile, or None."""
     data = load_json_safe(ACTIVE_PROFILE_PATH)

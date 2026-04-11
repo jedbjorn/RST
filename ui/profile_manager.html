@@ -2860,6 +2860,9 @@
     if (window.pywebview && window.pywebview.api && window.pywebview.api.save_export) {
       window.pywebview.api.save_export(JSON.stringify(config, null, 2)).then(result => {
         if (result && result.ok) {
+          if (result.was_active) {
+            showToast('Profile saved', 'Reload in Profile Selector for changes to take effect in Revit.');
+          }
           showExportOverlay(state.currentProfile, result.path || '', result.desktop_path || '');
         } else if (result && result.error) {
           showToast('Export failed', result.error);

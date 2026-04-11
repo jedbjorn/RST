@@ -216,8 +216,15 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
     addin_lookup provides display names and URLs as fallback metadata.
     """
     from addin_scanner import BUILTIN_TABS, classify_addin_origin, parse_addin_ids, parse_addin_assemblies, get_addins_dirs, _find_all_addin_files
+    from rst_lib import get_rst_tab_names
 
     log.info('Building user config for %s / Revit %s', username, version)
+
+    # Collect tab names created by RST profiles — these are not add-ins
+    rst_tabs = get_rst_tab_names()
+    skip_tabs = BUILTIN_TABS | rst_tabs
+    if rst_tabs:
+        log.debug('RST-managed tabs excluded from scan: %s', rst_tabs)
 
     # Step 1: list user + machine addins directories
     dir_files, user_addins_dir = _list_addins_dirs(version)
@@ -249,7 +256,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
 
     # Step 4: process tabs from ribbon scan (everything Revit loaded)
     for tab_name in (all_tabs or []):
-        if tab_name in BUILTIN_TABS:
+        if tab_name in skip_tabs:
             continue
 
         lookup_entry = addin_lookup.get(tab_name, {})
@@ -304,7 +311,7 @@ def build_user_config(username, version, loaded_addins, all_tabs, addin_lookup,
     # Step 5: process third-party panels on built-in tabs (e.g. Kinship on Add-Ins)
     for panel_info in (addin_panels or []):
         panel_name = panel_info.get('name', '')
-        if not panel_name or panel_name in addins or panel_name in BUILTIN_TABS:
+        if not panel_name or panel_name in addins or panel_name in skip_tabs:
             continue
 
         lookup_entry = addin_lookup.get(panel_name, {})
@@ -430,9 +437,14 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
     """Check current Revit session against config and append any new add-ins.
     Never removes or rebuilds — only adds. Preserves enabled/disabled state."""
     from addin_scanner import BUILTIN_TABS, classify_addin_origin, parse_addin_ids, parse_addin_assemblies, get_addins_dirs, _find_all_addin_files
+    from rst_lib import get_rst_tab_names
 
     existing = config.get('addins', {})
     version = config.get('revitVersion', '')
+
+    # Collect RST-managed tab names
+    rst_tabs = get_rst_tab_names()
+    skip_tabs = BUILTIN_TABS | rst_tabs
 
     appdata_lower = (os.environ.get('APPDATA', '') or '').lower()
 
@@ -456,7 +468,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
 
     # Step 1: check tabs from current session
     for tab_name in (all_tabs or []):
-        if tab_name in BUILTIN_TABS:
+        if tab_name in skip_tabs:
             continue
         if tab_name in existing:
             continue
@@ -510,7 +522,7 @@ def append_new_addins(config, loaded_addins, all_tabs, addin_lookup, addin_panel
     # Step 2: check third-party panels on built-in tabs
     for panel_info in (addin_panels or []):
         panel_name = panel_info.get('name', '')
-        if not panel_name or panel_name in existing or panel_name in BUILTIN_TABS:
+        if not panel_name or panel_name in existing or panel_name in skip_tabs:
             continue
 
         lookup_entry = addin_lookup.get(panel_name, {})
