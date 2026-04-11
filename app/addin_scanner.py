@@ -138,11 +138,6 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
     return 'unknown'
 
 
-# Keep backward compat — old code may still reference this
-def is_autodesk_addin(addin_file, lookup_entry=None):
-    """Deprecated — use classify_addin_origin() instead."""
-    return classify_addin_origin(addin_file=addin_file, lookup_entry=lookup_entry) == 'native'
-
 
 def _load_overrides():
     if os.path.exists(_overrides_path):

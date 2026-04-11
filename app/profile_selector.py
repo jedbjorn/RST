@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import webview
 import os
-import re
 import json
-import shutil
 import datetime
 
 from logger import get_logger

@@ -4,7 +4,6 @@ Launched by the PyRevit pushbutton script. Reads Revit data from a temp file.
 """
 import webview
 import os
-import re
 import sys
 import json
 import copy
