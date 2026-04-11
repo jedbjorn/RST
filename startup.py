@@ -143,7 +143,7 @@ def _load_active_profile():
 def _get_icon_path(slot, small=False):
     """Resolve icon path for a tool slot.
     iconFile stores a stem (e.g. 'MyTool') → looks for MyTool_32.png / MyTool_64.png.
-    'pack:name' prefix → looks in iconpack dir for 64_name.png / 32_name.png.
+    'pack:name' prefix → looks in iconpack dir for 32_name.png.
     Falls back to legacy format (MyTool.png) and then default icon."""
     icon_file = slot.get('iconFile')
     if icon_file:
@@ -155,10 +155,6 @@ def _get_icon_path(slot, small=False):
             pack_path = os.path.join(ICONPACK_DIR, '32_%s.png' % pack_name)
             if os.path.exists(pack_path):
                 return pack_path
-            # Fallback: try 64px
-            pack_path_64 = os.path.join(ICONPACK_DIR, '64_%s.png' % pack_name)
-            if os.path.exists(pack_path_64):
-                return pack_path_64
             log.warning('Icon pack icon not found: %s - using default', icon_file)
         else:
             stem = icon_file.replace('.png', '')  # strip extension if legacy
@@ -480,6 +476,14 @@ def _create_tool_button(slot):
         except Exception:
             pass
 
+        # Auto-assign icon pack icons for URL/mailto tools without a custom icon
+        if not slot.get('iconFile') and command_id and command_id.startswith('URL:'):
+            slot = dict(slot)  # don't mutate original
+            if command_id.startswith('URL:mailto:'):
+                slot['iconFile'] = 'pack:at'
+            else:
+                slot['iconFile'] = 'pack:link_external'
+
         # Icons: 64px for LargeImage, 32px for Image
         large_icon = _load_icon(_get_icon_path(slot, small=False))
         small_icon = _load_icon(_get_icon_path(slot, small=True))
@@ -500,10 +504,8 @@ def _create_tool_button(slot):
             if handler:
                 btn.CommandHandler = handler
 
-        # Style URL tools with arrow prefix and link color
+        # Style URL tools with link color
         if is_url:
-            url_name = u'\U0001F310 ' + display_name
-            btn.Text = _wrap_button_text(url_name)
             try:
                 import clr
                 clr.AddReference('PresentationCore')
