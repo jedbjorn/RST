@@ -147,14 +147,15 @@ def _get_icon_path(slot, small=False):
     Falls back to legacy format (MyTool.png) and then default icon."""
     icon_file = slot.get('iconFile')
     if icon_file:
-        # Icon pack reference: "pack:arrow" → iconpack/64_arrow.png
+        # Icon pack reference: "pack:arrow" → iconpack/32_arrow.png
+        # Revit LargeImage expects 32x32, Image expects 16x16.
+        # We use 32px for both — correct for large, acceptable for small.
         if icon_file.startswith('pack:'):
             pack_name = icon_file[5:]
-            prefix = '32' if small else '64'
-            pack_path = os.path.join(ICONPACK_DIR, '%s_%s.png' % (prefix, pack_name))
+            pack_path = os.path.join(ICONPACK_DIR, '32_%s.png' % pack_name)
             if os.path.exists(pack_path):
                 return pack_path
-            # Fallback: try 64px even for small
+            # Fallback: try 64px
             pack_path_64 = os.path.join(ICONPACK_DIR, '64_%s.png' % pack_name)
             if os.path.exists(pack_path_64):
                 return pack_path_64
