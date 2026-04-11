@@ -1646,7 +1646,7 @@
     size = size || 20;
     if (slot.iconFile && slot.iconFile.startsWith('pack:') && _iconpackBasePath) {
       var name = slot.iconFile.substring(5);
-      return '<img src="' + _iconpackBasePath + '/64_' + name + '.png" style="width:' + size + 'px;height:' + size + 'px;image-rendering:auto">';
+      return '<img src="' + _iconpackBasePath + '/32_' + name + '.png" style="width:' + size + 'px;height:' + size + 'px;image-rendering:auto">';
     }
     return slot.icon || '?';
   }
@@ -3155,7 +3155,7 @@
           item.className = 'iconpack-item';
           if (slot.iconFile === 'pack:' + name) item.classList.add('selected');
           item.title = name;
-          item.innerHTML = '<img src="' + basePath + '/64_' + name + '.png">';
+          item.innerHTML = '<img src="' + basePath + '/32_' + name + '.png">';
           item.onclick = function() {
             grid.querySelectorAll('.iconpack-item').forEach(function(el) { el.classList.remove('selected'); });
             item.classList.add('selected');
