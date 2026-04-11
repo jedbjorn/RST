@@ -127,11 +127,49 @@ The disable flow still needs a confirmation dialog (WPF) showing what stays acti
 |----|----------|-----------|
 | ProfileSwitcher | Pure ribbon control (no window) | Speed — most common user action |
 | Disable confirmation | Small WPF dialog | Simple enough for native, needs to feel fast |
-| ProfileManager (admin) | WebView2 wrapping existing HTML | Heavy investment in current UI, admin tool not speed-critical |
+| ProfileManager (admin) | Native WPF (component-based) | Full rewrite — componentized architecture replaces 3,800-line HTML monolith |
 | RSTify toggle | Ribbon button (no window) | Same as current — just a toggle |
 | Service status / settings | WPF settings panel (future) | Admin needs visibility into service health |
 
-WebView2 ships with Windows 11 and is available as a single NuGet package for Windows 10. It renders the existing HTML/JS/CSS with near-zero porting effort for the admin UI.
+---
+
+## WPF Component Architecture
+
+The current `profile_manager.html` is ~3,800 lines (CSS + HTML + JS in one file) and `profile_loader.html` is ~1,500 lines. In the WPF rewrite, these become focused UserControl + ViewModel pairs:
+
+### ProfileManager (replaces profile_manager.html)
+
+| Component | Responsibility | Estimated size |
+|-----------|---------------|----------------|
+| `ToolDetectionService` | Ribbon scan, command discovery, tool list state | ~200 lines |
+| `PanelEditorControl` | Panel creation, color picker, slot management, drag/drop reorder | ~300 lines |
+| `StackEditorControl` | Stack builder (2-3 tools per stack) | ~150 lines |
+| `IconPickerControl` | Icon grid with search, selection, clear | ~150 lines |
+| `ProfileSwitcherControl` | Profile dropdown, load/save/new, name editing | ~150 lines |
+| `TabPreviewControl` | Live ribbon preview rendering | ~200 lines |
+| `UrlToolDialog` | Add/edit URL and mailto tools, auto-detect email | ~100 lines |
+| `ExportService` | JSON build, file write, desktop copy, active profile warning | ~150 lines |
+| `AddinProtectionControl` | Set Protection panel (locked/protected toggles) | ~150 lines |
+| `ProfileManagerViewModel` | Central state, commands, coordination between controls | ~300 lines |
+
+### ProfileLoader (replaces profile_loader.html)
+
+Most of the loader is replaced by the ribbon dropdown (Phase 1). What remains:
+
+| Component | Responsibility | Estimated size |
+|-----------|---------------|----------------|
+| `DisableConfirmDialog` | Three-column preview (staying/disabling/skipped) | ~150 lines |
+| `RSTifyToggleControl` | Tab visibility toggles with source-tab locking | ~100 lines |
+| `AddinStatusCards` | Required add-in status display (Native/Loaded/Not Found) | ~100 lines |
+
+### Design Principles
+
+- **MVVM** — ViewModels own state, Views bind to it. No code-behind logic.
+- **One responsibility per control** — each UserControl handles one feature area
+- **Shared styles** — `RST.Styles.xaml` ResourceDictionary replaces `rst_components.css`
+- **No monoliths** — if a control exceeds ~300 lines, split it
+
+The current HTML files serve as the reference implementation. Read them to understand behavior, but don't try to port the structure — WPF's data binding and command model will naturally reorganize the logic.
 
 ---
 
@@ -158,7 +196,7 @@ These are logic-only modules with no Revit API or UI dependencies. Straight C# p
 | Component | Effort | Notes |
 |-----------|--------|-------|
 | `startup.py` ribbon builder | High | AdWindows panel coloring, DrawingBrush, PostCommand routing — same approach in C# but full rewrite |
-| `profile_manager.html` | Low (WebView2) or High (WPF) | WebView2 wraps existing HTML; WPF is a full rewrite |
+| `profile_manager.html` | High (WPF) | Full rewrite as componentized WPF — see WPF Component Architecture below |
 | `profile_loader.html` | Medium | Mostly replaced by dropdown; disable confirmation is a small WPF dialog |
 | `reload_ui.py` WPF window | Low | Already WPF (IronPython), trivial port to C# |
 | `RSTify` tab hiding | Low | Same AdWindows API, just C# |
@@ -203,10 +241,10 @@ Port the add-in management and admin profile editor.
 - [ ] Port AddinDisabler — rename logic, intent log, crash recovery
 - [ ] WPF disable confirmation dialog (replaces profile_loader.html overlay)
 - [ ] Port user config build/append/rescan logic
-- [ ] WebView2 wrapper for profile_manager.html (admin UI)
-- [ ] Port Set Protection panel
+- [ ] Native WPF ProfileManager — componentized rewrite (see WPF Component Architecture)
+- [ ] Port Set Protection panel as `AddinProtectionControl`
 
-**Exit criteria:** Full feature parity with current RST_Pro. Admin can build profiles, users can load profiles and disable add-ins, crash recovery works.
+**Exit criteria:** Full feature parity with current RST_Pro. Admin can build profiles, users can load profiles and disable add-ins, crash recovery works. No HTML/pywebview dependency.
 
 ### Phase 4: Installer + Polish
 
@@ -229,7 +267,7 @@ Ship it.
 | ADN approval | Pending | Blocks multi-user Revit testing |
 | Brand name (Kinship vs TBD) | TBD | Namespace, DLL names, ribbon tab name |
 | Azure infrastructure | Not started | Blocks DB push from services (Phase 2 can ship with local JSON only) |
-| WebView2 runtime | Ships with Win11, NuGet for Win10 | Low risk — most Revit users are on Win10/11 |
+| ~~WebView2 runtime~~ | ~~Ships with Win11, NuGet for Win10~~ | No longer needed — full WPF rewrite, no HTML wrapping |
 | Revit API version targeting | 2024+ | Same as current; `LoadedApplications` API path already handled |
 
 ---
@@ -240,7 +278,7 @@ Ship it.
 |------|---------|
 | Visual Studio 2022 | C# development, WPF designer |
 | Revit 2024/2025 SDK | API references, AdWindows DLLs |
-| NuGet | Newtonsoft.Json, WebView2, WiX (installer) |
+| NuGet | Newtonsoft.Json, WiX (installer) |
 | Git | Same repo, `RST_win/` directory |
 
 Code lives in `RST_win/` alongside the existing `RST_python/` until migration is complete and validated. Both stacks can coexist during development — the .addin manifests point to different DLLs.
