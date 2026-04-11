@@ -815,7 +815,7 @@
     border: 1px solid var(--border2);
     border-radius: 8px;
     padding: 16px;
-    width: 380px;
+    width: 440px;
     max-height: 70vh;
     display: flex; flex-direction: column;
   }
@@ -827,24 +827,26 @@
   }
   .iconpack-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     overflow-y: auto;
     max-height: 50vh;
     padding: 4px;
   }
   .iconpack-item {
-    width: 48px; height: 48px;
+    width: 72px;
+    padding: 6px 2px 4px;
     border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
     transition: border-color 0.15s, background 0.15s;
     background: var(--bg);
   }
   .iconpack-item:hover { border-color: var(--accent); background: rgba(79,142,247,0.08); }
   .iconpack-item.selected { border-color: var(--accent); background: rgba(79,142,247,0.15); }
-  .iconpack-item img { width: 32px; height: 32px; image-rendering: auto; }
+  .iconpack-item img { width: 28px; height: 28px; image-rendering: auto; }
+  .iconpack-item span { font-size: 8px; color: var(--text3); text-align: center; line-height: 1.1; word-break: break-all; max-width: 68px; overflow: hidden; }
   .iconpack-actions {
     display: flex; gap: 8px; margin-top: 12px;
     justify-content: space-between;
@@ -3156,7 +3158,7 @@
           item.className = 'iconpack-item';
           if (slot.iconFile === 'pack:' + entry.name) item.classList.add('selected');
           item.title = entry.name;
-          item.innerHTML = '<img src="' + entry.src + '">';
+          item.innerHTML = '<img src="' + entry.src + '"><span>' + entry.name + '</span>';
           // Cache the data URI for preview rendering
           _iconpackCache[entry.name] = entry.src;
           item.onclick = function() {
