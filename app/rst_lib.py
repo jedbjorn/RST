@@ -9,6 +9,7 @@ Imported by all app/ modules. Does NOT import logger (avoids circular deps).
 import os
 import re
 import json
+import socket
 import uuid
 
 
@@ -38,6 +39,36 @@ REQUIRED_PROFILE_FIELDS = {'profile', 'tab', 'min_version', 'exportDate',
 def validate_profile(data):
     """Return set of missing required fields, or empty set if valid."""
     return REQUIRED_PROFILE_FIELDS - set(data.keys())
+
+
+# ── Identity ─────────────────────────────────────────────────────────────────
+#
+# Standard identity block included in every scan/event JSON.
+# Ensures consistent field names and presence across all data capture services.
+#
+# Fields:
+#   windowsUsername  — OS login (DOMAIN\user or local user). Always present.
+#   revitUsername    — Set in Revit Options > General > Username. May be empty
+#                     if scan runs outside Revit or user never set it.
+#   deviceName      — Machine hostname. Always present.
+#
+# For DB purposes:
+#   - revitUsername is the primary key for tying a person across devices/versions.
+#   - windowsUsername is the fallback when revitUsername is empty.
+#   - deviceName ties machine-specific data (health, programs) to a physical box.
+#
+
+def build_identity(revit_username=None):
+    """Build a standard identity dict for any scan or event payload.
+
+    Call with revit_username when running inside Revit.
+    Call without args when running standalone (Windows-only scan).
+    """
+    return {
+        'windowsUsername': os.environ.get('USERNAME', os.environ.get('USER', '')),
+        'revitUsername':   revit_username or '',
+        'deviceName':     socket.gethostname(),
+    }
 
 
 # ── Utility Functions ─────────────────────────────────────────────────────────

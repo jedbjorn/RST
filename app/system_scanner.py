@@ -104,12 +104,13 @@ def scan_installed_programs():
 
 # ── Disk Cache ────────────────────────────────────────────────────────────────
 
-def save_scan(programs, path):
+def save_scan(programs, path, revit_username=None):
     """Write full scan results to a JSON cache file."""
+    from rst_lib import build_identity
     os.makedirs(os.path.dirname(path), exist_ok=True)
     data = {
         'scanTimestamp': datetime.now(timezone.utc).isoformat(),
-        'hostname': socket.gethostname(),
+        'identity': build_identity(revit_username),
         'programCount': len(programs),
         'programs': programs,
     }
@@ -238,7 +239,7 @@ def filter_revit_addins(programs, static_lookup):
 
 # ── Top-level Entry Point ────────────────────────────────────────────────────
 
-def get_enriched_lookup(static_lookup, cache_path):
+def get_enriched_lookup(static_lookup, cache_path, revit_username=None):
     """Scan registry (or load cache), filter to Revit add-ins, merge with static lookup.
 
     This is the single function called by addin_scanner.load_addin_lookup().
@@ -249,7 +250,7 @@ def get_enriched_lookup(static_lookup, cache_path):
     if programs is None:
         programs = scan_installed_programs()
         try:
-            save_scan(programs, cache_path)
+            save_scan(programs, cache_path, revit_username=revit_username)
         except OSError as e:
             log.warning('Could not save system scan to disk: %s', e)
 

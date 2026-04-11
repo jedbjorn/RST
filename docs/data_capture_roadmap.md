@@ -6,6 +6,34 @@ RST_Pro captures machine, session, and model data for IT/manager dashboards and 
 
 ---
 
+## Identity Standard
+
+Every scan and event JSON includes a standard `identity` block built by `rst_lib.build_identity()`. This ensures consistent field names across all services.
+
+```json
+{
+  "identity": {
+    "windowsUsername": "jsmith",
+    "revitUsername": "John Smith",
+    "deviceName": "WORKSTATION-42"
+  }
+}
+```
+
+| Field | Description | Always present | DB role |
+|---|---|---|---|
+| `revitUsername` | Set in Revit Options > General > Username | No — empty if scan runs outside Revit or user never set it | **Primary key** for tying a person across devices/versions |
+| `windowsUsername` | OS login (DOMAIN\user or local user) | Yes | **Fallback PK** when revitUsername is empty |
+| `deviceName` | Machine hostname | Yes | **FK to devices table** — ties machine-specific data to a physical box |
+
+**Rules:**
+- Both usernames are captured on every event, always.
+- `revitUsername` is the preferred person identifier. `windowsUsername` is the fallback.
+- `deviceName` is the machine identifier. One person can have multiple devices.
+- Non-Revit scans (standalone mode) will have `revitUsername: ""` — this is expected.
+
+---
+
 ## Service 1: Program Scan
 
 **What it does:** Scans Windows registry for all installed programs on the machine.

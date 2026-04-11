@@ -16,7 +16,6 @@ import logging
 import os
 import platform
 import shutil
-import socket
 import subprocess
 from datetime import datetime, timezone
 
@@ -281,13 +280,11 @@ def capture_health_snapshot(revit_version=None, revit_build=None,
     # Gather WMI data in one shot
     wmi = _get_wmi_data()
 
+    from rst_lib import build_identity
+
     snapshot = {
         'captureTimestamp': datetime.now(timezone.utc).isoformat(),
-        'identity': {
-            'windowsUsername': os.environ.get('USERNAME', os.environ.get('USER', '')),
-            'revitUsername':   revit_username or '',
-            'deviceName':     socket.gethostname(),
-        },
+        'identity': build_identity(revit_username),
         'ram':     _get_ram(),
         'cpu':     _get_cpu(),
         'gpu':     _parse_gpu(wmi),
