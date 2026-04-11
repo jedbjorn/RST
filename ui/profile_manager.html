@@ -1640,13 +1640,16 @@
   };
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
-  var _iconpackBasePath = '';  // set on pywebviewready
+  var _iconpackCache = {};  // name → base64 data URI, populated on first picker open or pywebviewready
 
   function getIconHtml(slot, size) {
     size = size || 20;
-    if (slot.iconFile && slot.iconFile.startsWith('pack:') && _iconpackBasePath) {
+    if (slot.iconFile && slot.iconFile.startsWith('pack:')) {
       var name = slot.iconFile.substring(5);
-      return '<img src="' + _iconpackBasePath + '/32_' + name + '.png" style="width:' + size + 'px;height:' + size + 'px;image-rendering:auto">';
+      var src = _iconpackCache[name];
+      if (src) {
+        return '<img src="' + src + '" style="width:' + size + 'px;height:' + size + 'px;image-rendering:auto">';
+      }
     }
     return slot.icon || '?';
   }
@@ -3147,22 +3150,21 @@
     // Load icon pack list from backend
     const api = window.pywebview && window.pywebview.api;
     if (api && api.get_icon_pack) {
-      api.get_icon_pack().then(function(result) {
-        var icons = result.icons || [];
-        var basePath = 'file:///' + result.path.replace(/\\/g, '/');
-        icons.forEach(function(name) {
+      api.get_icon_pack().then(function(icons) {
+        icons.forEach(function(entry) {
           const item = document.createElement('div');
           item.className = 'iconpack-item';
-          if (slot.iconFile === 'pack:' + name) item.classList.add('selected');
-          item.title = name;
-          item.innerHTML = '<img src="' + basePath + '/32_' + name + '.png">';
+          if (slot.iconFile === 'pack:' + entry.name) item.classList.add('selected');
+          item.title = entry.name;
+          item.innerHTML = '<img src="' + entry.src + '">';
+          // Cache the data URI for preview rendering
+          _iconpackCache[entry.name] = entry.src;
           item.onclick = function() {
             grid.querySelectorAll('.iconpack-item').forEach(function(el) { el.classList.remove('selected'); });
             item.classList.add('selected');
-            // Apply immediately
-            slot.iconFile = 'pack:' + name;
+            slot.iconFile = 'pack:' + entry.name;
             renderSlotList();
-            showToast('Icon set', slot.name + ' → ' + name);
+            showToast('Icon set', slot.name + ' → ' + entry.name);
             closeIconPack();
           };
           grid.appendChild(item);
@@ -3399,11 +3401,13 @@
         }
       }
 
-      // Fetch icon pack base path
+      // Preload icon pack data URIs for preview rendering
       if (window.pywebview && window.pywebview.api && window.pywebview.api.get_icon_pack) {
-        const pack = await window.pywebview.api.get_icon_pack();
-        if (pack && pack.path) {
-          _iconpackBasePath = 'file:///' + pack.path.replace(/\\/g, '/');
+        const icons = await window.pywebview.api.get_icon_pack();
+        if (Array.isArray(icons)) {
+          icons.forEach(function(entry) {
+            _iconpackCache[entry.name] = entry.src;
+          });
         }
       }
 

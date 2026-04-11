@@ -308,15 +308,21 @@ class TabCreatorAPI:
         return {'ok': True, 'filename': stem}
 
     def get_icon_pack(self):
-        """Return dict with icon pack info: list of names and the absolute directory path."""
+        """Return list of icon pack entries with name and base64 data URI."""
+        import base64
         icons = []
         if os.path.isdir(ICONPACK_DIR):
             for f in sorted(os.listdir(ICONPACK_DIR)):
-                if f.startswith('64_') and f.endswith('.png'):
-                    name = f[3:-4]  # strip '64_' prefix and '.png' suffix
-                    icons.append(name)
-        # Return absolute path so frontend can build file:// URLs
-        return {'icons': icons, 'path': ICONPACK_DIR.replace('\\', '/')}
+                if f.startswith('32_') and f.endswith('.png'):
+                    name = f[3:-4]  # strip '32_' prefix and '.png' suffix
+                    fpath = os.path.join(ICONPACK_DIR, f)
+                    try:
+                        with open(fpath, 'rb') as img:
+                            b64 = base64.b64encode(img.read()).decode('ascii')
+                        icons.append({'name': name, 'src': 'data:image/png;base64,' + b64})
+                    except IOError:
+                        continue
+        return icons
 
     def get_profiles(self):
         profiles = []
