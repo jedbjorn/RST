@@ -44,11 +44,12 @@ PROTECTED_ADDINS = set()
 
 
 _cached_lookup = None
+_cached_programs = None
 
 
 def load_addin_lookup():
     """Load enriched addin lookup: registry scan merged with static JSON fallback."""
-    global _cached_lookup
+    global _cached_lookup, _cached_programs
     if _cached_lookup is not None:
         return _cached_lookup
 
@@ -62,16 +63,60 @@ def load_addin_lookup():
 
     # Try registry enrichment (CPython on Windows only)
     try:
-        from system_scanner import get_enriched_lookup
+        from system_scanner import get_enriched_lookup, load_cached_scan, scan_installed_programs, save_scan
         _cached_lookup = get_enriched_lookup(static, SYSTEM_SCAN_PATH)
+        # Cache the raw programs list for direct registry lookups
+        _cached_programs = load_cached_scan(SYSTEM_SCAN_PATH)
+        if _cached_programs is None:
+            _cached_programs = scan_installed_programs()
     except ImportError:
         log.debug('system_scanner not available (IronPython?), using static lookup')
         _cached_lookup = static
+        _cached_programs = []
     except Exception as e:
         log.warning('Registry scan failed, falling back to static lookup: %s', e)
         _cached_lookup = static
+        _cached_programs = []
 
     return _cached_lookup
+
+
+def _find_in_registry(name):
+    """Search cached registry programs for a matching entry.
+
+    Returns the Publisher string if found, None otherwise.
+    Used by classify_addin_origin as a fallback when the lookup_entry
+    has no registry data (add-in not in addin_lookup.json or enrichment
+    matched the wrong entry).
+    """
+    if not _cached_programs or not name:
+        return None
+
+    from rst_lib import normalize_addin_name
+    name_lower = name.lower()
+    name_norm = normalize_addin_name(name)
+
+    for prog in _cached_programs:
+        display = prog.get('DisplayName', '')
+        if not display:
+            continue
+        display_lower = display.lower()
+
+        # Exact match
+        if display_lower == name_lower:
+            return prog.get('Publisher') or None
+
+        # Normalized match
+        if name_norm and normalize_addin_name(display) == name_norm:
+            return prog.get('Publisher') or None
+
+        # Substring: name in display or display in name
+        if len(name_lower) >= 4 and name_lower in display_lower:
+            return prog.get('Publisher') or None
+        if len(display_lower) >= 4 and display_lower in name_lower:
+            return prog.get('Publisher') or None
+
+    return None
 
 
 def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None,
@@ -97,6 +142,18 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
     """
     publisher = (lookup_entry or {}).get('publisher', '') or ''
     has_registry_data = publisher or (lookup_entry or {}).get('version') is not None
+
+    # Fallback: if lookup_entry has no registry data, search the programs cache
+    # directly. Handles add-ins not in addin_lookup.json or where enrichment
+    # matched the wrong entry (e.g. "DiRoots" stealing "DiRoots.One").
+    if not has_registry_data:
+        display_name = (lookup_entry or {}).get('displayName', '') or tab_name or ''
+        reg_publisher = _find_in_registry(display_name)
+        if not reg_publisher and tab_name and tab_name != display_name:
+            reg_publisher = _find_in_registry(tab_name)
+        if reg_publisher:
+            publisher = reg_publisher
+            has_registry_data = True
 
     def _is_autodesk_dll(path):
         if not path:
