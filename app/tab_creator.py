@@ -80,15 +80,15 @@ class TabCreatorAPI:
         return load_addin_lookup()
 
     def get_addin_defaults(self):
-        """Return addin defaults from data/addin_scan.json.
+        """Return addin defaults from data/addin_defaults.json.
         Used by profile manager to populate protectedAddins/lockedAddins."""
         from rst_lib import ADDIN_DEFAULTS_PATH, load_json_safe
         data = load_json_safe(ADDIN_DEFAULTS_PATH, {})
         return data.get('addins', {})
 
     def save_addin_defaults(self, addins):
-        """Save admin-edited protection settings back to data/addin_scan.json.
-        Only updates locked/protected fields — preserves all other scan data."""
+        """Save admin-edited protection settings back to data/addin_defaults.json.
+        Only updates locked/protected fields — preserves all other default data."""
         from rst_lib import ADDIN_DEFAULTS_PATH, load_json_safe
         import json
         data = load_json_safe(ADDIN_DEFAULTS_PATH, {})
