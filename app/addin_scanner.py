@@ -93,6 +93,7 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
       'autodesk'    — Autodesk-published add-in (separate from core Revit)
       'third-party' — known non-Autodesk publisher
       'custom'      — no publisher or not in registry (user/firm-built)
+      'unknown'     — no rule matched (indicates a gap in classification logic)
 
     Fallback: static AUTODESK_ADDINS list from config.json.
     """
@@ -134,7 +135,7 @@ def classify_addin_origin(addin_file=None, lookup_entry=None, assembly_path=None
     if _is_autodesk_dll(assembly_path):
         return 'autodesk'
 
-    return 'custom'
+    return 'unknown'
 
 
 # Keep backward compat — old code may still reference this

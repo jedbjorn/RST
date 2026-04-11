@@ -485,6 +485,10 @@
     background: rgba(245,158,11,0.08);
     color: var(--warn);
   }
+  .origin-unknown {
+    background: rgba(239,68,68,0.12);
+    color: #ef4444;
+  }
 
   /* ── FOOTER TOGGLES ── */
   .footer-toggles {
@@ -1136,7 +1140,8 @@
           var originCls = originVal === 'native' ? 'origin-native'
             : originVal === 'autodesk' ? 'origin-autodesk'
             : originVal === 'third-party' ? 'origin-thirdparty'
-            : originVal === 'custom' ? 'origin-custom' : '';
+            : originVal === 'custom' ? 'origin-custom'
+            : originVal === 'unknown' ? 'origin-unknown' : '';
 
           return `<div class="addin-row">
             <span class="addin-row-name">${escHtml(tabName)}</span>
