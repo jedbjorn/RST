@@ -1,23 +1,12 @@
 {
   "protected_addins": [
-    "pyRevit.addin",
-    "Dynamo.addin",
-    "DynamoForRevit.addin",
-    "FormItConverter.addin",
-    "ExportViewSelectorApp.addin",
-    "AlignMultipleAnnotations.addin",
-    "Autodesk.WorksharingMonitor.Application.addin",
-    "Autodesk.eTransmitApplication.addin",
-    "Autodesk.Collaborate.addin",
-    "Autodesk.BatchPrint.addin",
-    "Autodesk.TotalCarbonAnalysis.addin"
+    "pyRevit.addin"
   ],
   "autodesk_addins": [
     "Dynamo.addin",
     "DynamoForRevit.addin",
     "FormItConverter.addin",
     "ExportViewSelectorApp.addin",
-    "AlignMultipleAnnotations.addin",
     "Autodesk.WorksharingMonitor.Application.addin",
     "Autodesk.eTransmitApplication.addin",
     "Autodesk.Collaborate.addin",
