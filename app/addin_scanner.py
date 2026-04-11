@@ -98,7 +98,7 @@ def _find_in_registry(name=None, dll_path=None):
 
     # Strategy 1: DLL path inside InstallLocation
     if dll_path:
-        dll_lower = os.path.normpath(dll_path).lower()
+        dll_lower = os.path.normpath(dll_path.strip().strip('"').strip("'")).lower()
         for prog in _cached_programs:
             loc = prog.get('InstallLocation', '')
             if not loc or len(loc) < 5:
@@ -357,6 +357,7 @@ def parse_addin_assemblies(addin_files):
             for addin_elem in root.iter('AddIn'):
                 assembly = addin_elem.findtext('Assembly')
                 if assembly:
+                    assembly = assembly.strip().strip('"').strip("'")
                     norm = os.path.normpath(assembly).lower()
                     dll_to_addin[norm] = fname
                     if fname not in addin_to_dll:
