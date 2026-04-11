@@ -208,12 +208,10 @@ class ProfileSelectorAPI:
 
             is_required = tab_name in required or name in required
             is_protected = info.get('protected', False) or addin_file in protected_lower
-            origin = info.get('origin', '')
-            is_native_or_autodesk = origin in ('native', 'autodesk')
+            if info.get('locked', False):
+                continue  # system-locked — hidden from all lists
 
-            if is_protected or is_native_or_autodesk:
-                continue  # always protected — don't clutter the overlay
-            elif is_required:
+            if is_protected or is_required:
                 staying.append(info)
             elif not info.get('addinPath'):
                 entry = dict(info)
