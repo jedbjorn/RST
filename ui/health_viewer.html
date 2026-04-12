@@ -695,12 +695,22 @@
     try {
       const result = await window.pywebview.api.clean_junk(cats);
       RSTmsgWaitClose();
-      const parts = [];
-      if (cats.temp)        parts.push(result.temp.toLocaleString() + ' Temp');
-      if (cats.pacCache)    parts.push(result.pacCache.toLocaleString() + ' PacCache');
-      if (cats.journals)    parts.push(result.journals.toLocaleString() + ' Journal');
-      if (cats.collabCache) parts.push(result.collabCache.toLocaleString() + ' Collab');
-      RSTmsgInform('Cleanup complete', parts.join(' · ') + ' files deleted');
+      const d = (result && result.deleted) || {};
+      const s = (result && result.skipped) || {};
+      const lines = [];
+      function fmt(label, cat) {
+        if (!cats[cat]) return;
+        const del = (d[cat] || 0).toLocaleString();
+        const skip = s[cat] || 0;
+        lines.push(skip > 0
+          ? `${label}: ${del} deleted, ${skip.toLocaleString()} locked/in-use`
+          : `${label}: ${del} deleted`);
+      }
+      fmt('Temp',     'temp');
+      fmt('PacCache', 'pacCache');
+      fmt('Journals', 'journals');
+      fmt('Collab',   'collabCache');
+      RSTmsgInform('Cleanup complete', lines.join('\n'));
     } catch (e) {
       RSTmsgWaitClose();
       RSTmsgInform('Cleanup failed', String(e));

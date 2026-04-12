@@ -25,45 +25,60 @@ _html_path = os.path.join(UI_DIR, 'health_viewer.html')
 _REVIT_VERSION_RE = re.compile(r'^Revit\s+\d{4}$', re.IGNORECASE)
 
 
-def _purge_flat(path):
-    """Delete every file/symlink/subdir directly under `path`. Skips locked items. Returns count deleted."""
+def _purge_flat(path, label='purge'):
+    """Delete every file/symlink/subdir directly under `path`. Skips locked items.
+    Returns (deleted_count, skipped_count). Logs reason for every skip."""
     if not os.path.isdir(path):
-        return 0
-    count = 0
+        log.info('[%s] path missing, skipping: %s', label, path)
+        return 0, 0
     try:
         entries = os.listdir(path)
-    except OSError:
-        return 0
+    except OSError as e:
+        log.warning('[%s] could not list %s: %s', label, path, e)
+        return 0, 0
+    deleted = 0
+    skipped = 0
     for name in entries:
         full = os.path.join(path, name)
         try:
             if os.path.isfile(full) or os.path.islink(full):
                 os.unlink(full)
-                count += 1
+                deleted += 1
             elif os.path.isdir(full):
                 shutil.rmtree(full)
-                count += 1
-        except OSError:
-            pass
-    return count
+                deleted += 1
+        except OSError as e:
+            skipped += 1
+            log.debug('[%s] skipped %s: %s', label, name, e)
+    log.info('[%s] %s: deleted=%d skipped=%d (locked/in-use)', label, path, deleted, skipped)
+    return deleted, skipped
 
 
-def _purge_collab_cache(path):
-    """Walk `path` recursively, delete files whose mtime-date != today. Skips locked items. Returns count deleted."""
+def _purge_collab_cache(path, label='collabCache'):
+    """Walk `path` recursively, delete files whose mtime-date != today. Skips locked items.
+    Returns (deleted_count, skipped_count)."""
     if not os.path.isdir(path):
-        return 0
-    count = 0
+        log.info('[%s] path missing, skipping: %s', label, path)
+        return 0, 0
+    deleted = 0
+    skipped = 0
+    kept_today = 0
     curtime = time.ctime()[:10]
     for root, _dirs, files in os.walk(path):
         for name in files:
             full = os.path.join(root, name)
             try:
-                if time.ctime(os.path.getmtime(full))[:10] != curtime:
-                    os.unlink(full)
-                    count += 1
-            except OSError:
-                pass
-    return count
+                if time.ctime(os.path.getmtime(full))[:10] == curtime:
+                    kept_today += 1
+                    continue
+                os.unlink(full)
+                deleted += 1
+            except OSError as e:
+                skipped += 1
+                log.debug('[%s] skipped %s: %s', label, name, e)
+    log.info('[%s] %s: deleted=%d skipped=%d kept_today=%d',
+             label, path, deleted, skipped, kept_today)
+    return deleted, skipped
 
 
 class HealthViewerAPI:
@@ -83,30 +98,37 @@ class HealthViewerAPI:
             return None
 
     def clean_junk(self, categories):
-        """Delete junk files per selected categories. Returns dict of counts deleted per category.
+        """Delete junk files per selected categories. Returns per-category
+        {deleted, skipped} counts plus per-category skipped totals.
 
         categories: {'temp': bool, 'pacCache': bool, 'journals': bool, 'collabCache': bool}
         Journals + collabCache sweep every installed `Revit YYYY` subdir under AppData\\Local\\Autodesk\\Revit.
         """
+        log.info('=== clean_junk invoked with categories=%s ===', categories)
         categories = categories or {}
         userdir = os.path.expanduser('~')
         tdir = os.path.join(userdir, 'AppData', 'Local', 'Temp')
         pcdir = os.path.join(userdir, 'AppData', 'Local', 'Autodesk', 'Revit', 'PacCache')
         revit_root = os.path.join(userdir, 'AppData', 'Local', 'Autodesk', 'Revit')
 
-        counts = {'temp': 0, 'pacCache': 0, 'journals': 0, 'collabCache': 0}
+        deleted = {'temp': 0, 'pacCache': 0, 'journals': 0, 'collabCache': 0}
+        skipped = {'temp': 0, 'pacCache': 0, 'journals': 0, 'collabCache': 0}
 
         if categories.get('temp'):
-            counts['temp'] = _purge_flat(tdir)
+            d, s = _purge_flat(tdir, label='temp')
+            deleted['temp'], skipped['temp'] = d, s
 
         if categories.get('pacCache'):
-            counts['pacCache'] = _purge_flat(pcdir)
+            d, s = _purge_flat(pcdir, label='pacCache')
+            deleted['pacCache'], skipped['pacCache'] = d, s
 
         if categories.get('journals') or categories.get('collabCache'):
             try:
                 subdirs = os.listdir(revit_root)
-            except OSError:
+            except OSError as e:
+                log.warning('Could not list %s: %s', revit_root, e)
                 subdirs = []
+            log.info('Revit root subdirs found: %s', subdirs)
             for entry in subdirs:
                 if not _REVIT_VERSION_RE.match(entry):
                     continue
@@ -114,12 +136,17 @@ class HealthViewerAPI:
                 if not os.path.isdir(vdir):
                     continue
                 if categories.get('journals'):
-                    counts['journals'] += _purge_flat(os.path.join(vdir, 'Journals'))
+                    d, s = _purge_flat(os.path.join(vdir, 'Journals'), label='journals/%s' % entry)
+                    deleted['journals']    += d
+                    skipped['journals']    += s
                 if categories.get('collabCache'):
-                    counts['collabCache'] += _purge_collab_cache(os.path.join(vdir, 'CollaborationCache'))
+                    d, s = _purge_collab_cache(os.path.join(vdir, 'CollaborationCache'),
+                                               label='collabCache/%s' % entry)
+                    deleted['collabCache'] += d
+                    skipped['collabCache'] += s
 
-        log.info('clean_junk result: %s (categories=%s)', counts, categories)
-        return counts
+        log.info('=== clean_junk result: deleted=%s skipped=%s ===', deleted, skipped)
+        return {'deleted': deleted, 'skipped': skipped}
 
     def close_window(self):
         if self.window is not None:

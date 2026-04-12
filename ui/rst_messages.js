@@ -42,6 +42,7 @@
     '  color: var(--text3, #94a3b8);',
     '  line-height: 1.6;',
     '  margin-bottom: 20px;',
+    '  white-space: pre-line;',
     '}',
     '.rst-msg-actions {',
     '  display: flex;',
