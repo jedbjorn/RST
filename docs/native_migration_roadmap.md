@@ -1,5 +1,12 @@
 # Native Migration Roadmap
 
+> **HISTORICAL — SUPERSEDED.** This document pre-dates the current Windows-track specs and is retained as a reference point. For the authoritative architecture, component split, data plane, and phased plan, see `RST_win/spec/`:
+> - `architecture.md` (three-component architecture: RSTPro platform / RST add-in / RSTSnap tray app / silent add-in)
+> - `silent_addin_capture.md`, `rstsnap_services.md`, `rst_scope.md`
+> - `ui_style_guide.md`, `migration_phases.md`, `schema.md`
+>
+> Do not treat this document as current. Its Data Architecture section (tenant_id + RLS + Supabase/Neon) contradicts the locked per-firm on-prem Postgres decision captured in `schema.md`. Component naming and phasing have also evolved.
+
 ## Goal
 
 Migrate RST_Pro from pyRevit/IronPython/CPython/pywebview to a native C# Revit plugin. Eliminate the pyRevit dependency. Build a plugin loader architecture that supports RST as the first tool in a multi-tool suite. Add a services layer for data capture with controlled timing. Ship a faster UX with dropdown profile switching.
@@ -25,22 +32,22 @@ See `data_capture_roadmap.md` for service schemas and data capture details.
 ## Target Architecture
 
 ```
-Kinship.Loader.addin                      .addin manifest (installed to Addins dir)
+RSTPro.Loader.addin                      .addin manifest (installed to Addins dir)
 |
-+-- Kinship.Loader.dll                    IExternalApplication
++-- RSTPro.Loader.dll                    IExternalApplication
 |   +-- discovers + loads tool DLLs
 |   +-- creates ribbon tab per tool
 |   +-- registers Revit event hooks
 |   +-- starts in-process service manager
 |
-+-- Kinship.Core.dll                      shared library (all tools depend on this)
++-- RSTPro.Core.dll                      shared library (all tools depend on this)
 |   +-- data models: Profile, UserConfig, AddinEntry, ScanPayload
 |   +-- JSON I/O, path constants, normalize/match utilities
 |   +-- service manager: timing, start/stop, health check
 |   +-- identity builder (same fields as current rst_lib.build_identity)
 |   +-- Azure client (future: push scan data to SaaS)
 |
-+-- Kinship.Services.dll                  data capture services
++-- RSTPro.Services.dll                  data capture services
 |   +-- SystemScanService       registry scan (HKLM + HKCU)
 |   +-- HealthScanService       RAM/CPU/GPU/disk/network/OS/Revit
 |   +-- AddinScanService        addin inventory + origin classification
@@ -49,19 +56,19 @@ Kinship.Loader.addin                      .addin manifest (installed to Addins d
 |   +-- SyncService             sync to central timing + outcome
 |   +-- WarningsService         warning count snapshots
 |
-+-- Kinship.RST.dll                       the profiler tool
++-- RSTPro.RST.dll                       the profiler tool
 |   +-- RibbonBuilder           builds custom tab from active profile
 |   +-- ProfileSwitcher         dropdown combo on ribbon, instant switch
 |   +-- ProfileManager          admin UI (WPF or WebView2 wrapping existing HTML)
 |   +-- AddinDisabler           rename logic, intent log, crash recovery
 |   +-- RSTify                  tab hide/show toggle
 |
-+-- Kinship.Agent.exe                     out-of-Revit scanner (runs via Task Scheduler)
++-- RSTPro.Agent.exe                     out-of-Revit scanner (runs via Task Scheduler)
 |   +-- SystemScanService only
 |   +-- writes data/system_scan.json
 |   +-- triggered every 24h or on user logon
 |
-+-- Kinship.Tools.dll                     future tools (Project Health, etc.)
++-- RSTPro.Tools.dll                     future tools (Project Health, etc.)
 ```
 
 ---
@@ -70,7 +77,7 @@ Kinship.Loader.addin                      .addin manifest (installed to Addins d
 
 Two hosts, each with different timing:
 
-### Out-of-Revit (Kinship.Agent.exe)
+### Out-of-Revit (RSTPro.Agent.exe)
 
 Lightweight console app. Runs via Windows Task Scheduler.
 
@@ -78,7 +85,7 @@ Lightweight console app. Runs via Windows Task Scheduler.
 |---------|---------|--------|
 | SystemScanService | Every 24h + on user logon | `data/system_scan.json` |
 
-### In-Revit (Kinship.Loader.dll)
+### In-Revit (RSTPro.Loader.dll)
 
 Services start in the Revit process. Revit API events drive timing.
 
@@ -179,12 +186,12 @@ These are logic-only modules with no Revit API or UI dependencies. Straight C# p
 
 | Python module | C# equivalent | Notes |
 |---------------|---------------|-------|
-| `rst_lib.py` (paths, normalize, match) | `Kinship.Core.Utilities` | All pure functions |
-| `rst_lib.py` (profile helpers) | `Kinship.Core.Profiles` | JSON read/write |
-| `addin_scanner.py` (classify, parse XML) | `Kinship.Core.Addins` | C# XML is cleaner than Python ET |
-| `user_config.py` (build, append, intent) | `Kinship.Core.UserConfig` | Same JSON structure |
-| `system_scanner.py` | `Kinship.Services.SystemScan` | `Microsoft.Win32.Registry` is native |
-| `health_scanner.py` | `Kinship.Services.HealthScan` | `System.Management` for WMI, no PowerShell needed |
+| `rst_lib.py` (paths, normalize, match) | `RSTPro.Core.Utilities` | All pure functions |
+| `rst_lib.py` (profile helpers) | `RSTPro.Core.Profiles` | JSON read/write |
+| `addin_scanner.py` (classify, parse XML) | `RSTPro.Core.Addins` | C# XML is cleaner than Python ET |
+| `user_config.py` (build, append, intent) | `RSTPro.Core.UserConfig` | Same JSON structure |
+| `system_scanner.py` | `RSTPro.Services.SystemScan` | `Microsoft.Win32.Registry` is native |
+| `health_scanner.py` | `RSTPro.Services.HealthScan` | `System.Management` for WMI, no PowerShell needed |
 | `addin_lookup.json`, `config.json` | Unchanged | Same files, same format |
 | All profile JSONs | Unchanged | Same files, same format |
 | All user config JSONs | Unchanged | Same files, same format |
@@ -210,8 +217,8 @@ These are logic-only modules with no Revit API or UI dependencies. Straight C# p
 
 Build the foundation. Proves the plugin loader pattern works.
 
-- [ ] `Kinship.Loader.dll` — `.addin` manifest, `IExternalApplication`, ribbon tab creation
-- [ ] `Kinship.Core.dll` — path constants, JSON I/O, profile read/write, identity builder
+- [ ] `RSTPro.Loader.dll` — `.addin` manifest, `IExternalApplication`, ribbon tab creation
+- [ ] `RSTPro.Core.dll` — path constants, JSON I/O, profile read/write, identity builder
 - [ ] Profile dropdown on ribbon — list profiles, switch active, rebuild ribbon
 - [ ] Port `startup.py` ribbon builder to C# `RibbonBuilder`
 - [ ] Port RSTify tab hide/show
@@ -222,11 +229,11 @@ Build the foundation. Proves the plugin loader pattern works.
 
 Port the three existing scanners and add session tracking.
 
-- [ ] `Kinship.Services.dll` — service manager with timing control
+- [ ] `RSTPro.Services.dll` — service manager with timing control
 - [ ] Port SystemScanService (registry scan, HKLM + HKCU)
 - [ ] Port HealthScanService (hardware/OS/Revit build snapshot)
 - [ ] Port AddinScanService (inventory + origin classification)
-- [ ] `Kinship.Agent.exe` — out-of-Revit scanner, Task Scheduler integration
+- [ ] `RSTPro.Agent.exe` — out-of-Revit scanner, Task Scheduler integration
 - [ ] Add SessionService (Revit open/close, session duration)
 - [ ] Add ModelService (DocumentOpened/Closing, open time)
 - [ ] Add SyncService (DocumentSynchronizedWithCentral)
@@ -366,7 +373,7 @@ Each service must:
 | Dependency | Status | Impact |
 |------------|--------|--------|
 | ADN approval | Pending | Blocks multi-user Revit testing |
-| Brand name (Kinship vs TBD) | TBD | Namespace, DLL names, ribbon tab name |
+| Brand name | Resolved | RSTPro platform, RST add-in, RSTSnap tray app (see current architecture.md §1) |
 | Backend infrastructure (Postgres + API + dashboard) | Not started | Phase 2 services write local JSON. API connection is Phase 5 work — no blocker for plugin development |
 | ~~WebView2 runtime~~ | ~~Ships with Win11, NuGet for Win10~~ | No longer needed — full WPF rewrite, no HTML wrapping |
 | Revit API version targeting | 2024+ | Same as current; `LoadedApplications` API path already handled |
