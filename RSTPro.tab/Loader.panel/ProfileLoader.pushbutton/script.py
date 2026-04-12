@@ -186,7 +186,7 @@ with io.open(_loader_data_path, 'w', encoding='utf-8') as f:
 launcher = os.path.join(_root, 'app', 'profile_selector.py')
 log.info('Launching Profile Selector: %s', launcher)
 CREATE_NO_WINDOW = 0x08000000
-proc = subprocess.Popen(['python', launcher], creationflags=CREATE_NO_WINDOW)
+proc = subprocess.Popen(['py', '-3.12', launcher], creationflags=CREATE_NO_WINDOW)
 proc.wait()
 log.info('Profile Selector closed')
 

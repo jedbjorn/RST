@@ -390,7 +390,7 @@ launcher = os.path.join(_root, 'app', 'tab_creator.py')
 log.info('Launching CPython: %s', launcher)
 CREATE_NO_WINDOW = 0x08000000
 subprocess.Popen(
-    ['python', launcher],
+    ['py', '-3.12', launcher],
     creationflags=CREATE_NO_WINDOW,
 )
 log.info('TabCreator launched')
