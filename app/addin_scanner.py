@@ -488,8 +488,12 @@ def restore_all_addins(revit_version):
                     except (OSError, IOError) as e:
                         log.error('Failed to restore %s: %s', src, e)
 
-    log.info('Restored %d add-ins', len(restored))
-    return restored
+    # Bundle add-ins have the same .addin filename under multiple version
+    # subdirs (Contents\2022\, \2023\, etc). Each file rename is correct, but
+    # the toast should show one unique add-in per name, not per file.
+    unique = list(dict.fromkeys(restored))
+    log.info('Restored %d files (%d unique add-ins)', len(restored), len(unique))
+    return unique
 
 
 def disable_non_required_addins(required_addins, revit_version, protected_addins=None):
