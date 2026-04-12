@@ -12,7 +12,7 @@ from rst_lib import (
     REQUIRED_PROFILE_FIELDS, validate_profile,
     safe_filename, find_profile, resolve_profile,
     ensure_profile_id, is_active_profile,
-    match_addins,
+    match_addins, scan_profiles,
 )
 
 _html_path = os.path.join(UI_DIR, 'profile_loader.html')
@@ -284,24 +284,7 @@ class ProfileSelectorAPI:
 
     def get_profiles(self):
         log.info('Loading profiles from %s', PROFILES_DIR)
-        profiles = []
-        for fname in os.listdir(PROFILES_DIR):
-            if fname.endswith('.json'):
-                fpath = os.path.join(PROFILES_DIR, fname)
-                try:
-                    with open(fpath, 'r', encoding='utf-8') as f:
-                        profile = json.load(f)
-                    # Auto-migrate: assign ID to legacy profiles missing one
-                    if not profile.get('id'):
-                        ensure_profile_id(profile)
-                        with open(fpath, 'w', encoding='utf-8') as f:
-                            json.dump(profile, f, indent=2)
-                        log.info('Assigned ID to legacy profile: %s → %s', fname, profile['id'])
-                    profile['_filename'] = fname
-                    profiles.append(profile)
-                except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
-                    log.error('Failed to read profile %s: %s', fname, e)
-                    continue
+        profiles = scan_profiles()
         log.info('Loaded %d profiles', len(profiles))
         return profiles
 

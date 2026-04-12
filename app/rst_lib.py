@@ -349,12 +349,128 @@ def get_active_profile():
 
 
 def is_active_profile(profile_id=None, profile_name=None):
-    """Check if a profile (by ID or name) is the currently active one."""
+    """Check if a profile (by ID or name) is the currently active one.
+    Prefers ID match when both the profile and active_profile.json have IDs —
+    prevents display-name collisions (e.g. manually duplicated files) from
+    highlighting multiple profiles as active."""
     active = get_active_profile()
     if not active:
         return False
-    if profile_id and active['id'] == profile_id:
-        return True
-    if profile_name and active['name'] == profile_name:
-        return True
+    active_id = active.get('id')
+    active_name = active.get('name')
+    if profile_id and active_id:
+        return profile_id == active_id
+    if profile_name and active_name:
+        return profile_name == active_name
     return False
+
+
+# ── Profile Scan: Filename Reconciliation + ID Collision Repair ──────────────
+
+import logging as _logging
+_scan_log = _logging.getLogger('rst_lib.scan')
+
+_PROFILE_FILENAME_RE = re.compile(r'^(.*)_(\d{4}-\d{2}-\d{2})\.json$')
+
+
+def _reconcile_display_name(fname, data):
+    """If the filename's name portion differs from data['profile'], update
+    data['profile'] to match the filename. Returns True if data was modified.
+
+    Handles both convention-following filenames ({name}_{date}.json) and
+    user-stripped ones ({name}.json). Compares against safe_filename-
+    normalized display name so illegal-char sanitization doesn't trigger
+    spurious updates.
+    """
+    m = _PROFILE_FILENAME_RE.match(fname)
+    if m:
+        name_from_file = m.group(1)
+    else:
+        name_from_file = fname[:-5] if fname.endswith('.json') else fname
+    current = data.get('profile', '')
+    if safe_filename(current) == name_from_file:
+        return False
+    data['profile'] = name_from_file
+    return True
+
+
+def _repair_id_collisions(entries):
+    """entries: list of (fname, fpath, mtime, data) tuples.
+    For each duplicated id, oldest mtime keeps the ID; others get fresh
+    UUIDs written back to disk."""
+    from collections import defaultdict
+    by_id = defaultdict(list)
+    for item in entries:
+        pid = item[3].get('id')
+        if pid:
+            by_id[pid].append(item)
+    for pid, items in by_id.items():
+        if len(items) <= 1:
+            continue
+        items.sort(key=lambda x: x[2])
+        keeper = items[0]
+        _scan_log.warning('ID collision on %s: %d profiles; keeper=%s',
+                          pid, len(items), keeper[0])
+        for fname, fpath, _mtime, data in items[1:]:
+            old_id = data.get('id')
+            data['id'] = generate_profile_id()
+            try:
+                with open(fpath, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+                _scan_log.info('Reassigned ID: %s (%s -> %s)',
+                               fname, old_id, data['id'])
+            except (IOError, OSError) as e:
+                _scan_log.error('Failed to rewrite %s: %s', fname, e)
+
+
+def scan_profiles():
+    """Read all profiles from PROFILES_DIR. Apply migrations in order:
+      1. Legacy ID assignment (profiles missing 'id')
+      2. Filename reconciliation (filename-derived name overrides stale JSON)
+      3. Cross-file ID collision repair (oldest keeps; others reassigned)
+    Writes changes back to disk. Returns list of profile dicts with
+    '_filename' attached."""
+    entries = []
+    for fname in sorted(os.listdir(PROFILES_DIR)):
+        if not fname.endswith('.json'):
+            continue
+        fpath = os.path.join(PROFILES_DIR, fname)
+        try:
+            with open(fpath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (IOError, ValueError, UnicodeDecodeError) as e:
+            _scan_log.error('Failed to read profile %s: %s', fname, e)
+            continue
+
+        dirty = False
+        if not data.get('id'):
+            ensure_profile_id(data)
+            dirty = True
+            _scan_log.info('Assigned ID to legacy profile: %s -> %s',
+                           fname, data['id'])
+
+        if _reconcile_display_name(fname, data):
+            dirty = True
+            _scan_log.info('Reconciled display name from filename: %s -> %s',
+                           fname, data['profile'])
+
+        if dirty:
+            try:
+                with open(fpath, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+            except (IOError, OSError) as e:
+                _scan_log.error('Failed to rewrite %s: %s', fname, e)
+
+        try:
+            mtime = os.path.getmtime(fpath)
+        except OSError:
+            mtime = 0
+        entries.append((fname, fpath, mtime, data))
+
+    _repair_id_collisions(entries)
+
+    profiles = []
+    for fname, _fpath, _mtime, data in entries:
+        data['_filename'] = fname
+        profiles.append(data)
+    return profiles

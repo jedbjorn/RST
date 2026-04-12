@@ -20,6 +20,7 @@ from rst_lib import (
     ACTIVE_PROFILE_PATH,
     safe_filename, resolve_profile,
     is_active_profile, ensure_profile_id,
+    scan_profiles,
 )
 from addin_scanner import (
     load_addin_lookup, get_addins_dirs, _find_all_addin_files,
@@ -378,15 +379,9 @@ class TabCreatorAPI:
         return icons
 
     def get_profiles(self):
-        profiles = []
-        for fname in os.listdir(PROFILES_DIR):
-            if fname.endswith('.json'):
-                try:
-                    with open(os.path.join(PROFILES_DIR, fname), 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    profiles.append({'id': data.get('id'), 'name': data.get('profile', fname)})
-                except (json.JSONDecodeError, IOError):
-                    continue
+        scanned = scan_profiles()
+        profiles = [{'id': p.get('id'), 'name': p.get('profile', p.get('_filename'))}
+                    for p in scanned]
         log.info('Available profiles: %d', len(profiles))
         return profiles
 
