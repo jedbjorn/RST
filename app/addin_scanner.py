@@ -471,16 +471,22 @@ def restore_all_addins(revit_version):
     for base_dir in search_dirs:
         if not os.path.isdir(base_dir):
             continue
-        for f in os.listdir(base_dir):
-            if f.endswith('.addin.RSTdisabled'):
-                src = os.path.join(base_dir, f)
-                dest = src.replace('.addin.RSTdisabled', '.addin')
-                try:
-                    os.rename(src, dest)
-                    restored.append(f.replace('.addin.RSTdisabled', ''))
-                    log.info('Restored: %s', dest)
-                except (OSError, IOError) as e:
-                    log.error('Failed to restore %s: %s', src, e)
+        # Recursive walk mirrors disable_non_required_addins — covers vendor
+        # subdirs under \Addins\YYYY\ and .addin files nested inside
+        # ApplicationPlugins\*.bundle\Contents\{ver}\.
+        for dirpath, dirnames, filenames in os.walk(base_dir):
+            if _is_hands_off(dirpath):
+                continue
+            for f in filenames:
+                if f.endswith('.addin.RSTdisabled'):
+                    src = os.path.join(dirpath, f)
+                    dest = src.replace('.addin.RSTdisabled', '.addin')
+                    try:
+                        os.rename(src, dest)
+                        restored.append(f.replace('.addin.RSTdisabled', ''))
+                        log.info('Restored: %s', dest)
+                    except (OSError, IOError) as e:
+                        log.error('Failed to restore %s: %s', src, e)
 
     log.info('Restored %d add-ins', len(restored))
     return restored
