@@ -64,6 +64,38 @@ try:
                         model_size_mb = str(round(fi.Length / (1024.0 * 1024.0), 1))
                 except Exception as e:
                     log.debug('FileInfo size read failed for %s: %s', model_path, e)
+            # ACC / cloud fallback: doc.PathName is a cloud URL, not a real
+            # filesystem path. The local cache under CollaborationCache is what
+            # Revit actually reads/writes. Walk the cache tree for a file
+            # matching <doc.Title>.rvt, take newest mtime.
+            if not model_size_mb and model_name:
+                try:
+                    local_appdata = os.environ.get('LOCALAPPDATA', '')
+                    cache_root = os.path.join(local_appdata, 'Autodesk', 'Revit') if local_appdata else ''
+                    target = model_name if model_name.lower().endswith('.rvt') else (model_name + '.rvt')
+                    target_lower = target.lower()
+                    best = None  # (mtime, path, size)
+                    if cache_root and os.path.isdir(cache_root):
+                        for ver_entry in os.listdir(cache_root):
+                            cc = os.path.join(cache_root, ver_entry, 'CollaborationCache')
+                            if not os.path.isdir(cc):
+                                continue
+                            for walk_root, _dirs, files in os.walk(cc):
+                                for f in files:
+                                    if f.lower() == target_lower:
+                                        full = os.path.join(walk_root, f)
+                                        try:
+                                            st = os.stat(full)
+                                            if best is None or st.st_mtime > best[0]:
+                                                best = (st.st_mtime, full, st.st_size)
+                                        except OSError:
+                                            pass
+                    if best:
+                        _mt, _fp, _sz = best
+                        model_size_mb = str(round(_sz / (1024.0 * 1024.0), 1))
+                        log.info('Found ACC model cache: %s (%s MB)', _fp, model_size_mb)
+                except Exception as e:
+                    log.debug('CollaborationCache fallback failed: %s', e)
             try:
                 warnings_count = str(len(list(doc.GetWarnings())))
             except Exception:
