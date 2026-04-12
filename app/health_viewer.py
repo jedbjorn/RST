@@ -9,7 +9,6 @@ import re
 import sys
 import json
 import time
-import shutil
 import subprocess
 import webview
 
@@ -43,30 +42,23 @@ def _decode_ini_bytes(data):
 
 
 def _purge_flat(path, label='purge'):
-    """Delete every file/symlink/subdir directly under `path`. Skips locked items.
-    Returns (deleted_count, skipped_count). Logs reason for every skip."""
+    """Walk `path` recursively and try to delete every file. Locked files
+    are skipped individually — one locked file never aborts the rest.
+    Directories are left in place. Returns (deleted_count, skipped_count)."""
     if not os.path.isdir(path):
         log.info('[%s] path missing, skipping: %s', label, path)
         return 0, 0
-    try:
-        entries = os.listdir(path)
-    except OSError as e:
-        log.warning('[%s] could not list %s: %s', label, path, e)
-        return 0, 0
     deleted = 0
     skipped = 0
-    for name in entries:
-        full = os.path.join(path, name)
-        try:
-            if os.path.isfile(full) or os.path.islink(full):
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            full = os.path.join(root, name)
+            try:
                 os.unlink(full)
                 deleted += 1
-            elif os.path.isdir(full):
-                shutil.rmtree(full)
-                deleted += 1
-        except OSError as e:
-            skipped += 1
-            log.debug('[%s] skipped %s: %s', label, name, e)
+            except OSError as e:
+                skipped += 1
+                log.debug('[%s] skipped %s: %s', label, name, e)
     log.info('[%s] %s: deleted=%d skipped=%d (locked/in-use)', label, path, deleted, skipped)
     return deleted, skipped
 
