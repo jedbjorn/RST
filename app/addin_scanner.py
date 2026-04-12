@@ -498,8 +498,13 @@ def restore_all_addins(revit_version):
 
 def disable_non_required_addins(required_addins, revit_version, protected_addins=None):
     """Disable all .addin files except required and protected.
-    Skips Program Files (requires admin). ProgramData is writable by standard users.
-    protected_addins: set/list of .addin filenames to never disable (from profile)."""
+
+    Attempts renames in Program Files too — failures (no admin permission)
+    are captured and returned rather than silently skipped. _is_exempt_path
+    is still honored for config-declared system locations.
+    protected_addins: set/list of .addin filenames to never disable (from profile).
+
+    Returns {'failed': [path, ...]} — paths that could not be renamed."""
     log.info('Disabling non-required addins for Revit %s (keeping: %s)', revit_version, required_addins)
     protected = set(protected_addins or PROTECTED_ADDINS)
     lookup = load_addin_lookup()
@@ -520,9 +525,8 @@ def disable_non_required_addins(required_addins, revit_version, protected_addins
                     break
     keep_files.update(protected)
 
+    failed = []
     for base_dir in search_dirs:
-        if _is_hands_off(base_dir):
-            continue
         for dirpath, dirnames, filenames in os.walk(base_dir):
             if _is_exempt_path(dirpath):
                 continue
@@ -533,4 +537,6 @@ def disable_non_required_addins(required_addins, revit_version, protected_addins
                         os.rename(src, src + '.RSTdisabled')
                         log.info('Disabled: %s', src)
                     except (OSError, IOError) as e:
-                        log.error('Failed to disable %s: %s', src, e)
+                        log.warning('Failed to disable %s: %s', src, e)
+                        failed.append(src)
+    return {'failed': failed}

@@ -166,14 +166,21 @@ class ProfileSelectorAPI:
 
     def get_disable_preview(self, profile_name):
         """Return what would stay active vs be disabled for a profile.
-        Used by the confirmation overlay before committing."""
+        Used by the confirmation overlay before committing.
+
+        Buckets:
+          staying     — kept enabled (required or protected)
+          disabling   — will be renamed (user-writable dirs)
+          tryDisable  — will be attempted in Program Files; may fail without admin
+          skipped     — genuinely unactionable (no addinPath); hidden from UI
+        """
         config = self.get_user_config()
         if not config:
-            return {'staying': [], 'disabling': [], 'error': 'No config available'}
+            return {'staying': [], 'disabling': [], 'tryDisable': [], 'skipped': [], 'error': 'No config available'}
 
         _, profile_data = find_profile(profile_name)
         if not profile_data:
-            return {'staying': [], 'disabling': [], 'error': 'Profile not found'}
+            return {'staying': [], 'disabling': [], 'tryDisable': [], 'skipped': [], 'error': 'Profile not found'}
 
         # The profile's own tab is RST-built — never disable it
         profile_tab = profile_data.get('tab', '')
@@ -204,10 +211,11 @@ class ProfileSelectorAPI:
 
         staying = []
         disabling = []
+        try_disable = []
         skipped = []
 
-        # Build set of names being disabled so we can suppress related loader entries
-        disabling_names = set()
+        # Build set of names being acted on so we can suppress related loader entries
+        acting_names = set()
 
         for name, info in local_addins.items():
             if not info.get('enabled', True):
@@ -233,22 +241,26 @@ class ProfileSelectorAPI:
                 entry = dict(info)
                 entry['skipReason'] = 'No file path found — cannot be disabled by RST'
                 skipped.append(entry)
-            elif info.get('elevated') and _is_program_files(info.get('addinPath', '')):
-                entry = dict(info)
-                entry['skipReason'] = 'Installed in Program Files — requires admin to disable'
-                skipped.append(entry)
+            elif _is_program_files(info.get('addinPath', '')):
+                try_disable.append(info)
+                acting_names.add(name.lower().replace(' ', ''))
             else:
                 disabling.append(info)
-                disabling_names.add(name.lower().replace(' ', ''))
+                acting_names.add(name.lower().replace(' ', ''))
 
-        # Suppress skipped entries whose loader is already being disabled
-        # (e.g. "NonicaTab FREE" skipped but "NonicaTabFREELoader" is disabling)
+        # Suppress skipped entries whose loader is already being acted on
+        # (e.g. "NonicaTab FREE" skipped but "NonicaTabFREELoader" is in tryDisable)
         skipped = [s for s in skipped
                    if not any(d.startswith(s.get('displayName', s.get('tabName', '')).lower().replace(' ', ''))
                              and 'loader' in d
-                             for d in disabling_names)]
+                             for d in acting_names)]
 
-        return {'staying': staying, 'disabling': disabling, 'skipped': skipped}
+        return {
+            'staying': staying,
+            'disabling': disabling,
+            'tryDisable': try_disable,
+            'skipped': skipped,
+        }
 
     def restore_addins(self):
         """Restore all disabled add-ins and update user config."""
@@ -390,6 +402,7 @@ class ProfileSelectorAPI:
         # Re-enable disabled required add-ins (only when disable toggle is on —
         # otherwise addin state is managed exclusively via Restore button)
         restart_needed = False
+        failed_disables = []
         if disable_non_required and revit_version:
             username = self._get_username()
             config = load_user_config(username, revit_version)
@@ -435,10 +448,11 @@ class ProfileSelectorAPI:
                         if addin_file:
                             protected_files.add(addin_file)
 
-            # Build planned operations list from preview
+            # Build planned operations list from preview (normal + tryDisable)
             preview = self.get_disable_preview(profile_name)
             planned = []
-            for info in preview.get('disabling', []):
+            plan_sources = preview.get('disabling', []) + preview.get('tryDisable', [])
+            for info in plan_sources:
                 path = info.get('addinPath', '')
                 if path:
                     planned.append({
@@ -452,19 +466,31 @@ class ProfileSelectorAPI:
                 write_intent_log(username, revit_version, 'disable_unused', profile_name, planned)
 
                 # Perform the renames — pass protected files from profile
-                disable_non_required_addins(required, revit_version, protected_addins=protected_files)
+                result = disable_non_required_addins(required, revit_version, protected_addins=protected_files) or {}
+                failed_paths = set(result.get('failed', []))
 
-                # Update user config
+                # Map failed paths back to display names from preview (tryDisable mostly)
+                for info in plan_sources:
+                    if info.get('addinPath') in failed_paths:
+                        failed_disables.append({
+                            'name': info.get('displayName') or info.get('tabName') or os.path.basename(info.get('addinPath', '')),
+                        })
+
+                # Update user config — only mark successfully disabled files
                 config = load_user_config(username, revit_version)
                 if config:
-                    disabled_files = [os.path.basename(p['path']) for p in planned]
-                    update_addin_states(config, disabled_files, [])
-                    save_user_config(config)
+                    disabled_files = [os.path.basename(p['path']) for p in planned
+                                      if p['path'] not in failed_paths]
+                    if disabled_files:
+                        update_addin_states(config, disabled_files, [])
+                        save_user_config(config)
 
                 # Clear intent log on success
                 clear_intent_log(username, revit_version)
-                restart_needed = True
-                log.info('Disabled %d non-required add-ins', len(planned))
+                if len(planned) - len(failed_paths) > 0:
+                    restart_needed = True
+                log.info('Disabled %d non-required add-ins (%d failed)',
+                         len(planned) - len(failed_paths), len(failed_paths))
 
         # Write active_profile.json
         active = {
@@ -484,7 +510,8 @@ class ProfileSelectorAPI:
             return {'ok': False, 'warnings': ['Failed to save active profile: ' + str(e)]}
 
         log.info('Profile loaded: %s (warnings: %s, restart: %s)', profile_name, warnings, restart_needed)
-        return {'ok': True, 'warnings': warnings, 'restart_needed': restart_needed}
+        return {'ok': True, 'warnings': warnings, 'restart_needed': restart_needed,
+                'failed_disables': failed_disables}
 
     def remove_profile(self, profile_name, profile_id=None):
         log.info('Removing profile: %s [id=%s]', profile_name, profile_id)

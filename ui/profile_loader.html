@@ -561,11 +561,11 @@
     margin-bottom: 8px;
     padding-bottom: 4px;
     border-bottom: 1px solid var(--border);
-    text-align: left;
+    text-align: center;
   }
   .confirm-col-label.staying { color: var(--accent3); }
   .confirm-col-label.disabling { color: var(--warn); }
-  .confirm-col-label.skipped { color: var(--text3); }
+  .confirm-col-label.try-disable { color: var(--danger); }
   .confirm-list {
     max-height: 200px;
     overflow-y: auto;
@@ -574,17 +574,17 @@
     font-size: 10px;
     color: var(--text2);
     line-height: 1.8;
-    direction: rtl;
+    text-align: center;
   }
   .confirm-list::-webkit-scrollbar { width: 3px; }
   .confirm-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .confirm-list-item {
     padding: 2px 0;
-    direction: ltr;
     max-width: 20ch;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin: 0 auto;
   }
   .confirm-restart {
     font-family: 'DM Mono', monospace;
@@ -822,9 +822,9 @@
         <div class="confirm-col-label disabling">Will Be Disabled</div>
         <div class="confirm-list" id="confirmDisabling"></div>
       </div>
-      <div class="confirm-col" id="confirmSkippedWrap" style="display:none">
-        <div class="confirm-col-label skipped">Not Disabled (Admin Req.)</div>
-        <div class="confirm-list" id="confirmSkipped"></div>
+      <div class="confirm-col" id="confirmTryDisableWrap" style="display:none">
+        <div class="confirm-col-label try-disable">Try Disable</div>
+        <div class="confirm-list" id="confirmTryDisable"></div>
       </div>
     </div>
     <div class="confirm-restart">Revit must restart for changes to take effect.</div>
@@ -1258,7 +1258,22 @@
       if (result.warnings && result.warnings.length > 0) {
         result.warnings.forEach(function(w) { lines.push(w); });
       }
-      showLoadingAndClose('Loading ' + selectedProfile.profile, lines.join(' '));
+
+      function proceed() {
+        showLoadingAndClose('Loading ' + selectedProfile.profile, lines.join(' '));
+      }
+
+      var failed = (result.failed_disables || []);
+      if (failed.length > 0) {
+        var names = failed.map(function(f) { return f.name; }).filter(Boolean);
+        var body = (names.length === 1)
+          ? names[0] + ' was not disabled. You do not have admin permissions.'
+          : 'The following add-ins were not disabled (admin permissions required): ' + names.join(', ');
+        RSTmsgInform('Some add-ins skipped', body);
+        setTimeout(proceed, 3000);
+      } else {
+        proceed();
+      }
     }).catch(function(err) {
       RSTmsgInform('Error', 'Error loading profile: ' + (err.message || err));
     });
@@ -1286,7 +1301,7 @@
           RSTmsgInform('Error', preview.error);
           return;
         }
-        showConfirmOverlay(preview.staying, preview.disabling, preview.skipped || []);
+        showConfirmOverlay(preview.staying, preview.disabling, preview.tryDisable || []);
       }).catch(function(err) {
         console.error('get_disable_preview error:', err);
         // Fall through to load without disable
@@ -1299,27 +1314,27 @@
   }
 
   // ── CONFIRM DISABLE OVERLAY ─────────────────────────────────────────────────
-  function showConfirmOverlay(staying, disabling, skipped) {
+  function showConfirmOverlay(staying, disabling, tryDisable) {
     var stayingList = document.getElementById('confirmStaying');
     var disablingList = document.getElementById('confirmDisabling');
-    var skippedList = document.getElementById('confirmSkipped');
-    var skippedWrap = document.getElementById('confirmSkippedWrap');
+    var tryList = document.getElementById('confirmTryDisable');
+    var tryWrap = document.getElementById('confirmTryDisableWrap');
 
-    stayingList.innerHTML = staying.map(function(info) {
+    function renderRow(info) {
       return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
-    }).join('') || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
+    }
 
-    disablingList.innerHTML = disabling.map(function(info) {
-      return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
-    }).join('') || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
+    stayingList.innerHTML = staying.map(renderRow).join('')
+      || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
 
-    if (skipped && skipped.length > 0) {
-      skippedList.innerHTML = skipped.map(function(info) {
-        return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
-      }).join('');
-      skippedWrap.style.display = '';
+    disablingList.innerHTML = disabling.map(renderRow).join('')
+      || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
+
+    if (tryDisable && tryDisable.length > 0) {
+      tryList.innerHTML = tryDisable.map(renderRow).join('');
+      tryWrap.style.display = '';
     } else {
-      skippedWrap.style.display = 'none';
+      tryWrap.style.display = 'none';
     }
 
     document.getElementById('confirmOverlay').classList.add('visible');
