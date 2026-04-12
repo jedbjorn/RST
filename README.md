@@ -4,6 +4,8 @@ Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curate
 
 > **v0.5.0-beta** — functional but still in active development. Use at your own risk.
 
+**Requires:** Windows 10/11 • Revit 2024+ • pyRevit 4.8+ • Python 3.12 • Microsoft Edge WebView2 runtime (ships with Win11 and modern Win10; older systems install from [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/)).
+
 ---
 
 ## What It Does
@@ -22,6 +24,7 @@ Custom Revit ribbon toolbar profile system built on PyRevit. Admins build curate
 - **Blank profiles** — unloading or deleting the active profile writes a BlankRST marker so the RST tab stays alive with branding only
 - **One-click update** — downloads latest from GitHub (zip), preserves user data, reloads automatically
 - **RSTify** — profile-aware tab hiding replaces MinifyUI; auto-activates on load, toggle on/off with icon color feedback
+- **Health** — one-click workstation + Revit session snapshot (CPU/RAM/GPU/Disk, display, network, OS, active model + size, warnings). Includes Clean Junk Files for Temp / PacCache / Journals / Collaboration Cache. All local, no telemetry.
 
 ---
 
@@ -40,19 +43,30 @@ After install, open Revit once to confirm the **pyRevit** tab appears on the rib
 
 RST's admin and loader windows run on CPython 3.12 with pywebview (Python 3.14+ is not yet compatible).
 
+**On ARM64 Windows** — Surface Pro X, Copilot+ PCs, Parallels on Apple Silicon — use the x64 command below. pywebview's native dependencies don't ship ARM64 builds, and Revit itself is x64.
+
 Open PowerShell and run:
 
 ```powershell
+# x64 Windows (most machines)
 winget install --id Python.Python.3.12 --scope user
-py -3.12 -m pip install --user pywebview
-py -3.12 -V
+
+# ARM64 Windows — force x64 install
+winget install --id Python.Python.3.12 --scope user --architecture x64
 ```
 
-The last command should print `Python 3.12.x`.
+Then install pywebview and verify:
+
+```powershell
+py -3.12 -m pip install --user pywebview
+py -3.12 -c "import webview; print('ok')"
+```
+
+The last command should print `ok`. If you see an ImportError, re-run the pywebview install step and check for network or permission errors.
 
 > **No winget?** It ships with Windows 11 and modern Windows 10. If missing, install [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1) from the Microsoft Store first.
 
-> **ARM64 Windows** (Surface Pro X, Copilot+ PCs, Parallels on Apple Silicon): append `--architecture x64` to the winget command. pywebview's native dependencies don't ship ARM64 builds, and Revit itself is x64.
+> **Optional:** `install.bat` in the repo root automates this section (winget check → Python 3.12 → pywebview). User-scope only, no admin required.
 
 ### 3. Add the RST extension
 
@@ -162,6 +176,44 @@ Custom tab visibility manager that replaces pyRevit's MinifyUI:
 
 ### Update
 Downloads latest from GitHub (zip-only), preserves user data, reloads pyRevit with animated message.
+
+### Health
+Point-in-time snapshot of the workstation and Revit session. Launched via the **Snap** pushbutton; also runs automatically when RST loads so data is fresh by the time the user opens the window.
+
+**What it shows** — four collapsible sections, each with a severity dot (ok / soft-warn / warn / danger) driven by threshold rules:
+
+- **Hardware** — CPU (name, cores, live %used), RAM (total, used %), GPU (model, driver, VRAM), Disk C: (SSD/HDD, total, free, used %). Dynamic values are color-coded; identity fields stay neutral.
+- **Display & Network** — primary resolution, monitor count, active adapter + link speed.
+- **Revit** — version + build, Revit username, hardware acceleration setting (from `Revit.ini`), active model name + path + file size (with size thresholds at 1/1.5/2 GB), warnings count with severity breakdown.
+- **Operating System** — Windows name, release, build.
+
+**How it gets the data**
+
+- **RAM / CPU%** — Win32 API via `ctypes` (`GlobalMemoryStatusEx`, `GetSystemTimes`). CPU% is a 500ms-delta snapshot.
+- **CPU name / cores / OS build** — registry (`HKLM\HARDWARE\...\CentralProcessor`) + Python `platform` module.
+- **GPU / Network adapter / Disk type / Monitors** — single PowerShell call against WMI (`Win32_VideoController`, `Win32_NetworkAdapter`, `Get-PhysicalDisk`, `Win32_DesktopMonitor`).
+- **Revit session data** — Revit API on the IronPython side (version, build, username, active model, warnings).
+- **Hardware acceleration flag** — parsed from `%APPDATA%\Autodesk\Revit\Autodesk Revit <ver>\Revit.ini`.
+- **Model file size** — `.NET FileInfo` on the local file. For ACC / BIM 360 models whose `doc.PathName` is a cloud URL, falls back to walking `%LOCALAPPDATA%\Autodesk\Revit\<ver>\CollaborationCache` (matching by project/model GUID when available, otherwise newest `.rvt` mtime).
+
+**Triggers**
+
+- **On RST load** — fire-and-forget background scan (~1–3s), no model context since no document is open yet.
+- **On Snap click** — synchronous scan with full Revit context, so the viewer opens on fresh data. Clean Junk Files and Close buttons live in the viewer footer.
+
+**Privacy**
+
+Everything stays on the workstation. The viewer reads `data/health_scan.json` from the extension folder. No network calls, nothing sent anywhere.
+
+### Clean Junk Files
+Bottom-right button in the Health viewer. Opens a modal with per-category toggles (all ON by default):
+
+- **Windows Temp Files** — everything in `%LOCALAPPDATA%\Temp`
+- **Revit PacCache** — Revit package cache
+- **Revit Journals** — all journal files, every installed Revit version
+- **Collaboration Cache** — central model cache, excluding today's activity
+
+Confirm → delete → result message with per-category counts. Files locked by running applications are skipped automatically (matches the original Dynamo script behavior). Safe to run with Revit open — anything Revit holds open survives.
 
 ### Reload
 Triggers pyRevit reload to apply changes.
@@ -315,6 +367,12 @@ Add entries for firm-specific add-ins. Changes take effect on next Profiler/Load
 **`protected_addins`** — never touched by RST. **`exempt_paths`** — entire directories RST will never modify. Supports environment variables.
 
 Both files are preserved across updates.
+
+---
+
+## Uninstall
+
+Remove the RST entry from **pyRevit → Extensions → Manage** (or delete the RST folder from any Custom Extension Directory you registered). Reload pyRevit. Python 3.12 and pywebview can stay — they're harmless and may be used by other tools.
 
 ---
 
