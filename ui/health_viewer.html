@@ -15,6 +15,7 @@
     --border2: #3a4560;
     --accent: #4f8ef7;
     --accent3: #10b981;
+    --warn-soft: #eab308;
     --warn: #f59e0b;
     --danger: #ef4444;
     --text: #e2e8f0;
@@ -176,9 +177,11 @@
     flex-shrink: 0;
     background: var(--text3);
   }
-  .rst-section__dot--ok { background: var(--accent3); }
-  .rst-section__dot--warn { background: var(--warn); }
-  .rst-section__dot--info { background: var(--accent); }
+  .rst-section__dot--ok        { background: var(--accent3); }
+  .rst-section__dot--warn-soft { background: var(--warn-soft); }
+  .rst-section__dot--warn      { background: var(--warn); }
+  .rst-section__dot--danger    { background: var(--danger); }
+  .rst-section__dot--info      { background: var(--accent); }
 
   /* ── ROW ────────────────────────────────────────────────────────────── */
   .rst-section__row {
@@ -206,9 +209,11 @@
     word-break: break-word;
   }
 
-  .rst-section__row-value--muted { color: var(--text3); font-style: italic; }
-  .rst-section__row-value--ok    { color: var(--accent3); }
-  .rst-section__row-value--warn  { color: var(--warn); }
+  .rst-section__row-value--muted     { color: var(--text3); font-style: italic; }
+  .rst-section__row-value--ok        { color: var(--accent3); }
+  .rst-section__row-value--warn-soft { color: var(--warn-soft); }
+  .rst-section__row-value--warn      { color: var(--warn); }
+  .rst-section__row-value--danger    { color: var(--danger); }
 
   /* Inline sub-value (monospace, smaller) */
   .sub {
@@ -312,10 +317,26 @@
     const mdl  = rv.model     || {};
     const wbs  = rv.warningsBySeverity || {};
 
-    // Heuristic status dots
-    const ramWarn  = (ram.usedPercent != null && ram.usedPercent >= 85);
-    const diskWarn = (disk.usedPercent != null && disk.usedPercent >= 90);
-    const hwDot    = (ramWarn || diskWarn) ? 'warn' : 'ok';
+    // Severity ranking: ok < warn-soft < warn < danger
+    const sevRank = { 'ok': 0, 'warn-soft': 1, 'warn': 2, 'danger': 3 };
+    const worse = (a, b) => sevRank[a] >= sevRank[b] ? a : b;
+
+    // RAM: <75% ok · 75-85% warn · >=85% danger
+    let ramSev = 'ok';
+    if (ram.usedPercent != null) {
+      if (ram.usedPercent >= 85) ramSev = 'danger';
+      else if (ram.usedPercent >= 75) ramSev = 'warn';
+    }
+
+    // Disk free: >100GB ok · 50-100GB warn-soft · 30-50GB warn · <30GB danger
+    let diskSev = 'ok';
+    if (disk.availableGB != null) {
+      if (disk.availableGB < 30) diskSev = 'danger';
+      else if (disk.availableGB < 50) diskSev = 'warn';
+      else if (disk.availableGB < 100) diskSev = 'warn-soft';
+    }
+
+    const hwDot = worse(ramSev, diskSev);
 
     const accelWarn = (rv.hardwareAcceleration === false);
     const warnLot   = (rv.warningsCount != null && rv.warningsCount >= 500);
@@ -329,7 +350,6 @@
       section({
         title: 'Hardware',
         dotClass: hwDot,
-        open: true,
         rows: [
           row('User', id.windowsUsername),
           row('CPU', cpu.name
@@ -337,13 +357,13 @@
             : null),
           row('RAM', (ram.totalMB != null)
             ? `${fmt.mb(ram.totalMB)}<span class="sub">${fmt.mb(ram.usedMB)} used · ${fmt.pct(ram.usedPercent)}</span>`
-            : null, ramWarn ? 'warn' : null),
+            : null, ramSev !== 'ok' ? ramSev : null),
           row('GPU', gpu.name
             ? `${gpu.name}<span class="sub">driver ${fmt.str(gpu.driverVersion)} · VRAM ${fmt.mb(gpu.vramTotalMB)}</span>`
             : null),
           row('Disk (C:)', (disk.totalGB != null)
             ? `${fmt.str(disk.friendlyName)}<span class="sub">${fmt.str(disk.type)} · ${fmt.gb(disk.availableGB)} free of ${fmt.gb(disk.totalGB)} · ${fmt.pct(disk.usedPercent)} used</span>`
-            : null, diskWarn ? 'warn' : null),
+            : null, diskSev !== 'ok' ? diskSev : null),
         ],
       }),
 
@@ -363,7 +383,6 @@
       section({
         title: 'Revit',
         dotClass: revitDot,
-        open: true,
         rows: [
           row('Version', rv.version
             ? `${rv.version}<span class="sub">build ${fmt.str(rv.build)}</span>`
