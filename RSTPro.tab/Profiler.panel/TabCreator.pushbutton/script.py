@@ -368,13 +368,49 @@ try:
 except Exception:
     pass
 
+# Get Revit build
+revit_build = None
+try:
+    revit_build = str(__revit__.Application.VersionBuild)
+except Exception:
+    pass
+
+# Get active model info + warnings
+_model_name = ''
+_model_path = ''
+_warnings_count = None
+_warnings_by_severity = {}
+try:
+    doc = __revit__.ActiveUIDocument.Document
+    if doc:
+        _model_name = str(doc.Title) if doc.Title else ''
+        _model_path = str(doc.PathName) if doc.PathName else ''
+        try:
+            _w = list(doc.GetWarnings())
+            _warnings_count = len(_w)
+            for fm in _w:
+                try:
+                    sev = str(fm.GetSeverity()).split('.')[-1]
+                except Exception:
+                    sev = 'Unknown'
+                _warnings_by_severity[sev] = _warnings_by_severity.get(sev, 0) + 1
+        except Exception as e:
+            log.warning('Could not read document warnings: %s', e)
+except Exception:
+    pass
+
 log.info('Revit %s, %d commands, %d loaded add-ins, username=%s',
          revit_version, len(commands), len(loaded_addins), revit_username)
 
 # Write to temp file for CPython to read
 revit_data = {
     'revit_version': revit_version,
+    'revit_build': revit_build,
     'revit_username': revit_username,
+    'model_name': _model_name,
+    'model_path': _model_path,
+    'warnings_count': _warnings_count,
+    'warnings_by_severity': _warnings_by_severity,
     'commands': commands,
     'loaded_addins': loaded_addins,
     'all_tabs': _all_tabs,

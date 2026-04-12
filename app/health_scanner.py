@@ -249,6 +249,39 @@ def _parse_display(wmi):
 
 # ── Model Info ───────────────────────────────────────────────────────────────
 
+def _get_hardware_acceleration(revit_version):
+    """Read UseHardwareAcceleration from the per-user Revit.ini.
+
+    Returns True / False / None (None if the ini or key can't be resolved).
+    Revit stores graphics settings under [Graphics] in:
+        %APPDATA%\\Autodesk\\Revit\\Autodesk Revit <version>\\Revit.ini
+    """
+    if not revit_version:
+        return None
+    appdata = os.environ.get('APPDATA', '')
+    if not appdata:
+        return None
+    ini_path = os.path.join(appdata, 'Autodesk', 'Revit',
+                            'Autodesk Revit %s' % revit_version, 'Revit.ini')
+    if not os.path.exists(ini_path):
+        return None
+    try:
+        in_graphics = False
+        with open(ini_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for raw in f:
+                line = raw.strip()
+                if line.startswith('[') and line.endswith(']'):
+                    in_graphics = (line.lower() == '[graphics]')
+                    continue
+                if in_graphics and '=' in line:
+                    key, _, val = line.partition('=')
+                    if key.strip().lower() == 'usehardwareacceleration':
+                        return val.strip() == '1'
+    except OSError as e:
+        log.warning('Failed to read Revit.ini at %s: %s', ini_path, e)
+    return None
+
+
 def _get_model_info(model_name, model_path):
     """Return model metadata including file size."""
     info = {
@@ -269,7 +302,8 @@ def _get_model_info(model_name, model_path):
 
 def capture_health_snapshot(revit_version=None, revit_build=None,
                             revit_username=None,
-                            model_name=None, model_path=None):
+                            model_name=None, model_path=None,
+                            warnings_count=None, warnings_by_severity=None):
     """Capture a full system health snapshot.
 
     Parameters are optional — pass what's available from the Revit session.
@@ -296,10 +330,13 @@ def capture_health_snapshot(revit_version=None, revit_build=None,
         'network': _parse_network(wmi),
         'os':      _get_os(),
         'revit': {
-            'version':  revit_version or '',
-            'build':    revit_build or '',
-            'username': revit_username or '',
-            'model':    _get_model_info(model_name, model_path),
+            'version':               revit_version or '',
+            'build':                  revit_build or '',
+            'username':               revit_username or '',
+            'hardwareAcceleration':   _get_hardware_acceleration(revit_version),
+            'model':                  _get_model_info(model_name, model_path),
+            'warningsCount':          warnings_count,
+            'warningsBySeverity':     warnings_by_severity or {},
         },
     }
 

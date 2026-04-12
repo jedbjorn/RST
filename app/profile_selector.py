@@ -554,7 +554,8 @@ class ProfileSelectorAPI:
 
 
 def _run_health_scan(revit_version, revit_build, revit_username,
-                     model_name=None, model_path=None):
+                     model_name=None, model_path=None,
+                     warnings_count=None, warnings_by_severity=None):
     """Run health scan in background thread so it doesn't block UI."""
     try:
         from health_scanner import capture_health_snapshot, save_health_snapshot
@@ -565,6 +566,8 @@ def _run_health_scan(revit_version, revit_build, revit_username,
             revit_username=revit_username,
             model_name=model_name,
             model_path=model_path,
+            warnings_count=warnings_count,
+            warnings_by_severity=warnings_by_severity,
         )
         save_health_snapshot(snapshot, HEALTH_SCAN_PATH)
     except Exception as e:
@@ -583,8 +586,15 @@ if __name__ == '__main__':
     import threading
     _health_thread = threading.Thread(
         target=_run_health_scan,
-        args=(_revit_ver, _loader_data.get('revit_build'), _loader_data.get('revit_username'),
-              _loader_data.get('model_name'), _loader_data.get('model_path')),
+        kwargs={
+            'revit_version':        _revit_ver,
+            'revit_build':          _loader_data.get('revit_build'),
+            'revit_username':       _loader_data.get('revit_username'),
+            'model_name':           _loader_data.get('model_name'),
+            'model_path':           _loader_data.get('model_path'),
+            'warnings_count':       _loader_data.get('warnings_count'),
+            'warnings_by_severity': _loader_data.get('warnings_by_severity') or {},
+        },
         daemon=True,
     )
     _health_thread.start()

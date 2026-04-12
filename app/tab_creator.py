@@ -427,6 +427,31 @@ class TabCreatorAPI:
 
 if __name__ == '__main__':
     log.info('=== TabCreator starting ===')
+    # Run health scan in background so it doesn't block UI
+    try:
+        import threading
+        from health_scanner import capture_health_snapshot, save_health_snapshot
+        from rst_lib import HEALTH_SCAN_PATH
+
+        def _run_health_scan():
+            try:
+                snapshot = capture_health_snapshot(
+                    revit_version=_revit_data.get('revit_version'),
+                    revit_build=_revit_data.get('revit_build'),
+                    revit_username=_revit_data.get('revit_username'),
+                    model_name=_revit_data.get('model_name'),
+                    model_path=_revit_data.get('model_path'),
+                    warnings_count=_revit_data.get('warnings_count'),
+                    warnings_by_severity=_revit_data.get('warnings_by_severity') or {},
+                )
+                save_health_snapshot(snapshot, HEALTH_SCAN_PATH)
+            except Exception as e:
+                log.warning('Health scan failed: %s', e)
+
+        threading.Thread(target=_run_health_scan, daemon=True).start()
+    except Exception as e:
+        log.warning('Could not start health scan thread: %s', e)
+
     api = TabCreatorAPI()
     try:
         import ctypes
