@@ -844,6 +844,22 @@ def _on_idling_style(sender, args):
         log.warning('Tab hiding failed: %s', e)
 
 
+def _spawn_health_scan_on_load():
+    """Spawn CPython health scan runner in the background on RST load.
+    Fire-and-forget — child writes HEALTH_SCAN_PATH when done (~1-3s)."""
+    try:
+        import subprocess
+        runner = os.path.join(_root, 'app', 'health_scan_runner.py')
+        version = _get_revit_version() or ''
+        argv = ['py', '-3.12', runner]
+        if version:
+            argv += ['--revit-version', version]
+        subprocess.Popen(argv, creationflags=0x08000000)  # CREATE_NO_WINDOW
+        log.info('Spawned health scan runner on RST load (version=%s)', version or '—')
+    except Exception as e:
+        log.warning('Could not spawn health scan on load: %s', e)
+
+
 # Always build immediately — ApplicationInitialized only fires on initial
 # Revit launch and is missed on pyRevit reloads. Since startup.py runs
 # after Revit and all add-ins are loaded, immediate build is safe.
@@ -859,3 +875,4 @@ if active and profile:
 else:
     log.info('No active profile — nothing to build')
 _schedule_admin_styling()
+_spawn_health_scan_on_load()
