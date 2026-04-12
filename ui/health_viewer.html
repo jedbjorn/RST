@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RST — Health</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="rst_components.css">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2536;
+    --surface3: #242d42;
+    --border: #2a3347;
+    --border2: #3a4560;
+    --accent: #4f8ef7;
+    --accent3: #10b981;
+    --warn-soft: #eab308;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --heading: #f8fafc;
+    --header-h: 54px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .window-header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .window-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--heading);
+    letter-spacing: 0.01em;
+  }
+
+  .header-meta {
+    margin-left: auto;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+
+  .header-meta span {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .header-meta strong {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text);
+    margin-left: 6px;
+  }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  .content-inner {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  /* ── EMPTY / ERROR STATE ─────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+    color: var(--text3);
+  }
+  .empty-state h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 13px;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  /* ── EXPANDABLE SECTION ──────────────────────────────────────────────── */
+  .rst-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .rst-section[open] {
+    border-color: var(--border2);
+  }
+
+  .rst-section__summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    user-select: none;
+    transition: background 0.12s;
+  }
+
+  .rst-section__summary::-webkit-details-marker { display: none; }
+
+  .rst-section__summary:hover { background: var(--surface2); }
+
+  .rst-section[open] .rst-section__summary {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rst-section__title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--heading);
+    letter-spacing: 0.01em;
+    flex: 1;
+  }
+
+  .rst-section__chevron {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--text2);
+    border-bottom: 1.5px solid var(--text2);
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .rst-section[open] .rst-section__chevron {
+    transform: rotate(45deg);
+  }
+
+  .rst-section__body {
+    padding: 4px 18px 8px;
+    background: var(--surface);
+  }
+
+  .rst-section__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text3);
+  }
+  .rst-section__dot--ok        { background: var(--accent3); }
+  .rst-section__dot--warn-soft { background: var(--warn-soft); }
+  .rst-section__dot--warn      { background: var(--warn); }
+  .rst-section__dot--danger    { background: var(--danger); }
+  .rst-section__dot--info      { background: var(--accent); }
+
+  /* ── ROW ────────────────────────────────────────────────────────────── */
+  .rst-section__row {
+    display: flex;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .rst-section__row:last-child { border-bottom: none; }
+
+  .rst-section__row-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+    width: 160px;
+    flex-shrink: 0;
+  }
+
+  .rst-section__row-value {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .rst-section__row-value--muted     { color: var(--text3); font-style: italic; }
+  .rst-section__row-value--ok        { color: var(--accent3); }
+  .rst-section__row-value--warn-soft { color: var(--warn-soft); }
+  .rst-section__row-value--warn      { color: var(--warn); }
+  .rst-section__row-value--danger    { color: var(--danger); }
+
+  /* Inline sub-value (monospace, smaller) */
+  .sub {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 3px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Severity tint applied to the entire .sub line */
+  .sub--ok        { color: var(--accent3); }
+  .sub--warn-soft { color: var(--warn-soft); }
+  .sub--warn      { color: var(--warn); }
+  .sub--danger    { color: var(--danger); }
+
+  /* Severity tint applied to a single inline token inside a .sub
+     (used when only part of the sub is dynamic, e.g. CPU %used) */
+  .sub-accent--ok        { color: var(--accent3); }
+  .sub-accent--warn-soft { color: var(--warn-soft); }
+  .sub-accent--warn      { color: var(--warn); }
+  .sub-accent--danger    { color: var(--danger); }
+
+  /* ── FOOTER ──────────────────────────────────────────────────────────── */
+  .window-footer {
+    height: 52px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 18px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .rst-footer-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    background: var(--surface3);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .rst-footer-btn:hover { background: var(--surface2); }
+
+  .rst-footer-btn--clean:hover {
+    background: rgba(245,158,11,0.18);
+    color: var(--warn);
+    border-color: rgba(245,158,11,0.45);
+  }
+
+  /* ── JUNK CLEANUP MODAL ──────────────────────────────────────────────── */
+  .rst-junk-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .rst-junk-overlay.visible { opacity: 1; pointer-events: auto; }
+
+  .rst-junk-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 24px 28px;
+    width: 480px;
+    max-width: 92%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+
+  .rst-junk-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--heading);
+    margin-bottom: 4px;
+  }
+
+  .rst-junk-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .rst-junk-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .rst-junk-row:last-of-type { border-bottom: none; }
+
+  .rst-junk-row-text { flex: 1; }
+
+  .rst-junk-row-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .rst-junk-row-hint {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+
+  .rst-junk-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+
+  .rst-junk-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 18px;
+    cursor: pointer;
+    background: var(--surface3);
+    color: var(--text3);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .rst-junk-btn:hover { background: var(--surface2); }
+
+  .rst-junk-btn--primary {
+    background: rgba(245,158,11,0.18);
+    color: var(--warn);
+    border-color: rgba(245,158,11,0.45);
+  }
+  .rst-junk-btn--primary:hover { background: rgba(245,158,11,0.28); }
+</style>
+<script src="rst_messages.js"></script>
+</head>
+<body>
+  <div class="window-header">
+    <div class="window-title">RST · HEALTH SNAPSHOT</div>
+    <div class="header-meta">
+      <span>DEVICE<strong data-field="device">—</strong></span>
+      <span>CAPTURED<strong data-field="captured">—</strong></span>
+    </div>
+  </div>
+
+  <div class="content rst-scroll">
+    <div class="content-inner" id="sections">
+      <!-- Sections rendered by JS -->
+    </div>
+  </div>
+
+  <div class="window-footer">
+    <button type="button" class="rst-footer-btn rst-footer-btn--clean" id="btnClean">Clean Junk Files</button>
+    <button type="button" class="rst-footer-btn" id="btnClose">Close</button>
+  </div>
+
+  <div class="rst-junk-overlay" id="junkOverlay">
+    <div class="rst-junk-card">
+      <div class="rst-junk-title">Clean Junk Files</div>
+      <div class="rst-junk-subtitle">Deselect any category to skip. Files locked by running applications are skipped automatically.</div>
+
+      <div class="rst-junk-row">
+        <div class="rst-junk-row-text">
+          <div class="rst-junk-row-label">Windows Temp Files</div>
+          <span class="rst-junk-row-hint">Everything in %LOCALAPPDATA%\Temp</span>
+        </div>
+        <label class="rst-toggle">
+          <input type="checkbox" data-category="temp" checked>
+          <div class="rst-toggle-track"><div class="rst-toggle-thumb"></div></div>
+        </label>
+      </div>
+
+      <div class="rst-junk-row">
+        <div class="rst-junk-row-text">
+          <div class="rst-junk-row-label">Revit PacCache</div>
+          <span class="rst-junk-row-hint">Revit package cache</span>
+        </div>
+        <label class="rst-toggle">
+          <input type="checkbox" data-category="pacCache" checked>
+          <div class="rst-toggle-track"><div class="rst-toggle-thumb"></div></div>
+        </label>
+      </div>
+
+      <div class="rst-junk-row">
+        <div class="rst-junk-row-text">
+          <div class="rst-junk-row-label">Revit Journals</div>
+          <span class="rst-junk-row-hint">All journal files, every installed Revit version</span>
+        </div>
+        <label class="rst-toggle">
+          <input type="checkbox" data-category="journals" checked>
+          <div class="rst-toggle-track"><div class="rst-toggle-thumb"></div></div>
+        </label>
+      </div>
+
+      <div class="rst-junk-row">
+        <div class="rst-junk-row-text">
+          <div class="rst-junk-row-label">Collaboration Cache</div>
+          <span class="rst-junk-row-hint">Central model cache, excluding today's activity</span>
+        </div>
+        <label class="rst-toggle">
+          <input type="checkbox" data-category="collabCache" checked>
+          <div class="rst-toggle-track"><div class="rst-toggle-thumb"></div></div>
+        </label>
+      </div>
+
+      <div class="rst-junk-actions">
+        <button type="button" class="rst-junk-btn" id="junkCancel">Cancel</button>
+        <button type="button" class="rst-junk-btn rst-junk-btn--primary" id="junkRun">Clean Selected</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const fmt = {
+    mb(n) { return (n == null) ? '—' : n.toLocaleString() + ' MB'; },
+    gb(n) { return (n == null) ? '—' : n.toLocaleString() + ' GB'; },
+    pct(n) { return (n == null) ? '—' : n + '%'; },
+    num(n) { return (n == null) ? '—' : n.toLocaleString(); },
+    str(s) { return (s == null || s === '') ? '—' : s; },
+    bool(v) {
+      if (v === true) return 'Enabled';
+      if (v === false) return 'Disabled';
+      return 'Unknown';
+    },
+    mbps(n) { return (n == null) ? '—' : n.toLocaleString() + ' Mbps'; },
+    time(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch { return iso; }
+    },
+  };
+
+  function row(label, value, cls) {
+    const valClass = cls ? ` rst-section__row-value--${cls}` : '';
+    const v = (value === null || value === undefined || value === '') ? '—' : value;
+    const muted = (v === '—') ? ' rst-section__row-value--muted' : '';
+    return `
+      <div class="rst-section__row">
+        <div class="rst-section__row-label">${label}</div>
+        <div class="rst-section__row-value${valClass}${muted}">${v}</div>
+      </div>`;
+  }
+
+  function section(opts) {
+    const { title, dotClass = '', open = false, rows = [] } = opts;
+    return `
+      <details class="rst-section"${open ? ' open' : ''}>
+        <summary class="rst-section__summary">
+          ${dotClass ? `<span class="rst-section__dot rst-section__dot--${dotClass}"></span>` : ''}
+          <span class="rst-section__title">${title}</span>
+          <span class="rst-section__chevron"></span>
+        </summary>
+        <div class="rst-section__body">
+          ${rows.join('')}
+        </div>
+      </details>`;
+  }
+
+  function render(snap) {
+    const host = document.getElementById('sections');
+
+    if (!snap) {
+      host.innerHTML = `
+        <div class="empty-state">
+          <h2>No health snapshot yet</h2>
+          <p>Open Revit and click <strong>Profiler</strong> or <strong>Loader</strong> once to capture a snapshot, then reopen this window.</p>
+        </div>`;
+      return;
+    }
+
+    // Header meta
+    const id = snap.identity || {};
+    document.querySelector('[data-field="device"]').textContent = id.deviceName || '—';
+    document.querySelector('[data-field="captured"]').textContent = fmt.time(snap.captureTimestamp);
+
+    const cpu  = snap.cpu     || {};
+    const ram  = snap.ram     || {};
+    const gpu  = snap.gpu     || {};
+    const disk = snap.disk    || {};
+    const dsp  = snap.display || {};
+    const net  = snap.network || {};
+    const os   = snap.os      || {};
+    const rv   = snap.revit   || {};
+    const mdl  = rv.model     || {};
+    const wbs  = rv.warningsBySeverity || {};
+
+    // Severity ranking: ok < warn-soft < warn < danger
+    const sevRank = { 'ok': 0, 'warn-soft': 1, 'warn': 2, 'danger': 3 };
+    const worse = (a, b) => sevRank[a] >= sevRank[b] ? a : b;
+
+    // RAM: <75% ok · 75-85% warn · >=85% danger
+    let ramSev = 'ok';
+    if (ram.usedPercent != null) {
+      if (ram.usedPercent >= 85) ramSev = 'danger';
+      else if (ram.usedPercent >= 75) ramSev = 'warn';
+    }
+
+    // CPU (single-sample, noisy — generous thresholds):
+    //   <60 ok · 60-80 warn-soft · 80-90 warn · >=90 danger
+    let cpuSev = 'ok';
+    if (cpu.usedPercent != null) {
+      if (cpu.usedPercent >= 90) cpuSev = 'danger';
+      else if (cpu.usedPercent >= 80) cpuSev = 'warn';
+      else if (cpu.usedPercent >= 60) cpuSev = 'warn-soft';
+    }
+
+    // Disk free: >100GB ok · 50-100GB warn-soft · 30-50GB warn · <30GB danger
+    let diskSev = 'ok';
+    if (disk.availableGB != null) {
+      if (disk.availableGB < 30) diskSev = 'danger';
+      else if (disk.availableGB < 50) diskSev = 'warn';
+      else if (disk.availableGB < 100) diskSev = 'warn-soft';
+    }
+
+    // Model size: <1GB ok · 1-1.5GB warn-soft · 1.5-2GB warn · >=2GB danger
+    let modelSev = 'ok';
+    if (mdl.sizeMB != null) {
+      if (mdl.sizeMB >= 2048) modelSev = 'danger';
+      else if (mdl.sizeMB >= 1536) modelSev = 'warn';
+      else if (mdl.sizeMB >= 1024) modelSev = 'warn-soft';
+    }
+
+    const hwDot = worse(worse(ramSev, diskSev), cpuSev);
+
+    // Helper: build a .sub with optional severity class (whole sub colored)
+    const subCls = (sev) => (sev && sev !== 'ok') ? ` sub--${sev}` : '';
+
+    const accelWarn = (rv.hardwareAcceleration === false);
+    const warnLot   = (rv.warningsCount != null && rv.warningsCount >= 500);
+    const revitDot  = (accelWarn || warnLot) ? 'warn' : 'info';
+
+    const severityBreakdown = Object.keys(wbs).length
+      ? Object.entries(wbs).map(([k, v]) => `${k}: ${v}`).join(' · ')
+      : '';
+
+    const html = [
+      section({
+        title: 'Hardware',
+        dotClass: hwDot,
+        rows: [
+          row('User', id.windowsUsername),
+          row('CPU', cpu.name
+            ? `${cpu.name}<span class="sub">${cpu.physicalCores || '?'} cores · ${cpu.logicalCores || '?'} logical${
+                cpu.usedPercent != null
+                  ? ` · <span class="sub-accent--${cpuSev}">${fmt.pct(cpu.usedPercent)} used</span>`
+                  : ''
+              }</span>`
+            : null),
+          row('RAM', (ram.totalMB != null)
+            ? `${fmt.mb(ram.totalMB)}<span class="sub${subCls(ramSev)}">${fmt.mb(ram.usedMB)} used · ${fmt.pct(ram.usedPercent)}</span>`
+            : null),
+          row('GPU', gpu.name
+            ? `${gpu.name}<span class="sub">driver ${fmt.str(gpu.driverVersion)} · VRAM ${fmt.mb(gpu.vramTotalMB)}</span>`
+            : null),
+          row('Disk (C:)', (disk.totalGB != null)
+            ? `${fmt.str(disk.friendlyName)}<span class="sub${subCls(diskSev)}">${fmt.str(disk.type)} · ${fmt.gb(disk.availableGB)} free of ${fmt.gb(disk.totalGB)} · ${fmt.pct(disk.usedPercent)} used</span>`
+            : null),
+        ],
+      }),
+
+      section({
+        title: 'Display & Network',
+        dotClass: 'info',
+        rows: [
+          row('Resolution', dsp.primaryResolution),
+          row('Monitors', fmt.num(dsp.monitorCount)),
+          row('Adapter', net.adapterName
+            ? `${net.adapterName}<span class="sub">${fmt.str(net.type)}</span>`
+            : null),
+          row('Speed', fmt.mbps(net.speedMbps)),
+        ],
+      }),
+
+      section({
+        title: 'Revit',
+        dotClass: revitDot,
+        rows: [
+          row('Version', rv.version
+            ? `${rv.version}<span class="sub">build ${fmt.str(rv.build)}</span>`
+            : null),
+          row('Username', rv.username),
+          row('Hardware Accel',
+            fmt.bool(rv.hardwareAcceleration),
+            rv.hardwareAcceleration === true ? 'ok' :
+            rv.hardwareAcceleration === false ? 'warn' : null),
+          row('Model', mdl.name
+            ? `${mdl.name}${
+                mdl.path ? `<span class="sub">${mdl.path}</span>` : ''
+              }${
+                mdl.sizeMB != null ? `<span class="sub${subCls(modelSev)}">${mdl.sizeMB.toLocaleString()} MB</span>` : ''
+              }`
+            : null),
+          row('Warnings', (rv.warningsCount != null)
+            ? `${fmt.num(rv.warningsCount)}${severityBreakdown ? `<span class="sub">${severityBreakdown}</span>` : ''}`
+            : null, warnLot ? 'warn' : null),
+        ],
+      }),
+
+      section({
+        title: 'Operating System',
+        rows: [
+          row('Name', [os.name, os.release].filter(Boolean).join(' ') || null),
+          row('Build', os.build || os.version),
+        ],
+      }),
+    ].join('');
+
+    host.innerHTML = html;
+  }
+
+  async function load() {
+    try {
+      const snap = await window.pywebview.api.get_snapshot();
+      render(snap);
+    } catch (e) {
+      render(null);
+    }
+  }
+
+  window.addEventListener('pywebviewready', load);
+
+  // ── Footer buttons + Junk cleanup modal ──────────────────────────────────
+  const junkOverlay = document.getElementById('junkOverlay');
+
+  document.getElementById('btnClose').addEventListener('click', function () {
+    window.pywebview.api.close_window();
+  });
+
+  document.getElementById('btnClean').addEventListener('click', function () {
+    junkOverlay.classList.add('visible');
+  });
+
+  document.getElementById('junkCancel').addEventListener('click', function () {
+    junkOverlay.classList.remove('visible');
+  });
+
+  document.getElementById('junkRun').addEventListener('click', async function () {
+    const cats = {};
+    junkOverlay.querySelectorAll('input[data-category]').forEach(function (el) {
+      cats[el.dataset.category] = el.checked;
+    });
+
+    const anySelected = Object.values(cats).some(Boolean);
+    junkOverlay.classList.remove('visible');
+
+    if (!anySelected) {
+      RSTmsgInform('Nothing selected', 'No categories were chosen for cleanup.');
+      return;
+    }
+
+    const confirmed = await RSTmsgConfirm(
+      'Delete selected junk?',
+      'This will permanently delete files in the selected categories. Files locked by running applications are skipped.'
+    );
+    if (!confirmed) return;
+
+    RSTmsgWait('Cleaning', 'Deleting selected junk files');
+    try {
+      const result = await window.pywebview.api.clean_junk(cats);
+      RSTmsgWaitClose();
+      const parts = [];
+      if (cats.temp)        parts.push(result.temp.toLocaleString() + ' Temp');
+      if (cats.pacCache)    parts.push(result.pacCache.toLocaleString() + ' PacCache');
+      if (cats.journals)    parts.push(result.journals.toLocaleString() + ' Journal');
+      if (cats.collabCache) parts.push(result.collabCache.toLocaleString() + ' Collab');
+      RSTmsgInform('Cleanup complete', parts.join(' · ') + ' files deleted');
+    } catch (e) {
+      RSTmsgWaitClose();
+      RSTmsgInform('Cleanup failed', String(e));
+    }
+  });
+</script>
+</body>
+</html>

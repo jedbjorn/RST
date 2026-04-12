@@ -1,0 +1,99 @@
+/* rst_components.css — Shared UI component library for RSTPro
+   Import in any HTML file: <link rel="stylesheet" href="rst_components.css">
+   Uses CSS custom properties from the host page (--surface3, --border2, --accent3, --warn, --text3, --border). */
+
+/* ── TOGGLE SWITCH ────────────────────────────────────────────────────────────
+   Usage:
+     <label class="rst-toggle">
+       <input type="checkbox">
+       <div class="rst-toggle-track"><div class="rst-toggle-thumb"></div></div>
+     </label>
+
+   Modifier classes on <label>:
+     .rst-toggle--green-orange  — green when ON, orange when OFF (default)
+     .rst-toggle--warn          — orange/warn when ON (e.g. RSTify hide)
+     .rst-toggle--disabled      — greyed out, non-interactive
+*/
+
+.rst-toggle {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.rst-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.rst-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: rgba(245,158,11,0.18);
+  border: 1px solid rgba(245,158,11,0.45);
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.rst-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--warn, #f59e0b);
+  transition: transform 0.2s, background 0.2s;
+}
+
+/* Default (green-orange): OFF = orange, ON = green */
+.rst-toggle input:checked + .rst-toggle-track {
+  background: rgba(16,185,129,0.18);
+  border-color: rgba(16,185,129,0.45);
+}
+
+.rst-toggle input:checked + .rst-toggle-track .rst-toggle-thumb {
+  transform: translateX(13px);
+  background: var(--accent3, #10b981);
+}
+
+/* Warn modifier: OFF = neutral, ON = orange */
+.rst-toggle--warn .rst-toggle-track {
+  background: var(--surface3, #242d42);
+  border: 1px solid var(--border2, #3a4560);
+}
+
+.rst-toggle--warn .rst-toggle-thumb {
+  background: var(--text3, #64748b);
+}
+
+.rst-toggle--warn input:checked + .rst-toggle-track {
+  background: rgba(245,158,11,0.18);
+  border-color: rgba(245,158,11,0.45);
+}
+
+.rst-toggle--warn input:checked + .rst-toggle-track .rst-toggle-thumb {
+  transform: translateX(13px);
+  background: var(--warn, #f59e0b);
+}
+
+/* Disabled state */
+.rst-toggle--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+
+/* ── SCROLLBAR ────────────────────────────────────────────────────────────────
+   Apply .rst-scroll to any scrollable container.
+   Provides a minimal 3px scrollbar matching RSTPro's dark UI.
+*/
+
+.rst-scroll::-webkit-scrollbar { width: 3px; height: 3px; }
+.rst-scroll::-webkit-scrollbar-thumb { background: var(--border, #2a3347); border-radius: 2px; }
+.rst-scroll::-webkit-scrollbar-track { background: transparent; }

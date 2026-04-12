@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RST — Profile Selector</title>
+<!-- NOTE: Window size is 1450x900. Set in profile_selector.py. -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2536;
+    --surface3: #242d42;
+    --border: #2a3347;
+    --border2: #3a4560;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --heading: #f8fafc;
+    --header-h: 54px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .window-header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .window-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--heading);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .header-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .header-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .header-field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+
+  .add-profile-btn {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 4px;
+    background: rgba(79,142,247,0.08);
+    border: 1px solid rgba(79,142,247,0.35);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add-profile-btn:hover { background: var(--accent); color: #0f1117; border-color: var(--accent); }
+
+  /* ── BODY ── */
+  .body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── PROFILE LIST ── */
+  .profile-list-pane {
+    width: 300px;
+    min-width: 300px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pane-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .pane-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .profile-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1px 7px;
+  }
+
+  .profile-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+  .profile-scroll::-webkit-scrollbar { width: 3px; }
+  .profile-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .profile-card {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .profile-card:hover { border-color: var(--border2); background: var(--surface2); }
+  .profile-card.selected { border-color: var(--accent); background: rgba(79,142,247,0.04); }
+  .profile-card.active-profile { border-color: var(--accent3); background: rgba(16,185,129,0.04); }
+
+  .card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+  .card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--heading);
+    flex: 1;
+  }
+
+  .card-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .card-badge.loaded {
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.3);
+    color: var(--accent3);
+  }
+
+  .card-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); }
+  .meta-item .meta-val { color: var(--text2); }
+
+  /* ── DETAIL PANE ── */
+  .detail-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .detail-header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .detail-profile-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--heading);
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .detail-meta-row { display: flex; gap: 20px; flex-wrap: wrap; }
+
+  .detail-meta-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-meta-item .val { color: var(--text2); }
+
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .detail-body::-webkit-scrollbar { width: 3px; }
+  .detail-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .detail-section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  /* ── TAB PREVIEW (read-only) ── */
+  .tab-preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .tab-preview-topbar {
+    height: 32px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .tab-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    padding: 4px 13px;
+    position: relative;
+    top: 1px;
+  }
+
+  .tab-preview-ro-badge {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+
+  .tab-canvas-ro {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px 12px;
+    overflow-x: auto;
+    background: var(--bg);
+    min-height: 96px;
+    align-items: flex-start;
+  }
+  .tab-canvas-ro::-webkit-scrollbar { height: 3px; }
+  .tab-canvas-ro::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Preview panel cards */
+  .p-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .p-panel-stripe { height: 3px; flex-shrink: 0; }
+
+  .p-panel-inner {
+    flex: 1;
+    padding: 8px 8px 6px;
+    display: flex;
+    gap: 5px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    min-height: 58px;
+  }
+
+  .p-panel-name {
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.18);
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    text-align: center;
+  }
+
+  .p-rib-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 44px;
+    flex-shrink: 0;
+  }
+
+  .p-rib-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+
+  .p-rib-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px;
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.3;
+    font-weight: 300;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .p-rib-stack { display: flex; flex-direction: column; gap: 2px; width: 72px; flex-shrink: 0; }
+
+  .p-rib-stack-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 5px;
+    background: var(--surface2);
+    border: 1px solid rgba(124,58,237,0.22);
+    border-radius: 3px;
+  }
+
+  .p-rib-stack-icon {
+    width: 13px; height: 13px;
+    border-radius: 2px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; flex-shrink: 0;
+    color: #a78bfa;
+  }
+
+  .p-rib-stack-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 300;
+  }
+
+  .p-panel-empty {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text3);
+    letter-spacing: 0.06em;
+    align-self: center;
+    margin: auto;
+  }
+
+  /* ── ADD-IN ROWS ── */
+  .addin-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--text2);
+  }
+
+  .addin-row-name { flex: 1; }
+
+  .addin-file {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+  .addin-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .addin-status.present {
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.25);
+    color: var(--accent3);
+  }
+  .addin-status.not-found {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--warn);
+  }
+  a.addin-status.not-found:hover {
+    background: rgba(245,158,11,0.18);
+    border-color: rgba(245,158,11,0.5);
+  }
+  .addin-status.disabled {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--warn);
+  }
+
+  /* ── ORIGIN BADGES ── */
+  .addin-origin {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .origin-native {
+    background: rgba(16,185,129,0.08);
+    color: var(--accent3);
+  }
+  .origin-autodesk {
+    background: rgba(16,185,129,0.08);
+    color: var(--accent3);
+  }
+  .origin-thirdparty {
+    background: rgba(79,142,247,0.08);
+    color: var(--accent);
+  }
+  .origin-custom {
+    background: rgba(245,158,11,0.08);
+    color: var(--warn);
+  }
+  .origin-unknown {
+    background: rgba(239,68,68,0.12);
+    color: #ef4444;
+  }
+
+  /* ── FOOTER TOGGLES ── */
+  .footer-toggles {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin: 0 auto;
+  }
+  .footer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .footer-toggle-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ── CONFIRM OVERLAY ── */
+  .confirm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .confirm-overlay.visible { opacity: 1; pointer-events: auto; }
+  .confirm-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 580px;
+    width: 90%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+  .confirm-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--heading);
+    margin-bottom: 4px;
+  }
+  .confirm-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 18px;
+  }
+  .confirm-columns {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .confirm-col { flex: 1; }
+  .confirm-col-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .confirm-col-label.staying { color: var(--accent3); }
+  .confirm-col-label.disabling { color: var(--warn); }
+  .confirm-col-label.skipped { color: var(--text3); }
+  .confirm-list {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    line-height: 1.8;
+    direction: rtl;
+  }
+  .confirm-list::-webkit-scrollbar { width: 3px; }
+  .confirm-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .confirm-list-item {
+    padding: 2px 0;
+    direction: ltr;
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .confirm-restart {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    margin-bottom: 16px;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  /* ── FOOTER ── */
+  .detail-footer {
+    padding: 14px 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .detail-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .unload-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .unload-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface2); }
+
+  .delete-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .delete-btn:hover { border-color: var(--danger); color: #fff; background: var(--danger); }
+
+  .load-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 22px;
+    border-radius: 4px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.4);
+    color: var(--accent3);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+  }
+  .load-btn:hover { background: var(--accent3); color: #0f1117; border-color: var(--accent3); }
+
+
+  /* ── TAB TOGGLES (RSTify) ── */
+  .tab-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text2);
+  }
+  .tab-toggle-name { flex: 1; }
+  .tab-toggle-switch { position: relative; width: 30px; height: 17px; flex-shrink: 0; }
+  .tab-toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .tab-toggle-track {
+    position: absolute; inset: 0; border-radius: 9px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    transition: background 0.2s, border-color 0.2s; cursor: pointer;
+  }
+  .tab-toggle-thumb {
+    position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+  .tab-toggle-switch input:checked + .tab-toggle-track {
+    background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45);
+  }
+  .tab-toggle-switch input:checked + .tab-toggle-track .tab-toggle-thumb {
+    transform: translateX(13px); background: var(--warn);
+  }
+
+  /* ── OVERLAY BUTTONS ── */
+  .overlay-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 6px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .overlay-btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .overlay-btn-secondary:hover { border-color: var(--text2); color: var(--heading); }
+  .overlay-btn-primary {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: #fff;
+  }
+  .overlay-btn-primary:hover { background: #3b7cf5; }
+
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="window-header">
+  <div class="window-title">Profile Selector</div>
+  <div class="header-sep"></div>
+  <div class="header-field">
+    <label>Revit</label>
+    <span id="revitVersionDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:0.04em">—</span>
+  </div>
+  <button class="add-profile-btn" onclick="addProfile()" style="margin-left:0">+ Add Profile from Path</button>
+</div>
+
+<div class="body">
+
+  <!-- Profile List -->
+  <div class="profile-list-pane">
+    <div class="pane-header">
+      <span class="pane-label">Profiles</span>
+      <span class="profile-count" id="profileCount">0</span>
+    </div>
+    <div class="profile-scroll" id="profileScroll">
+      <!-- Cards rendered by renderCards() -->
+    </div>
+  </div>
+
+  <!-- Detail Pane -->
+  <div class="detail-pane" id="detailPane">
+    <div class="detail-header">
+      <div class="detail-profile-name" id="detailName">
+        —
+        <span class="card-badge loaded" id="detailLoadedBadge" style="display:none;font-size:9px">● Loaded</span>
+      </div>
+      <div class="detail-meta-row" id="detailMeta"></div>
+    </div>
+
+    <div class="detail-body" id="detailBody">
+
+      <!-- Tab Preview (read-only) -->
+      <div id="tabPreviewSection">
+        <div class="detail-section-label">Tab Preview</div>
+        <div class="tab-preview-wrap">
+          <div class="tab-preview-topbar">
+            <div class="tab-pill" id="previewTabPill">—</div>
+            <span class="tab-preview-ro-badge">Read Only</span>
+          </div>
+          <div class="tab-canvas-ro" id="tabCanvas">
+            <!-- rendered by renderTabPreview() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- RSTify + Required Add-ins (two columns) -->
+      <div id="addinTogglesRow" style="display:none;gap:18px">
+        <!-- Left: Tab Toggles (1/3) -->
+        <div id="tabTogglesSection" style="flex:1;min-width:0">
+          <div class="detail-section-label">RSTify: Hide These Tabs</div>
+          <div id="tabTogglesList"></div>
+        </div>
+        <!-- Right: Required Add-ins (2/3) -->
+        <div id="detailAddins" style="flex:2;min-width:0"></div>
+      </div>
+
+    </div>
+
+    <div class="detail-footer">
+      <div class="detail-footer-left">
+        <button class="unload-btn" onclick="unloadProfile()">Unload Profile</button>
+        <button class="delete-btn" onclick="confirmRemove()">Delete Profile</button>
+      </div>
+      <div class="footer-toggles">
+        <button class="unload-btn" onclick="restoreAddins()">Restore All Add-ins</button>
+        <div class="footer-toggle">
+          <span class="footer-toggle-label">Disable unused add-ins</span>
+          <label class="tab-toggle-switch">
+            <input type="checkbox" id="disableToggle">
+            <div class="tab-toggle-track"><div class="tab-toggle-thumb"></div></div>
+          </label>
+        </div>
+      </div>
+      <button class="load-btn" id="loadBtn" onclick="loadProfile()">Load Profile →</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Confirm Disable Overlay -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-card">
+    <div class="confirm-title">Confirm Add-in Changes</div>
+    <div class="confirm-subtitle">The following changes will be applied to your add-in files.</div>
+    <div class="confirm-columns">
+      <div class="confirm-col">
+        <div class="confirm-col-label staying">Staying Active</div>
+        <div class="confirm-list" id="confirmStaying"></div>
+      </div>
+      <div class="confirm-col">
+        <div class="confirm-col-label disabling">Will Be Disabled</div>
+        <div class="confirm-list" id="confirmDisabling"></div>
+      </div>
+      <div class="confirm-col" id="confirmSkippedWrap" style="display:none">
+        <div class="confirm-col-label skipped">Not Disabled (Admin Req.)</div>
+        <div class="confirm-list" id="confirmSkipped"></div>
+      </div>
+    </div>
+    <div class="confirm-restart">Revit must restart for changes to take effect.</div>
+    <div class="confirm-actions">
+      <button class="overlay-btn overlay-btn-secondary" onclick="closeConfirm()">Cancel</button>
+      <button class="overlay-btn overlay-btn-primary" onclick="confirmDisable()">Confirm &amp; Load</button>
+    </div>
+  </div>
+</div>
+
+<script src="rst_messages.js"></script>
+<script>
+  // ── ADDIN LOOKUP TABLE ───────────────────────────────────────────────────────
+  // Loaded from lookup/addin_lookup.json via pywebview API at init.
+  let ADDIN_LOOKUP = {};
+
+  // ── LOADED ADD-INS (from Revit session) ────────────────────────────────────
+  let LOADED_ADDINS = [];
+  let ALL_TABS = [];
+  let previousHiddenTabs = [];
+  let USER_CONFIG = null;  // cached user add-in config
+
+  // ── PROFILE DATA ─────────────────────────────────────────────────────────────
+  // Full schema matching TabCreator's exportConfig() output.
+  // In production: populated by reading all .json files from the profiles subdir
+  // at %APPDATA%\RESTer\profiles\ (or install-relative equivalent).
+  //
+  // Fields:
+  //   profile        — unique name, used as filename stem when copied to profiles dir
+  //   tab            — Revit ribbon tab name pyRevit will create
+  //   min_version    — bare year string ("2024"), compared against selected install
+  //   exportDate     — ISO date string
+  //   requiredAddins — ribbon tab names (sourceTab values), matched via ADDIN_LOOKUP
+  //   hideRules      — ribbon tab names to suppress at load time (.addin → .addin.RSTdisabled)
+  //   stacks         — dict: stackName → { tools: [{name, commandId}] }
+  //   panels         — array: { name, color, slots: [{type, name, icon?, commandId?}] }
+  const profiles = [];
+
+  // ── STATE ─────────────────────────────────────────────────────────────────────
+  let activeProfileId   = null;
+  let activeProfileName = null;
+  let selectedProfile   = null;
+  let currentRevitVersion = null;
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────────
+
+  function _isActiveProfile(p) {
+    if (activeProfileId && p.id) return p.id === activeProfileId;
+    return p.profile === activeProfileName;
+  }
+
+  // Normalize requiredAddins — handles both old format (string[]) and new format (object[])
+  // Always returns [{tabName, addinFile, url, native?}]
+  function normalizeRequiredAddins(profile) {
+    var raw = profile.requiredAddins || [];
+    return raw.map(function(entry) {
+      if (typeof entry === 'string') {
+        // Old format: bare tab name string — resolve via ADDIN_LOOKUP
+        var lookup = ADDIN_LOOKUP[entry] || {};
+        return { tabName: entry, addinFile: lookup.file || null, url: lookup.url || '' };
+      }
+      // New format: already an object — preserve native flag
+      var result = { tabName: entry.tabName || '', addinFile: entry.addinFile || null, url: entry.url || '' };
+      if (entry.native) result.native = true;
+      return result;
+    });
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ── ADD-IN SESSION CHECK ──────────────────────────────────────────────────────
+  var BUILTIN_TABS = new Set([
+    'Architecture', 'Structure', 'Systems', 'Steel', 'Precast',
+    'Insert', 'Annotate', 'Analyze', 'Massing & Site', 'Collaborate',
+    'View', 'Manage', 'Modify', 'Add-Ins', 'Create', 'RSTPro',
+    'FormIt', 'FormIt Converter', 'eTransmit',
+  ]);
+
+  function isNativeTab(tabName) {
+    return BUILTIN_TABS.has(tabName);
+  }
+
+  function isAddinLoaded(tabName) {
+    if (isNativeTab(tabName)) return true;
+    if (!LOADED_ADDINS.length) return false;
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return true;
+      if (stem && name.indexOf(stem) !== -1) return true;
+    }
+    return false;
+  }
+
+  function getLoadedAddinName(tabName) {
+    if (!LOADED_ADDINS.length) return '';
+    var tabLower = tabName.toLowerCase();
+    var entry = ADDIN_LOOKUP[tabName];
+    var stem = entry ? entry.file.replace('.addin', '').toLowerCase() : '';
+    for (var i = 0; i < LOADED_ADDINS.length; i++) {
+      var name = (LOADED_ADDINS[i].name || '').toLowerCase();
+      if (name && (name.indexOf(tabLower) !== -1 || tabLower.indexOf(name) !== -1)) return LOADED_ADDINS[i].name;
+      if (stem && name.indexOf(stem) !== -1) return LOADED_ADDINS[i].name;
+    }
+    return '';
+  }
+
+  // ── RSTIFY TAB TOGGLES ───────────────────────────────────────────────────────
+  var CORE_TABS = new Set(['Modify', 'Manage', 'View', 'Annotate', 'Add-Ins', 'Create']);
+
+  function getSourceTabs(profile) {
+    var tabs = new Set();
+    if (!profile || !profile.panels) return tabs;
+    profile.panels.forEach(function(panel) {
+      (panel.slots || []).forEach(function(slot) {
+        if (slot.sourceTab && slot.sourceTab !== 'Custom') tabs.add(slot.sourceTab);
+        if (slot.type === 'stack' && profile.stacks && profile.stacks[slot.name]) {
+          (profile.stacks[slot.name].tools || []).forEach(function(t) {
+            if (t.sourceTab && t.sourceTab !== 'Custom') tabs.add(t.sourceTab);
+          });
+        }
+      });
+    });
+    return tabs;
+  }
+
+  function renderTabToggles(profile) {
+    var list = document.getElementById('tabTogglesList');
+    if (!profile || !ALL_TABS.length) {
+      list.innerHTML = '';
+      return;
+    }
+    var sourceTabs = getSourceTabs(profile);
+    sourceTabs.add(profile.tab || '');
+
+    var rows = [];
+    ALL_TABS.forEach(function(tabName) {
+      var isCore = CORE_TABS.has(tabName);
+      var isSource = sourceTabs.has(tabName);
+      if (isCore || isSource) return; // Don't show locked tabs at all
+
+      var wasHidden = previousHiddenTabs.indexOf(tabName) !== -1;
+      rows.push(
+        '<div class="tab-toggle-row">' +
+        '<span class="tab-toggle-name">' + escHtml(tabName) + '</span>' +
+        '<label class="tab-toggle-switch">' +
+        '<input type="checkbox" data-tab="' + escHtml(tabName) + '" ' + (wasHidden ? 'checked' : '') + '>' +
+        '<div class="tab-toggle-track"><div class="tab-toggle-thumb"></div></div>' +
+        '</label>' +
+        '</div>'
+      );
+    });
+
+    if (rows.length === 0) {
+      list.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);padding:8px 0">No tabs available to hide</div>';
+    } else {
+      list.innerHTML = rows.join('');
+    }
+  }
+
+  function getSelectedHiddenTabs() {
+    var hidden = [];
+    document.querySelectorAll('#tabTogglesList input[type=checkbox]:checked').forEach(function(cb) {
+      hidden.push(cb.dataset.tab);
+    });
+    return hidden;
+  }
+
+  // ── CARD RENDERING ────────────────────────────────────────────────────────────
+  function renderCards() {
+    const scroll = document.getElementById('profileScroll');
+    const count  = document.getElementById('profileCount');
+    count.textContent = profiles.length;
+
+    if (profiles.length === 0) {
+      scroll.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:30px 20px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">No profiles found</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);line-height:1.5">
+            Create a profile in the Profiler, or import an existing one.
+          </div>
+          <button class="add-profile-btn" onclick="addProfile()" style="margin-top:4px">+ Import Profile from File</button>
+        </div>`;
+      return;
+    }
+
+    scroll.innerHTML = profiles.map((p, i) => `
+      <div class="profile-card ${_isActiveProfile(p) ? 'active-profile' : ''}"
+           data-idx="${i}" onclick="selectCard(this, ${i})">
+        <div class="card-top">
+          <div class="card-name">${escHtml(p.profile)}</div>
+          ${_isActiveProfile(p) ? '<div class="card-badge loaded">● Loaded</div>' : ''}
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><span>Tab</span><span class="meta-val">${escHtml(p.tab)}</span></div>
+          <div class="meta-item"><span>Min Revit</span><span class="meta-val">${escHtml(p.min_version)}+</span></div>
+          <div class="meta-item"><span>Panels</span><span class="meta-val">${p.panels.length}</span></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── TAB PREVIEW (read-only) ───────────────────────────────────────────────────
+  function renderTabPreview(profile) {
+    document.getElementById('previewTabPill').textContent = profile.tab || '—';
+    const canvas = document.getElementById('tabCanvas');
+
+    if (!profile.panels || profile.panels.length === 0) {
+      canvas.innerHTML = `<div style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px;padding:18px;letter-spacing:0.06em">No panels configured</div>`;
+      return;
+    }
+
+    canvas.innerHTML = profile.panels.map(panel => {
+      const innerHtml = (panel.slots || []).map(slot => {
+        if (!slot) return '';
+        if (slot.type === 'tool') {
+          return `<div class="p-rib-btn">
+            <div class="p-rib-icon">${slot.icon || '⬜'}</div>
+            <div class="p-rib-label">${escHtml(slot.baseName || slot.name)}</div>
+          </div>`;
+        } else if (slot.type === 'stack') {
+          const stackDef = profile.stacks?.[slot.name];
+          const tools = stackDef?.tools || [];
+          if (tools.length === 0) return '';
+          return `<div class="p-rib-stack">
+            ${tools.map(t => `<div class="p-rib-stack-item">
+              <div class="p-rib-stack-icon">≡</div>
+              <div class="p-rib-stack-label">${t.name}</div>
+            </div>`).join('')}
+          </div>`;
+        }
+        return '';
+      }).join('');
+
+      return `<div class="p-panel">
+        <div class="p-panel-stripe" style="background:${panel.color}"></div>
+        <div class="p-panel-inner">${innerHtml || '<span class="p-panel-empty">Empty</span>'}</div>
+        <div class="p-panel-name">${escHtml(panel.name)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── CARD SELECTION ────────────────────────────────────────────────────────────
+  function clearDetailPane() {
+    selectedProfile = null;
+    document.getElementById('detailName').childNodes[0].textContent = '— ';
+    document.getElementById('detailLoadedBadge').style.display = 'none';
+    document.getElementById('detailMeta').innerHTML = '';
+    document.getElementById('tabCanvas').innerHTML = '';
+    document.getElementById('addinTogglesRow').style.display = 'none';
+  }
+
+  function selectCard(el, idx) {
+    const profile = profiles[idx];
+    selectedProfile = profile;
+
+    document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    // Header
+    document.getElementById('detailName').childNodes[0].textContent = profile.profile + ' ';
+    const loadedBadge = document.getElementById('detailLoadedBadge');
+    loadedBadge.style.display = profile.profile === activeProfileName ? 'inline-flex' : 'none';
+
+    // Meta row — tab name now included
+    document.getElementById('detailMeta').innerHTML = `
+      <div class="detail-meta-item"><span>Tab</span><span class="val" style="margin-left:5px">${escHtml(profile.tab)}</span></div>
+      <div class="detail-meta-item"><span>Min Revit</span><span class="val" style="margin-left:5px">${escHtml(profile.min_version)}+</span></div>
+      <div class="detail-meta-item"><span>Updated</span><span class="val" style="margin-left:5px">${escHtml(profile.exportDate)}</span></div>
+    `;
+
+    // Tab preview
+    renderTabPreview(profile);
+
+    // Show the two-column row
+    document.getElementById('addinTogglesRow').style.display = 'flex';
+
+    // Required add-ins (right column)
+    const addinsContainer = document.getElementById('detailAddins');
+    const normalizedAddins = normalizeRequiredAddins(profile);
+    if (normalizedAddins.length > 0) {
+      addinsContainer.innerHTML = `
+        <div class="detail-section-label">Required Add-ins for this profile</div>
+        ${normalizedAddins.map(addin => {
+          const tabName = addin.tabName;
+          const native = isNativeTab(tabName) || addin.native === true;
+          const known = ADDIN_LOOKUP[tabName];
+          const loaded = !native && isAddinLoaded(tabName);
+          const matchedName = !native && loaded ? getLoadedAddinName(tabName) : '';
+          const fileCol     = native ? 'Revit Built-in'
+            : addin.addinFile ? escHtml(addin.addinFile)
+            : (matchedName ? escHtml(matchedName) : (known ? known.file : ''));
+
+          // Four-state: check user config for installed/disabled state
+          var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[tabName] : null;
+          var isDisabled = configEntry && configEntry.enabled === false;
+          var isInstalled = configEntry && configEntry.enabled === true;
+          var statusCls, statusLabel, statusTitle;
+
+          if (native) {
+            statusCls = 'present';
+            statusLabel = 'Native';
+            statusTitle = 'Built-in Revit feature \u2014 always available';
+          } else if (loaded) {
+            statusCls = 'present';
+            statusLabel = 'Loaded';
+            statusTitle = 'Loaded in current Revit session' + (matchedName ? ' (' + matchedName + ')' : '');
+          } else if (isInstalled) {
+            statusCls = 'present';
+            statusLabel = 'Installed';
+            statusTitle = 'Installed (' + (configEntry.addinFile || tabName) + ')';
+          } else if (isDisabled) {
+            statusCls = 'disabled';
+            statusLabel = 'Disabled';
+            statusTitle = 'Add-in is disabled (.addin.RSTdisabled) \u2014 enable via Restore All Add-ins';
+          } else {
+            statusCls = 'not-found';
+            statusLabel = 'Not Found';
+            var url = addin.url || (known ? known.url : '');
+            statusTitle = url ? 'Click to download' : 'Not found on this machine';
+          }
+
+          var originVal = configEntry ? (configEntry.origin || '') : (native ? 'native' : '');
+          var originCls = originVal === 'native' ? 'origin-native'
+            : originVal === 'autodesk' ? 'origin-autodesk'
+            : originVal === 'third-party' ? 'origin-thirdparty'
+            : originVal === 'custom' ? 'origin-custom'
+            : originVal === 'unknown' ? 'origin-unknown' : '';
+
+          var isNative = originVal === 'native';
+          var addinUrl = addin.url || (known ? known.url : '');
+          var urlHtml = !isNative && addinUrl
+            ? `<a href="${escHtml(addinUrl)}" target="_blank" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-decoration:none;flex-shrink:0" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'" title="${escHtml(addinUrl)}">info ↗</a>`
+            : '';
+
+          return `<div class="addin-row">
+            <span class="addin-row-name">${escHtml(tabName)}</span>
+            <span class="addin-file">${fileCol}</span>
+            ${urlHtml}
+            ${originVal && !isNative ? `<span class="addin-origin ${originCls}">${originVal}</span>` : ''}
+            <span class="addin-status ${statusCls}" title="${statusTitle}">${statusLabel}</span>
+          </div>`;
+        }).join('')}
+      `;
+    } else {
+      addinsContainer.innerHTML = '<div class="detail-section-label">Required Add-ins for this profile</div><div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);padding:8px 0">None</div>';
+    }
+
+    // RSTify tab toggles (left column)
+    renderTabToggles(profile);
+
+  }
+
+  // ── REVIT VERSION DISPLAY ─────────────────────────────────────────────────────
+
+  // ── ADD PROFILE ───────────────────────────────────────────────────────────────
+  // Production flow:
+  //   1. OS file picker → user selects a .json file shared by admin (email, Slack, etc.)
+  //   2. REST validates schema (required fields, min_version format, panels not empty)
+  //   3. Validated file is copied to %APPDATA%\RESTer\profiles\ (or install-relative subdir)
+  //   4. Copied filename: {profile}_{exportDate}.json
+  //   5. Profile is immediately added to profiles[] and rendered in the list
+  //   6. On every subsequent launch, ProfileSelector reads all .json files from that dir
+  function addProfile() {
+    window.pywebview.api.add_profile().then(function(result) {
+      if (result && result.ok) {
+        profiles.push(result.profile);
+        renderCards();
+      }
+    }).catch(function(err) {
+      if (err) console.error('addProfile error:', err);
+    });
+  }
+
+  // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
+  function showLoadingAndClose(title, body) {
+    RSTmsgWait(title, body);
+    setTimeout(function() {
+      RSTmsgWaitClose();
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+      } else {
+        try { window.close(); } catch(e) {}
+      }
+    }, 3000);
+  }
+
+  // ── NOT-FOUND CHECK ─────────────────────────────────────────────────────────
+
+  function getNotFoundAddins(profile) {
+    // Required add-ins not found on disk — no config entry, not loaded, not native
+    return normalizeRequiredAddins(profile).filter(function(addin) {
+      if (addin.native || isNativeTab(addin.tabName) || isAddinLoaded(addin.tabName)) return false;
+      var configEntry = USER_CONFIG && USER_CONFIG.addins ? USER_CONFIG.addins[addin.tabName] : null;
+      if (configEntry) return false;
+      return true;
+    });
+  }
+
+  // ── LOAD PROFILE ──────────────────────────────────────────────────────────────
+  var pendingNotFoundWarnings = [];
+
+  function doLoadProfile() {
+    var hiddenTabs = getSelectedHiddenTabs();
+    var disableToggle = document.getElementById('disableToggle');
+    var disableUnused = disableToggle ? disableToggle.checked : false;
+
+    window.pywebview.api.load_profile(selectedProfile.profile, disableUnused, currentRevitVersion, hiddenTabs, selectedProfile.id).then(function(result) {
+      if (!result.ok) {
+        RSTmsgInform('Load Failed', 'Failed to load profile.');
+        return;
+      }
+      activeProfileId = selectedProfile.id;
+      activeProfileName = selectedProfile.profile;
+
+      var lines = [];
+      if (result.restart_needed) {
+        lines.push('Add-ins modified — restart Revit for changes.');
+      }
+      lines.push('Tab "' + selectedProfile.tab + '" will build on next pyRevit reload.');
+      if (pendingNotFoundWarnings.length > 0) {
+        pendingNotFoundWarnings.forEach(function(w) { lines.push(w); });
+        pendingNotFoundWarnings = [];
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        result.warnings.forEach(function(w) { lines.push(w); });
+      }
+      showLoadingAndClose('Loading ' + selectedProfile.profile, lines.join(' '));
+    }).catch(function(err) {
+      RSTmsgInform('Error', 'Error loading profile: ' + (err.message || err));
+    });
+  }
+
+  function loadProfile() {
+    if (!selectedProfile) return;
+
+    // Check 1: not-found add-ins — warn but don't block
+    pendingNotFoundWarnings = [];
+    var notFound = getNotFoundAddins(selectedProfile);
+    if (notFound.length > 0) {
+      notFound.forEach(function(addin) {
+        var ver = currentRevitVersion || 'your version';
+        var msg = addin.tabName + ' not found. If you experience issues with using tools from this add-in please install for Revit ' + ver + ' and retry.';
+        pendingNotFoundWarnings.push(msg);
+      });
+    }
+
+    // Check 2: disable toggle — show confirmation overlay if on
+    var disableToggle = document.getElementById('disableToggle');
+    if (disableToggle && disableToggle.checked) {
+      window.pywebview.api.get_disable_preview(selectedProfile.profile).then(function(preview) {
+        if (preview.error) {
+          RSTmsgInform('Error', preview.error);
+          return;
+        }
+        showConfirmOverlay(preview.staying, preview.disabling, preview.skipped || []);
+      }).catch(function(err) {
+        console.error('get_disable_preview error:', err);
+        // Fall through to load without disable
+        doLoadProfile();
+      });
+      return;
+    }
+
+    doLoadProfile();
+  }
+
+  // ── CONFIRM DISABLE OVERLAY ─────────────────────────────────────────────────
+  function showConfirmOverlay(staying, disabling, skipped) {
+    var stayingList = document.getElementById('confirmStaying');
+    var disablingList = document.getElementById('confirmDisabling');
+    var skippedList = document.getElementById('confirmSkipped');
+    var skippedWrap = document.getElementById('confirmSkippedWrap');
+
+    stayingList.innerHTML = staying.map(function(info) {
+      return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
+    }).join('') || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
+
+    disablingList.innerHTML = disabling.map(function(info) {
+      return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
+    }).join('') || '<div class="confirm-list-item" style="color:var(--text3)">None</div>';
+
+    if (skipped && skipped.length > 0) {
+      skippedList.innerHTML = skipped.map(function(info) {
+        return '<div class="confirm-list-item">' + escHtml(info.displayName || info.tabName || 'Unknown') + '</div>';
+      }).join('');
+      skippedWrap.style.display = '';
+    } else {
+      skippedWrap.style.display = 'none';
+    }
+
+    document.getElementById('confirmOverlay').classList.add('visible');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirmOverlay').classList.remove('visible');
+  }
+
+  function confirmDisable() {
+    closeConfirm();
+    doLoadProfile();
+  }
+
+  // ── FOOTER TOGGLE HANDLERS ─────────────────────────────────────────────────
+
+
+  function restoreAddins() {
+    window.pywebview.api.restore_addins().then(function(result) {
+      if (!result.ok) {
+        RSTmsgInform('Restore Failed', 'Failed to restore add-ins: ' + (result.error || 'Unknown error'));
+        return;
+      }
+      // Refresh user config cache and re-render addin badges only (not tab toggles)
+      window.pywebview.api.get_user_config().then(function(cfg) {
+        USER_CONFIG = cfg;
+      });
+      var names = result.restored || [];
+      if (names.length > 0) {
+        RSTmsgInform('Please Restart Revit', 'After restart, the following add-ins will be restored: ' + names.join(', '));
+      } else {
+        RSTmsgInform('No Changes', 'No disabled add-ins found to restore.');
+      }
+    }).catch(function(err) {
+      RSTmsgInform('Error', 'Error restoring add-ins: ' + (err.message || err));
+    });
+  }
+
+
+  // ── UNLOAD PROFILE ────────────────────────────────────────────────────────────
+  // Removes active_profile.json so Revit no longer loads this profile,
+  // but does NOT delete the profile JSON from the profiles directory.
+  function unloadProfile() {
+    if (!activeProfileName && !activeProfileId) { RSTmsgInform('No Profile', 'No profile is currently loaded.'); return; }
+
+    window.pywebview.api.unload_profile().then(function(result) {
+      if (!result.ok) {
+        RSTmsgInform('Unload Failed', 'Failed to unload profile.');
+        return;
+      }
+      activeProfileId = null;
+      activeProfileName = null;
+      selectedProfile = null;
+      renderCards();
+      var firstCard = document.querySelector('.profile-card');
+      if (firstCard) firstCard.click();
+      showLoadingAndClose('Unloading', 'A blank RST tab will replace the current one.');
+    }).catch(function(err) {
+      RSTmsgInform('Error', 'Error unloading profile: ' + (err.message || err));
+    });
+  }
+
+  // ── DELETE PROFILE ────────────────────────────────────────────────────────────
+  function confirmRemove() {
+    if (!selectedProfile) return;
+    const name = selectedProfile.profile;
+    const pid = selectedProfile.id;
+    const isLoaded = _isActiveProfile(selectedProfile);
+
+    var body = 'This deletes the local copy. The original file shared by the admin is not affected.';
+    if (isLoaded) {
+      body += ' This is the currently loaded profile — a blank RST tab will replace it.';
+    }
+
+    RSTmsgConfirm('Delete "' + name + '"?', body).then(function(ok) {
+      if (!ok) return;
+
+      function doDelete() {
+        window.pywebview.api.remove_profile(name, pid).then(function(result) {
+          if (!result.ok) {
+            RSTmsgInform('Delete Failed', 'Failed to delete profile.');
+            return;
+          }
+          var idx = profiles.findIndex(function(p) { return (pid && p.id === pid) || p.profile === name; });
+          if (idx !== -1) profiles.splice(idx, 1);
+          if (isLoaded) { activeProfileId = null; activeProfileName = null; }
+          selectedProfile = null;
+          renderCards();
+          var firstCard = document.querySelector('.profile-card');
+          if (firstCard) {
+            firstCard.click();
+          } else {
+            clearDetailPane();
+          }
+          if (isLoaded) {
+            showLoadingAndClose('Unloading', 'A blank RST tab will replace the current one.');
+          }
+        }).catch(function(err) {
+          RSTmsgInform('Error', 'Error deleting profile: ' + (err.message || err));
+        });
+      }
+
+      // Unload first if this is the active profile
+      if (isLoaded) {
+        window.pywebview.api.unload_profile().then(function(result) {
+          if (!result.ok) {
+            RSTmsgInform('Unload Failed', 'Failed to unload profile.');
+            return;
+          }
+          doDelete();
+        }).catch(function(err) {
+          RSTmsgInform('Error', 'Error unloading profile: ' + (err.message || err));
+        });
+      } else {
+        doDelete();
+      }
+    });
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────────
+
+  window.addEventListener('pywebviewready', function() {
+    // Fetch addin lookup
+    window.pywebview.api.get_addin_lookup().then(function(lookup) {
+      if (lookup && typeof lookup === 'object') {
+        ADDIN_LOOKUP = lookup;
+      }
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch loaded add-ins from Revit session
+    window.pywebview.api.get_loaded_addins().then(function(addins) {
+      if (Array.isArray(addins)) {
+        LOADED_ADDINS = addins;
+      }
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch profiles
+    window.pywebview.api.get_profiles().then(function(data) {
+      data.forEach(function(p) { profiles.push(p); });
+      renderCards();
+
+      // Highlight the active profile and load previous hidden tabs
+      window.pywebview.api.get_active_profile().then(function(result) {
+        if (result && (result.name || result.id)) {
+          activeProfileId = result.id;
+          activeProfileName = result.name;
+          previousHiddenTabs = result.hidden_tabs || [];
+          var disableToggle = document.getElementById('disableToggle');
+          if (disableToggle) disableToggle.checked = !!result.disable_non_required;
+          renderCards();
+          var idx = profiles.findIndex(function(p) { return _isActiveProfile(p); });
+          var cards = document.querySelectorAll('.profile-card');
+          if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
+        }
+      }).catch(function(err) { console.error(err); });
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch all ribbon tabs for RSTify toggles
+    window.pywebview.api.get_all_tabs().then(function(tabs) {
+      if (Array.isArray(tabs)) {
+        ALL_TABS = tabs;
+      }
+    }).catch(function(err) { console.error(err); });
+
+    // Fetch user add-in config for three-state badges
+    window.pywebview.api.get_user_config().then(function(cfg) {
+      USER_CONFIG = cfg;
+      // Re-render selected card if any, to apply three-state badges
+      if (selectedProfile) {
+        var idx = profiles.indexOf(selectedProfile);
+        var cards = document.querySelectorAll('.profile-card');
+        if (idx !== -1 && cards[idx]) selectCard(cards[idx], idx);
+      }
+    }).catch(function(err) { console.error('get_user_config error:', err); });
+
+    // Fetch active Revit version
+    window.pywebview.api.get_revit_version().then(function(ver) {
+      if (ver) {
+        currentRevitVersion = ver;
+        document.getElementById('revitVersionDisplay').textContent = 'Revit ' + ver;
+      } else {
+        document.getElementById('revitVersionDisplay').textContent = 'Not detected';
+      }
+    }).catch(function(err) { console.error(err); });
+
+  });
+</script>
+</body>
+</html>

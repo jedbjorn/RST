@@ -1,0 +1,20 @@
+{
+  "autodesk_addins": [
+    "Dynamo.addin",
+    "DynamoForRevit.addin",
+    "FormItConverter.addin",
+    "ExportViewSelectorApp.addin",
+    "Autodesk.WorksharingMonitor.Application.addin",
+    "Autodesk.eTransmitApplication.addin",
+    "Autodesk.Collaborate.addin",
+    "Autodesk.BatchPrint.addin",
+    "Autodesk.TotalCarbonAnalysis.addin"
+  ],
+  "locked_addins": [
+    "DiRoots.addin",
+    "DiRoots.One.addin"
+  ],
+  "exempt_paths": [
+    "%APPDATA%\\Dynamo"
+  ]
+}

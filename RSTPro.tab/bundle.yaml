@@ -1,0 +1,7 @@
+layout:
+  - Profiler
+  - Loader
+  - Minify
+  - Health
+  - Update
+  - Reload
