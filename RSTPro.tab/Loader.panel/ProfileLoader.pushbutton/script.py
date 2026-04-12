@@ -30,10 +30,8 @@ if os.path.exists(_active_path):
 
 # Collect Revit session data for Profile Selector
 _revit_version = None
-_revit_build = None
 try:
     _revit_version = str(__revit__.Application.VersionNumber)
-    _revit_build = str(__revit__.Application.VersionBuild)
 except Exception:
     pass
 
@@ -154,30 +152,6 @@ try:
 except Exception:
     pass
 
-# Get active model info + warnings
-_model_name = ''
-_model_path = ''
-_warnings_count = None
-_warnings_by_severity = {}
-try:
-    doc = __revit__.ActiveUIDocument.Document
-    if doc:
-        _model_name = str(doc.Title) if doc.Title else ''
-        _model_path = str(doc.PathName) if doc.PathName else ''
-        try:
-            _w = list(doc.GetWarnings())
-            _warnings_count = len(_w)
-            for fm in _w:
-                try:
-                    sev = str(fm.GetSeverity()).split('.')[-1]
-                except Exception:
-                    sev = 'Unknown'
-                _warnings_by_severity[sev] = _warnings_by_severity.get(sev, 0) + 1
-        except Exception as e:
-            log.warning('Could not read document warnings: %s', e)
-except Exception:
-    pass
-
 log.info('Revit %s, %d tabs, %d loaded add-ins, %d addin panels, username=%s',
          _revit_version, len(_all_tabs), len(_loaded_addins), len(_addin_panels), _revit_username)
 
@@ -186,12 +160,7 @@ _loader_data_path = os.path.join(_root, 'app', '_loader_data.json')
 with io.open(_loader_data_path, 'w', encoding='utf-8') as f:
     json.dump({
         'revit_version': _revit_version,
-        'revit_build': _revit_build,
         'revit_username': _revit_username,
-        'model_name': _model_name,
-        'model_path': _model_path,
-        'warnings_count': _warnings_count,
-        'warnings_by_severity': _warnings_by_severity,
         'loaded_addins': _loaded_addins,
         'all_tabs': _all_tabs,
         'addin_panels': _addin_panels,
