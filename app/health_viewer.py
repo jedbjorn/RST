@@ -8,7 +8,6 @@ import os
 import re
 import sys
 import json
-import time
 import subprocess
 import webview
 
@@ -64,29 +63,26 @@ def _purge_flat(path, label='purge'):
 
 
 def _purge_collab_cache(path, label='collabCache'):
-    """Walk `path` recursively, delete files whose mtime-date != today. Skips locked items.
+    """Walk `path` recursively and try to delete every file. Locked files
+    (active collaboration sessions) fail naturally with OSError and are
+    skipped — no date filter. User-initiated cleanup means real clean.
     Returns (deleted_count, skipped_count)."""
     if not os.path.isdir(path):
         log.info('[%s] path missing, skipping: %s', label, path)
         return 0, 0
     deleted = 0
     skipped = 0
-    kept_today = 0
-    curtime = time.ctime()[:10]
     for root, _dirs, files in os.walk(path):
         for name in files:
             full = os.path.join(root, name)
             try:
-                if time.ctime(os.path.getmtime(full))[:10] == curtime:
-                    kept_today += 1
-                    continue
                 os.unlink(full)
                 deleted += 1
             except OSError as e:
                 skipped += 1
                 log.debug('[%s] skipped %s: %s', label, name, e)
-    log.info('[%s] %s: deleted=%d skipped=%d kept_today=%d',
-             label, path, deleted, skipped, kept_today)
+    log.info('[%s] %s: deleted=%d skipped=%d (locked/in-use)',
+             label, path, deleted, skipped)
     return deleted, skipped
 
 
