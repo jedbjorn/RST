@@ -25,9 +25,21 @@ log = get_logger('health_viewer')
 
 _html_path = os.path.join(UI_DIR, 'health_viewer.html')
 
-_REVIT_VERSION_RE = re.compile(r'^Revit\s+\d{4}$', re.IGNORECASE)
 _REVIT_APPDATA_DIR_RE = re.compile(r'^Autodesk Revit \d{4}$', re.IGNORECASE)
 _RECENT_FILE_ENTRY_RE = re.compile(r'^\s*File\d+\s*=', re.IGNORECASE)
+
+
+def _decode_ini_bytes(data):
+    """Sniff BOM and return (text, encoding). Revit.ini is typically UTF-16 LE
+    with BOM on modern Revit. Treating it as UTF-8 leaves null bytes embedded
+    and breaks section-header matching."""
+    if data.startswith(b'\xff\xfe'):
+        return data.decode('utf-16-le'), 'utf-16-le'
+    if data.startswith(b'\xfe\xff'):
+        return data.decode('utf-16-be'), 'utf-16-be'
+    if data.startswith(b'\xef\xbb\xbf'):
+        return data.decode('utf-8-sig'), 'utf-8-sig'
+    return data.decode('utf-8', errors='ignore'), 'utf-8'
 
 
 def _purge_flat(path, label='purge'):
@@ -89,25 +101,34 @@ def _purge_collab_cache(path, label='collabCache'):
 def _purge_recent_file_list(ini_path, label='recentFiles'):
     """Strip FileN= entries under [Recent File List] in a Revit.ini, preserving
     everything else (including the section header). Atomic rewrite via temp file.
+    Reads/writes in the file's native encoding (Revit.ini is UTF-16 LE with BOM
+    on modern Revit — UTF-8 decode leaves nulls embedded and breaks matching).
     Returns (deleted_count, skipped_count) — skipped is 1 on any IO error
     (usually means Revit is running and holding the file)."""
     if not os.path.isfile(ini_path):
         log.info('[%s] ini missing, skipping: %s', label, ini_path)
         return 0, 0
     try:
-        with open(ini_path, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
+        with open(ini_path, 'rb') as f:
+            data = f.read()
     except OSError as e:
         log.warning('[%s] could not read %s: %s', label, ini_path, e)
         return 0, 1
 
+    text, encoding = _decode_ini_bytes(data)
+    log.info('[%s] %s: encoding=%s', label, ini_path, encoding)
+    lines = text.splitlines(keepends=True)
+
     out = []
     in_section = False
+    section_seen = False
     deleted = 0
     for raw in lines:
         stripped = raw.strip()
         if stripped.startswith('[') and stripped.endswith(']'):
             in_section = (stripped.lower() == '[recent file list]')
+            if in_section:
+                section_seen = True
             out.append(raw)
             continue
         if in_section and _RECENT_FILE_ENTRY_RE.match(raw):
@@ -116,13 +137,21 @@ def _purge_recent_file_list(ini_path, label='recentFiles'):
         out.append(raw)
 
     if deleted == 0:
-        log.info('[%s] %s: nothing to remove', label, ini_path)
+        log.info('[%s] %s: nothing to remove (section_matched=%s)',
+                 label, ini_path, section_seen)
         return 0, 0
 
     tmp_path = ini_path + '.rsttmp'
     try:
-        with open(tmp_path, 'w', encoding='utf-8') as f:
-            f.writelines(out)
+        # Write-encoding preserves the original BOM form so Revit can still parse it.
+        write_encoding = {
+            'utf-16-le': 'utf-16',   # 'utf-16' writes the BOM
+            'utf-16-be': 'utf-16',
+            'utf-8-sig': 'utf-8-sig',
+            'utf-8':     'utf-8',
+        }[encoding]
+        with open(tmp_path, 'w', encoding=write_encoding, newline='') as f:
+            f.write(''.join(out))
         os.replace(tmp_path, ini_path)
         log.info('[%s] %s: deleted=%d', label, ini_path, deleted)
         return deleted, 0
@@ -189,7 +218,7 @@ class HealthViewerAPI:
                 subdirs = []
             log.info('Revit root subdirs found: %s', subdirs)
             for entry in subdirs:
-                if not _REVIT_VERSION_RE.match(entry):
+                if not _REVIT_APPDATA_DIR_RE.match(entry):
                     continue
                 vdir = os.path.join(revit_root, entry)
                 if not os.path.isdir(vdir):
