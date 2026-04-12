@@ -3567,6 +3567,31 @@
       }
     }
 
+    // Always merge URL/custom stack tools from the loaded profile into
+    // state.allTools. Auto-record only captures Revit ribbon commands, so
+    // without this merge the commandIds for URL/email stack tools get dropped
+    // on re-export (cmdLookup in exportProfile wouldn't find them).
+    if (profile.stacks) {
+      const existingToolNames = new Set((state.allTools || []).map(t => t.name));
+      Object.values(profile.stacks).forEach(sd => {
+        (sd.tools || []).forEach(t => {
+          const toolName = (t && (t.name || t)) || null;
+          if (!toolName || existingToolNames.has(toolName)) return;
+          const cmdId = (t && t.commandId) || null;
+          if (!cmdId || !cmdId.startsWith('URL:')) return;
+          const icon = cmdId.startsWith('URL:mailto:') ? '@' : '\u{1F517}';
+          state.allTools.push({
+            name:      toolName,
+            baseName:  t.baseName || toolName,
+            icon:      icon,
+            sourceTab: t.sourceTab || 'Custom',
+            commandId: cmdId,
+          });
+          existingToolNames.add(toolName);
+        });
+      });
+    }
+
     // Do NOT rebuild state.allTools here — it is populated by the auto-record
     // scan with ALL Revit commands. The profile's tools are already placed in
     // panels/stacks above, so renderToolList() will mark them as checked.

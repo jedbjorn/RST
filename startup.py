@@ -526,7 +526,7 @@ def _create_stack_row_panel(stack_name, stack_def):
     """Create a RibbonRowPanel containing 2-3 standard-sized buttons stacked vertically.
     AdWindows requires an explicit RibbonRowPanel to stack items — adding Standard-sized
     buttons directly to a panel does not auto-stack them."""
-    from Autodesk.Windows import RibbonButton, RibbonItemSize, RibbonRowPanel
+    from Autodesk.Windows import RibbonButton, RibbonItemSize, RibbonRowPanel, RibbonRowBreak
 
     tools = stack_def.get('tools', [])
     if not tools or len(tools) > 3:
@@ -584,7 +584,7 @@ def _create_stack_row_panel(stack_name, stack_def):
             row_panel.Items.Add(btn)
             # Add row break between items (not after last)
             if i < len(tools) - 1:
-                row_panel.Items.Add(RibbonRowPanel.RibbonRowBreak())
+                row_panel.Items.Add(RibbonRowBreak())
             log.debug('  Stack tool: %s -> %s', tool_name, command_id)
         except Exception as e:
             log.error('Failed to create stack button %s: %s', tool_name, e)
